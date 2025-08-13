@@ -4,6 +4,10 @@
     {
       "src": "src/server.ts",
       "use": "@vercel/node"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -18,6 +22,10 @@
     {
       "src": "/api-docs(.*)",
       "dest": "/src/server.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ],
   "env": {
