@@ -26,6 +26,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 // Import the TripService
 import TripService, { TruckType, TripRequest } from '../services/TripService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
+import { LocationPicker } from '../components/LocationPicker';
 
 // Material Types for truck delivery
 const MATERIAL_TYPES = [
@@ -277,76 +278,44 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         
         {/* Pickup Location */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📍 Pickup Location</Text>
-          <View style={styles.addressContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Street Address"
-              placeholderTextColor="#888"
-              value={pickupAddress.street}
-              onChangeText={(value) => handleAddressChange('pickup', 'street', value)}
-            />
-            <View style={styles.row}>
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                placeholder="City"
-                placeholderTextColor="#888"
-                value={pickupAddress.city}
-                onChangeText={(value) => handleAddressChange('pickup', 'city', value)}
-              />
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                placeholder="State"
-                placeholderTextColor="#888"
-                value={pickupAddress.state}
-                onChangeText={(value) => handleAddressChange('pickup', 'state', value)}
-              />
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="Postal Code"
-              placeholderTextColor="#888"
-              value={pickupAddress.postal_code}
-              onChangeText={(value) => handleAddressChange('pickup', 'postal_code', value)}
-            />
-          </View>
+          <LocationPicker
+            label="📍 Pickup Location"
+            placeholder="Select pickup location"
+            value={pickupAddress}
+            onLocationSelect={(location) => {
+              setPickupAddress({
+                street: location.address,
+                city: '',
+                state: '',
+                postal_code: '',
+                formatted_address: location.formatted_address,
+                latitude: location.latitude,
+                longitude: location.longitude,
+              });
+            }}
+            currentLocation={pickupAddress}
+          />
         </View>
 
         {/* Delivery Location */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🚛 Delivery Location</Text>
-          <View style={styles.addressContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Street Address"
-              placeholderTextColor="#888"
-              value={deliveryAddress.street}
-              onChangeText={(value) => handleAddressChange('delivery', 'street', value)}
-            />
-            <View style={styles.row}>
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                placeholder="City"
-                placeholderTextColor="#888"
-                value={deliveryAddress.city}
-                onChangeText={(value) => handleAddressChange('delivery', 'city', value)}
-              />
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                placeholder="State"
-                placeholderTextColor="#888"
-                value={deliveryAddress.state}
-                onChangeText={(value) => handleAddressChange('delivery', 'state', value)}
-              />
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="Postal Code"
-              placeholderTextColor="#888"
-              value={deliveryAddress.postal_code}
-              onChangeText={(value) => handleAddressChange('delivery', 'postal_code', value)}
-            />
-          </View>
+          <LocationPicker
+            label="🚛 Delivery Location"
+            placeholder="Select delivery location"
+            value={deliveryAddress}
+            onLocationSelect={(location) => {
+              setDeliveryAddress({
+                street: location.address,
+                city: '',
+                state: '',
+                postal_code: '',
+                formatted_address: location.formatted_address,
+                latitude: location.latitude,
+                longitude: location.longitude,
+              });
+            }}
+            currentLocation={deliveryAddress}
+          />
         </View>
 
         {/* Material Selection */}

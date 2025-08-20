@@ -16,6 +16,7 @@ import {
   Animated,
   Dimensions,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import MapView, { Marker, Polyline, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,7 +45,7 @@ const theme = {
 
 // Supabase client for real-time subscriptions - CORRECTED URL
 const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ3MTA3NzAsImV4cCI6MjA1MDI4Njc3MH0.hxjZ7PJaWrVCdkjnDJNrOdFDfshJE-8BjGMBJQT2E5k';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface LiveTrackingScreenTripProps {
@@ -94,7 +95,15 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
 
   useEffect(() => {
     initializeTracking();
+    
+    // Fallback timeout to ensure loading doesn't stay stuck
+    const fallbackTimeout = setTimeout(() => {
+      console.log('⚠️ Fallback timeout reached, forcing loading to false');
+      setLoading(false);
+    }, 10000); // 10 seconds max loading time
+    
     return () => {
+      clearTimeout(fallbackTimeout);
       if (trackingSubscription.current) {
         trackingSubscription.current.unsubscribe();
       }
@@ -103,44 +112,38 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
 
   const initializeTracking = async () => {
     try {
+      console.log('🚀 Starting tracking initialization for trip:', tripId);
       setLoading(true);
       
       // Get trip details
+      console.log('📊 Fetching trip data...');
       const tripData = await tripService.getTripById(tripId);
       if (tripData) {
+        console.log('✅ Trip data loaded:', tripData);
         setTrip(tripData);
         
         // Get driver info if assigned
         if (tripData.assigned_driver_id) {
+          console.log('👨‍✈️ Fetching driver info...');
           const driver = await getDriverInfo(tripData.assigned_driver_id);
           setDriverInfo(driver);
+          console.log('✅ Driver info loaded:', driver);
         }
+      } else {
+        console.warn('⚠️ No trip data found for trip ID:', tripId);
       }
 
       // Initialize location tracking with proper permission handling
       try {
-        console.log('🚀 Initializing location tracking for trip:', tripId);
+        console.log('� Initializing location tracking...');
         const initResult = await locationService.initializeForTripTracking();
         
         if (!initResult.success) {
           console.error('❌ Failed to initialize location tracking:', initResult.error);
-          Alert.alert(
-            'Location Setup Error',
-            initResult.error || 'Unable to initialize location tracking. Please check your location settings.',
-            [
-              { text: 'OK', style: 'default' },
-              { 
-                text: 'Open Settings', 
-                onPress: () => {
-                  // This will open app settings where user can enable location
-                  Linking.openSettings();
-                }
-              }
-            ]
-          );
           
           // Use pickup location as fallback
           if (tripData?.pickup_latitude && tripData?.pickup_longitude) {
+            console.log('🔄 Using pickup location as fallback');
             setCustomerLocation({
               latitude: tripData.pickup_latitude,
               longitude: tripData.pickup_longitude,
@@ -157,6 +160,7 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
           } else {
             // Use pickup location from trip as fallback
             if (tripData?.pickup_latitude && tripData?.pickup_longitude) {
+              console.log('🔄 Using pickup location as customer location fallback');
               setCustomerLocation({
                 latitude: tripData.pickup_latitude,
                 longitude: tripData.pickup_longitude,
@@ -167,23 +171,10 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
         }
       } catch (locationError) {
         console.error('❌ Location initialization error:', locationError);
-        Alert.alert(
-          'Location Permission Required',
-          'To track your delivery, please allow location access in your device settings.',
-          [
-            { text: 'OK', style: 'default' },
-            { 
-              text: 'Open Settings', 
-              onPress: () => {
-                // This will open app settings where user can enable location
-                Linking.openSettings();
-              }
-            }
-          ]
-        );
         
         // Use pickup location as fallback
         if (tripData?.pickup_latitude && tripData?.pickup_longitude) {
+          console.log('🔄 Using pickup location as error fallback');
           setCustomerLocation({
             latitude: tripData.pickup_latitude,
             longitude: tripData.pickup_longitude,
@@ -193,14 +184,16 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
       }
 
       // Subscribe to real-time tracking updates
+      console.log('🔄 Setting up real-time subscriptions...');
       subscribeToTrackingUpdates();
       
       // Start pulse animation
       startPulseAnimation();
       
+      console.log('✅ Tracking initialization completed');
       setLoading(false);
     } catch (error) {
-      console.error('Error initializing tracking:', error);
+      console.error('❌ Error initializing tracking:', error);
       Alert.alert('Error', 'Failed to initialize tracking');
       setLoading(false);
     }
@@ -220,7 +213,7 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
           vehicle_model,
           rating
         `)
-        .eq('id', driverId)
+        .eq('user_id', driverId)
         .single();
 
       if (error) throw error;
@@ -383,8 +376,20 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Live Tracking</Text>
+          <View style={styles.backButton} />
+        </View>
+        
         <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading trip tracking...</Text>
+          <Text style={styles.loadingSubtext}>Setting up location services and driver info</Text>
         </View>
       </SafeAreaView>
     );
@@ -564,6 +569,14 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: theme.lightText,
+    marginTop: 16,
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: theme.lightText,
+    marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
   header: {
     flexDirection: 'row',

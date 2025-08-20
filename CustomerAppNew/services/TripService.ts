@@ -386,7 +386,7 @@ class TripService {
           *,
           truck_types(name, description),
           assigned_driver:users!trip_requests_assigned_driver_id_fkey(first_name, last_name, phone),
-          trip_tracking(current_latitude, current_longitude, status_update, created_at)
+          trip_tracking(driver_latitude, driver_longitude, customer_latitude, customer_longitude, status_update, created_at)
         `)
         .eq('id', tripId)
         .single();
