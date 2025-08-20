@@ -51,3 +51,11 @@ class SimpleLogger implements Logger {
 }
 
 export const logger = new SimpleLogger();
+
+// Simple error creation utility
+export const createError = (message: string, statusCode: number = 500, details?: any): Error => {
+  const error = new Error(message) as any;
+  error.statusCode = statusCode;
+  error.details = details;
+  return error;
+};

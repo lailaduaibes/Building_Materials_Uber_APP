@@ -139,7 +139,7 @@ export class VehicleController {
         success: true,
         message: 'Vehicles retrieved successfully',
         data: {
-          vehicles: result.rows.map(vehicle => ({
+          vehicles: result.rows.map((vehicle: any) => ({
             id: vehicle.id,
             licensePlate: vehicle.license_plate,
             type: vehicle.type,

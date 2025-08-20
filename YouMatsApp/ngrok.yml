@@ -1,0 +1,6 @@
+version: "2"
+authtoken: ""
+tunnels:
+  expo:
+    proto: http
+    addr: 8081

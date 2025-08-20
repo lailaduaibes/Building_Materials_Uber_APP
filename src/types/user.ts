@@ -1,3 +1,5 @@
+import { Request } from 'express';
+
 export enum UserRole {
   ADMIN = 'admin',
   CUSTOMER = 'customer',
@@ -13,6 +15,9 @@ export interface User {
   phone?: string;
   role: UserRole;
   isActive: boolean;
+  emailVerified: boolean;
+  verifiedAt?: Date;
+  lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,4 +40,25 @@ export interface AuthResponse {
   user: Omit<User, 'createdAt' | 'updatedAt'>;
   token: string;
   expiresIn: string;
+}
+
+export interface EmailVerificationRequest {
+  email: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+export interface AuthRequest extends Request {
+  user?: {
+    userId: string;
+    email: string;
+    role: UserRole;
+  };
 }

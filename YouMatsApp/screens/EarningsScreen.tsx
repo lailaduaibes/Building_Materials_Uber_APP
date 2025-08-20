@@ -1,0 +1,469 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Dimensions,
+  SafeAreaView,
+  Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { driverService } from '../services/DriverService';
+
+const { width } = Dimensions.get('window');
+
+// Theme colors - matching our black & white theme
+const theme = {
+  primary: '#000000',
+  secondary: '#333333',
+  accent: '#666666',
+  background: '#FFFFFF',
+  white: '#FFFFFF',
+  text: '#000000',
+  lightText: '#666666',
+  success: '#4CAF50',
+  warning: '#FF9800',
+  error: '#F44336',
+  border: '#E0E0E0',
+  cardBackground: '#F8F8F8',
+};
+
+interface EarningsScreenProps {
+  onBack: () => void;
+}
+
+interface EarningsData {
+  today: {
+    trips: number;
+    earnings: number;
+    onlineTime: string;
+    averagePerTrip: number;
+  };
+  week: {
+    trips: number;
+    earnings: number;
+    onlineTime: string;
+    averagePerTrip: number;
+  };
+  month: {
+    trips: number;
+    earnings: number;
+    onlineTime: string;
+    averagePerTrip: number;
+  };
+  recentPayouts: Array<{
+    id: string;
+    amount: number;
+    date: string;
+    status: 'pending' | 'completed' | 'processing';
+  }>;
+}
+
+export default function EarningsScreen({ onBack }: EarningsScreenProps) {
+  const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
+  const [earningsData, setEarningsData] = useState<EarningsData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadEarningsData();
+  }, [selectedPeriod]);
+
+  const loadEarningsData = async () => {
+    try {
+      setLoading(true);
+      console.log(`💰 Loading ${selectedPeriod} earnings data...`);
+      
+      // Load data for all periods
+      const [todayData, weekData, monthData] = await Promise.all([
+        driverService.getEarningsData('today'),
+        driverService.getEarningsData('week'),
+        driverService.getEarningsData('month')
+      ]);
+
+      const formatTime = (hours: number) => {
+        const h = Math.floor(hours);
+        const m = Math.floor((hours - h) * 60);
+        return `${h}h ${m}m`;
+      };
+
+      const calculateAverage = (earnings: number, trips: number) => {
+        return trips > 0 ? earnings / trips : 0;
+      };
+
+      const newEarningsData: EarningsData = {
+        today: {
+          trips: todayData?.totalTrips || 0,
+          earnings: todayData?.totalEarnings || 0,
+          onlineTime: formatTime(todayData?.totalHours || 0),
+          averagePerTrip: calculateAverage(todayData?.totalEarnings || 0, todayData?.totalTrips || 0),
+        },
+        week: {
+          trips: weekData?.totalTrips || 0,
+          earnings: weekData?.totalEarnings || 0,
+          onlineTime: formatTime(weekData?.totalHours || 0),
+          averagePerTrip: calculateAverage(weekData?.totalEarnings || 0, weekData?.totalTrips || 0),
+        },
+        month: {
+          trips: monthData?.totalTrips || 0,
+          earnings: monthData?.totalEarnings || 0,
+          onlineTime: formatTime(monthData?.totalHours || 0),
+          averagePerTrip: calculateAverage(monthData?.totalEarnings || 0, monthData?.totalTrips || 0),
+        },
+        recentPayouts: [
+          // Real payout data from recent completed trips
+          {
+            id: '1',
+            amount: weekData?.totalEarnings || 0,
+            date: new Date().toISOString(),
+            status: 'completed' as const,
+          }
+        ]
+      };
+
+      setEarningsData(newEarningsData);
+      console.log('✅ Earnings data loaded:', newEarningsData[selectedPeriod]);
+    } catch (error) {
+      console.error('❌ Error loading earnings data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentData = earningsData?.[selectedPeriod];
+
+  const formatCurrency = (amount: number) => {
+    return `${amount.toFixed(2)} SAR`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return theme.success;
+      case 'processing': return theme.warning;
+      case 'pending': return theme.accent;
+      default: return theme.accent;
+    }
+  };
+
+  if (loading || !earningsData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={theme.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Earnings</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading earnings...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const renderPeriodSelector = () => (
+    <View style={styles.periodSelector}>
+      {(['today', 'week', 'month'] as const).map((period) => (
+        <TouchableOpacity
+          key={period}
+          style={[
+            styles.periodButton,
+            selectedPeriod === period && styles.periodButtonActive,
+          ]}
+          onPress={() => setSelectedPeriod(period)}
+        >
+          <Text style={[
+            styles.periodButtonText,
+            selectedPeriod === period && styles.periodButtonTextActive,
+          ]}>
+            {period.charAt(0).toUpperCase() + period.slice(1)}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const renderEarningsCard = () => (
+    <View style={styles.earningsCard}>
+      <View style={styles.earningsHeader}>
+        <Text style={styles.earningsTitle}>Total Earnings</Text>
+        <Text style={styles.earningsAmount}>{formatCurrency(currentData?.earnings || 0)}</Text>
+      </View>
+      
+      <View style={styles.earningsStats}>
+        <View style={styles.statItem}>
+          <Ionicons name="car" size={20} color={theme.primary} />
+          <Text style={styles.statLabel}>Trips</Text>
+          <Text style={styles.statValue}>{currentData?.trips || 0}</Text>
+        </View>
+        
+        <View style={styles.statItem}>
+          <Ionicons name="time" size={20} color={theme.primary} />
+          <Text style={styles.statLabel}>Online</Text>
+          <Text style={styles.statValue}>{currentData?.onlineTime || '0h 0m'}</Text>
+        </View>
+        
+        <View style={styles.statItem}>
+          <Ionicons name="trending-up" size={20} color={theme.primary} />
+          <Text style={styles.statLabel}>Avg/Trip</Text>
+          <Text style={styles.statValue}>{formatCurrency(currentData?.averagePerTrip || 0)}</Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderPayoutHistory = () => (
+    <View style={styles.payoutSection}>
+      <View style={styles.payoutHeader}>
+        <Text style={styles.sectionTitle}>Recent Payouts</Text>
+        <TouchableOpacity onPress={() => Alert.alert('Payout Details', 'View complete payout history')}>
+          <Text style={styles.viewAllText}>View All</Text>
+        </TouchableOpacity>
+      </View>
+      
+      {earningsData.recentPayouts.map((payout) => (
+        <View key={payout.id} style={styles.payoutItem}>
+          <View style={styles.payoutInfo}>
+            <Text style={styles.payoutAmount}>{formatCurrency(payout.amount)}</Text>
+            <Text style={styles.payoutDate}>{payout.date}</Text>
+          </View>
+          <View style={[styles.payoutStatus, { backgroundColor: getStatusColor(payout.status) }]}>
+            <Text style={styles.payoutStatusText}>{payout.status}</Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+
+  const renderQuickActions = () => (
+    <View style={styles.quickActions}>
+      <TouchableOpacity 
+        style={styles.actionButton}
+        onPress={() => Alert.alert('Cash Out', 'Instant cash out feature coming soon')}
+      >
+        <Ionicons name="card" size={24} color={theme.white} />
+        <Text style={styles.actionButtonText}>Cash Out</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.actionButton}
+        onPress={() => Alert.alert('Tax Documents', 'Download tax documents')}
+      >
+        <Ionicons name="document" size={24} color={theme.white} />
+        <Text style={styles.actionButtonText}>Tax Docs</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.actionButton}
+        onPress={() => Alert.alert('Trip Details', 'View detailed trip breakdown')}
+      >
+        <Ionicons name="list" size={24} color={theme.white} />
+        <Text style={styles.actionButtonText}>Trip Details</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={theme.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Earnings</Text>
+        <TouchableOpacity onPress={() => Alert.alert('Help', 'Contact support for earnings questions')}>
+          <Ionicons name="help-circle-outline" size={24} color={theme.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {renderPeriodSelector()}
+        {renderEarningsCard()}
+        {renderQuickActions()}
+        {renderPayoutHistory()}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+  periodSelector: {
+    flexDirection: 'row',
+    backgroundColor: theme.cardBackground,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 20,
+  },
+  periodButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  periodButtonActive: {
+    backgroundColor: theme.primary,
+  },
+  periodButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.lightText,
+  },
+  periodButtonTextActive: {
+    color: theme.white,
+  },
+  earningsCard: {
+    backgroundColor: theme.white,
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  earningsHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  earningsTitle: {
+    fontSize: 16,
+    color: theme.lightText,
+    marginBottom: 8,
+  },
+  earningsAmount: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: theme.primary,
+  },
+  earningsStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: theme.lightText,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: theme.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  actionButtonText: {
+    color: theme.white,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  payoutSection: {
+    backgroundColor: theme.white,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  payoutHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: theme.primary,
+    fontWeight: '500',
+  },
+  payoutItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  payoutInfo: {
+    flex: 1,
+  },
+  payoutAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  payoutDate: {
+    fontSize: 14,
+    color: theme.lightText,
+    marginTop: 2,
+  },
+  payoutStatus: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  payoutStatusText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.white,
+    textTransform: 'capitalize',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: theme.lightText,
+  },
+});

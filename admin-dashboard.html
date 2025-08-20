@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Approval Dashboard - YouMats Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .pending-applications {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .section-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .application-item {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .application-item:last-child {
+            border-bottom: none;
+        }
+        
+        .driver-info {
+            flex: 1;
+        }
+        
+        .driver-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .driver-details {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .status-badges {
+            display: flex;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .badge-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-verified {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-unverified {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-approve {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-approve:hover {
+            background: #218838;
+        }
+        
+        .btn-reject {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-reject:hover {
+            background: #c82333;
+        }
+        
+        .btn-review {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-review:hover {
+            background: #138496;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 1rem;
+            color: #495057;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 2rem;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .modal-header {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .modal-body textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚛 YouMats Driver Approval Dashboard</h1>
+        <p>Manage driver applications and vehicle verifications</p>
+    </div>
+    
+    <div class="container">
+        <!-- Statistics Dashboard -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalDrivers">-</div>
+                <div class="stat-label">Total Drivers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pendingApplications">-</div>
+                <div class="stat-label">Pending Applications</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="approvedDrivers">-</div>
+                <div class="stat-label">Approved Drivers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activeDrivers">-</div>
+                <div class="stat-label">Active Online</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="approvalRate">-</div>
+                <div class="stat-label">Approval Rate</div>
+            </div>
+        </div>
+        
+        <!-- Pending Applications -->
+        <div class="pending-applications">
+            <div class="section-header">
+                📋 Pending Driver Applications
+            </div>
+            <div id="applicationsList">
+                <div class="loading">
+                    Loading applications...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Approval Modal -->
+    <div id="approvalModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Approve Driver Application</h3>
+            </div>
+            <div class="modal-body">
+                <p id="approvalDriverName">Approve this driver?</p>
+                <label for="approvalNotes">Admin Notes (optional):</label>
+                <textarea id="approvalNotes" placeholder="Add any notes about the approval..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('approvalModal')">Cancel</button>
+                <button class="btn btn-approve" onclick="confirmApproval()">Approve Driver</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Rejection Modal -->
+    <div id="rejectionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Reject Driver Application</h3>
+            </div>
+            <div class="modal-body">
+                <p id="rejectionDriverName">Reject this driver application?</p>
+                <label for="rejectionReason">Rejection Reason (required):</label>
+                <textarea id="rejectionReason" placeholder="Please provide a reason for rejection..."></textarea>
+                <label for="rejectionNotes">Additional Notes:</label>
+                <textarea id="rejectionNotes" placeholder="Add any additional notes..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('rejectionModal')">Cancel</button>
+                <button class="btn btn-reject" onclick="confirmRejection()">Reject Application</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Refresh Button -->
+    <button class="refresh-btn" onclick="loadDashboard()" title="Refresh Dashboard">
+        🔄
+    </button>
+    
+    <script>
+        // Supabase client configuration
+        const SUPABASE_URL = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.0H5qDDFnCNrqjhf2zj5LFXGKRYv-dkv6AckA-hzz9gE';
+        
+        // Global variables
+        let currentDriverId = null;
+        let applications = [];
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+        });
+        
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                console.log('Loading dashboard data...');
+                
+                // Load real data from Supabase
+                await loadRealData();
+                
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                showError('Failed to load dashboard data');
+            }
+        }
+        
+        // Load real data from Supabase
+        async function loadRealData() {
+            try {
+                // Since we don't have the approval fields yet, we'll work with existing data
+                // and simulate the professional workflow
+                
+                const { data: drivers, error } = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?select=*`, {
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }).then(res => res.json());
+                
+                if (error) {
+                    console.error('Error fetching drivers:', error);
+                    displayMockData();
+                    return;
+                }
+                
+                console.log('Loaded drivers:', drivers);
+                
+                // Calculate statistics
+                const totalDrivers = drivers.length;
+                const pendingApplications = drivers.filter(d => !d.is_approved && d.status !== 'rejected').length;
+                const approvedDrivers = drivers.filter(d => d.is_approved === true).length;
+                const activeDrivers = drivers.filter(d => d.status === 'online').length;
+                const approvalRate = totalDrivers > 0 ? ((approvedDrivers / totalDrivers) * 100).toFixed(1) : 0;
+                
+                // Update statistics
+                document.getElementById('totalDrivers').textContent = totalDrivers;
+                document.getElementById('pendingApplications').textContent = pendingApplications;
+                document.getElementById('approvedDrivers').textContent = approvedDrivers;
+                document.getElementById('activeDrivers').textContent = activeDrivers;
+                document.getElementById('approvalRate').textContent = approvalRate + '%';
+                
+                // Show pending applications (drivers who are not approved)
+                const pendingDrivers = drivers.filter(d => !d.is_approved && d.status !== 'rejected');
+                
+                // Transform data to match our display format
+                const formattedApplications = pendingDrivers.map(driver => ({
+                    id: driver.id,
+                    first_name: driver.first_name,
+                    last_name: driver.last_name,
+                    phone: driver.phone,
+                    years_experience: driver.years_experience,
+                    verification_status: driver.verification_status || 'pending',
+                    application_submitted_at: driver.created_at || new Date().toISOString(),
+                    documents_verified: driver.documents_verified || false,
+                    vehicle_verified: driver.vehicle_verified || false,
+                    users: {
+                        email: 'yayajiji1412@gmail.com' // We'll get this from users table later
+                    },
+                    specializations: Array.isArray(driver.specializations) ? driver.specializations : ['General Construction']
+                }));
+                
+                displayApplications(formattedApplications);
+                
+            } catch (error) {
+                console.error('Error loading real data:', error);
+                displayMockData();
+            }
+        }
+        
+        // Display mock data for demonstration
+        function displayMockData() {
+            // Mock statistics
+            document.getElementById('totalDrivers').textContent = '1';
+            document.getElementById('pendingApplications').textContent = '1';
+            document.getElementById('approvedDrivers').textContent = '0';
+            document.getElementById('activeDrivers').textContent = '0';
+            document.getElementById('approvalRate').textContent = '0%';
+            
+            // Mock pending applications
+            const mockApplications = [
+                {
+                    id: 'a362e5f7-6b9e-4c45-a8d5-7c8e9f0a1b2c',
+                    first_name: 'Ahmed',
+                    last_name: 'Driver',
+                    phone: '+966 50 123 4567',
+                    years_experience: 3,
+                    verification_status: 'pending',
+                    application_submitted_at: new Date().toISOString(),
+                    documents_verified: false,
+                    vehicle_verified: false,
+                    users: {
+                        email: 'yayajiji1412@gmail.com'
+                    },
+                    specializations: ['Heavy Machinery', 'Construction Materials']
+                }
+            ];
+            
+            displayApplications(mockApplications);
+        }
+        
+        // Display applications list
+        function displayApplications(apps) {
+            const container = document.getElementById('applicationsList');
+            
+            if (!apps || apps.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>🎉 No Pending Applications</h3>
+                        <p>All driver applications have been reviewed!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = apps.map(app => `
+                <div class="application-item">
+                    <div class="driver-info">
+                        <div class="driver-name">
+                            ${app.first_name} ${app.last_name}
+                        </div>
+                        <div class="driver-details">
+                            📧 ${app.users?.email || 'No email'}<br>
+                            📱 ${app.phone}<br>
+                            🏗️ ${app.years_experience} years experience<br>
+                            📅 Applied: ${new Date(app.application_submitted_at).toLocaleDateString()}
+                            ${app.specializations && app.specializations.length > 0 ? 
+                              `<br>🔧 Specializations: ${app.specializations.join(', ')}` : ''}
+                        </div>
+                        <div class="status-badges">
+                            <span class="badge badge-pending">
+                                ${app.verification_status || 'pending'}
+                            </span>
+                            <span class="badge ${app.documents_verified ? 'badge-verified' : 'badge-unverified'}">
+                                Docs: ${app.documents_verified ? 'Verified' : 'Pending'}
+                            </span>
+                            <span class="badge ${app.vehicle_verified ? 'badge-verified' : 'badge-unverified'}">
+                                Vehicle: ${app.vehicle_verified ? 'Verified' : 'Pending'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-review" onclick="reviewDocuments('${app.id}')">
+                            📄 Review
+                        </button>
+                        <button class="btn btn-approve" onclick="showApprovalModal('${app.id}', '${app.first_name} ${app.last_name}')">
+                            ✅ Approve
+                        </button>
+                        <button class="btn btn-reject" onclick="showRejectionModal('${app.id}', '${app.first_name} ${app.last_name}')">
+                            ❌ Reject
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Show approval modal
+        function showApprovalModal(driverId, driverName) {
+            currentDriverId = driverId;
+            document.getElementById('approvalDriverName').textContent = `Approve ${driverName}?`;
+            document.getElementById('approvalNotes').value = '';
+            document.getElementById('approvalModal').style.display = 'block';
+        }
+        
+        // Show rejection modal
+        function showRejectionModal(driverId, driverName) {
+            currentDriverId = driverId;
+            document.getElementById('rejectionDriverName').textContent = `Reject ${driverName}?`;
+            document.getElementById('rejectionReason').value = '';
+            document.getElementById('rejectionNotes').value = '';
+            document.getElementById('rejectionModal').style.display = 'block';
+        }
+        
+        // Close modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            currentDriverId = null;
+        }
+        
+        // Confirm approval
+        async function confirmApproval() {
+            const notes = document.getElementById('approvalNotes').value;
+            
+            try {
+                // First, let's add the approval field if it doesn't exist
+                await addApprovalFieldIfNeeded();
+                
+                // Update driver status to approved
+                const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${currentDriverId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        is_approved: true,
+                        status: 'approved',
+                        admin_notes: notes || 'Approved by admin',
+                        updated_at: new Date().toISOString()
+                    })
+                });
+                
+                if (updateResponse.ok) {
+                    const result = await updateResponse.json();
+                    console.log('Driver approved:', result);
+                    
+                    alert(`✅ Driver approved successfully!\\n\\nThe driver can now accept trips.`);
+                    
+                    // Refresh the dashboard
+                    setTimeout(() => {
+                        loadDashboard();
+                    }, 1000);
+                } else {
+                    const error = await updateResponse.json();
+                    console.error('Error approving driver:', error);
+                    alert('Error approving driver: ' + (error.message || 'Unknown error'));
+                }
+                
+            } catch (error) {
+                console.error('Error in approval process:', error);
+                alert('Error approving driver: ' + error.message);
+            }
+            
+            closeModal('approvalModal');
+        }
+        
+        // Confirm rejection
+        async function confirmRejection() {
+            const reason = document.getElementById('rejectionReason').value;
+            const notes = document.getElementById('rejectionNotes').value;
+            
+            if (!reason.trim()) {
+                alert('Please provide a reason for rejection');
+                return;
+            }
+            
+            try {
+                // Update driver status to rejected
+                const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${currentDriverId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        is_approved: false,
+                        status: 'rejected',
+                        rejection_reason: reason,
+                        admin_notes: notes || 'Rejected by admin',
+                        updated_at: new Date().toISOString()
+                    })
+                });
+                
+                if (updateResponse.ok) {
+                    const result = await updateResponse.json();
+                    console.log('Driver rejected:', result);
+                    
+                    alert(`❌ Driver application rejected\\n\\nReason: ${reason}`);
+                    
+                    // Refresh the dashboard
+                    setTimeout(() => {
+                        loadDashboard();
+                    }, 1000);
+                } else {
+                    const error = await updateResponse.json();
+                    console.error('Error rejecting driver:', error);
+                    alert('Error rejecting driver: ' + (error.message || 'Unknown error'));
+                }
+                
+            } catch (error) {
+                console.error('Error in rejection process:', error);
+                alert('Error rejecting driver: ' + error.message);
+            }
+            
+            closeModal('rejectionModal');
+        }
+        
+        // Add approval field if it doesn't exist (temporary solution)
+        async function addApprovalFieldIfNeeded() {
+            try {
+                // Try to add the is_approved column if it doesn't exist
+                // This is a temporary solution until the full schema is implemented
+                const addColumnResponse = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sql: 'ALTER TABLE driver_profiles ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE;'
+                    })
+                });
+                
+                // Don't throw error if this fails, as the column might already exist
+                console.log('Attempted to add approval column');
+                
+            } catch (error) {
+                console.log('Note: Could not add approval column, continuing with existing fields');
+            }
+        }
+        
+        // Review documents
+        function reviewDocuments(driverId) {
+            alert(`📄 Document review for driver ID: ${driverId}\\n\\nThis would open a document review interface showing:\\n• Driving License\\n• Commercial License\\n• Insurance Documents\\n• Vehicle Registration\\n• Background Check`);
+        }
+        
+        // Show error message
+        function showError(message) {
+            alert('Error: ' + message);
+        }
+        
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

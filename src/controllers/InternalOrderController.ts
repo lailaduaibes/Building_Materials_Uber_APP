@@ -162,7 +162,7 @@ export class InternalOrderController {
         success: true,
         message: 'Internal orders retrieved successfully',
         data: {
-          orders: result.rows.map(order => ({
+          orders: result.rows.map((order: any) => ({
             id: order.id,
             orderType: order.order_type,
             status: order.status,
@@ -264,7 +264,7 @@ export class InternalOrderController {
             licensePlate: order.license_plate,
             type: order.vehicle_type
           } : null,
-          items: itemsResult.rows.map(item => ({
+          items: itemsResult.rows.map((item: any) => ({
             id: item.id,
             materialType: item.material_type,
             description: item.description,

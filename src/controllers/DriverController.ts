@@ -146,7 +146,7 @@ export class DriverController {
         success: true,
         message: 'Drivers retrieved successfully',
         data: {
-          drivers: result.rows.map(driver => ({
+          drivers: result.rows.map((driver: any) => ({
             id: driver.id,
             user: {
               firstName: driver.first_name,

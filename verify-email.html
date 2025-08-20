@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification - YouMats</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2C5CC5;
+            margin-bottom: 20px;
+        }
+        .success {
+            color: #10B981;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        .error {
+            color: #EF4444;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        .message {
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+        .btn {
+            display: inline-block;
+            background: #2C5CC5;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 10px;
+        }
+        .btn:hover {
+            background: #1E40AF;
+        }
+        .btn-secondary {
+            background: transparent;
+            color: #2C5CC5;
+            border: 2px solid #2C5CC5;
+        }
+        .details {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            text-align: left;
+        }
+        .token {
+            word-break: break-all;
+            background: #e5e7eb;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">YouMats</div>
+        
+        <div id="content">
+            <div class="success">⏳</div>
+            <h2>Verifying Your Email...</h2>
+            <p class="message">Please wait while we verify your email address.</p>
+        </div>
+
+        <div class="details">
+            <h4>Development Testing Tool</h4>
+            <p>This page helps test email verification during development. In production, this would be handled by your mobile app or web interface.</p>
+            
+            <div style="margin-top: 20px;">
+                <label for="tokenInput"><strong>Verification Token:</strong></label>
+                <input type="text" id="tokenInput" placeholder="Enter verification token" style="width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px;">
+                <button onclick="verifyToken()" style="width: 100%; padding: 10px; background: #2C5CC5; color: white; border: none; border-radius: 4px; margin-top: 10px; cursor: pointer;">Verify Token</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'https://lost-translation-beats-pharmacy.trycloudflare.com/api/v1';
+        
+        // Check if token is in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const tokenFromUrl = urlParams.get('token') || window.location.pathname.split('/').pop();
+        
+        if (tokenFromUrl && tokenFromUrl !== 'verify-email.html') {
+            document.getElementById('tokenInput').value = tokenFromUrl;
+            verifyToken();
+        }
+
+        async function verifyToken() {
+            const token = document.getElementById('tokenInput').value.trim();
+            
+            if (!token) {
+                showError('Please enter a verification token');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/verify-email/${token}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    showSuccess(result.message, result.data);
+                } else {
+                    showError(result.message || 'Verification failed');
+                }
+            } catch (error) {
+                console.error('Verification error:', error);
+                showError('Network error. Please check your connection and API endpoint.');
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('content').innerHTML = `
+                <div class="success">⏳</div>
+                <h2>Verifying Your Email...</h2>
+                <p class="message">Please wait while we verify your email address.</p>
+            `;
+        }
+
+        function showSuccess(message, data) {
+            document.getElementById('content').innerHTML = `
+                <div class="success">✅</div>
+                <h2>Email Verified Successfully!</h2>
+                <p class="message">${message}</p>
+                <p>Your account is now active and you can log in to the YouMats app.</p>
+                <div style="margin-top: 20px;">
+                    <strong>Verified Email:</strong> ${data?.email || 'N/A'}
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            document.getElementById('content').innerHTML = `
+                <div class="error">❌</div>
+                <h2>Verification Failed</h2>
+                <p class="message">${message}</p>
+                <p>Please check your verification link or contact support if the problem persists.</p>
+                <button onclick="location.reload()" class="btn btn-secondary">Try Again</button>
+            `;
+        }
+
+        // Add some helpful information
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('YouMats Email Verification Tool');
+            console.log('API Endpoint:', API_BASE_URL);
+            console.log('Current URL:', window.location.href);
+            
+            if (tokenFromUrl) {
+                console.log('Token from URL:', tokenFromUrl);
+            }
+        });
+    </script>
+</body>
+</html>

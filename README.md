@@ -1,30 +1,34 @@
-# 🚚 Building Materials Delivery System
+# 🚚 YouMats - Building Materials Delivery Platform
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/building-materials-delivery)
-[![Deploy Mobile App](https://img.shields.io/badge/Deploy%20Mobile-Expo-blue)](https://expo.dev/)
+[![Production Status](https://img.shields.io/badge/Status-Production%20Ready-success)](https://github.com/LailaGhassan/building-materials-delivery-app)
+[![Mobile App](https://img.shields.io/badge/Mobile-React%20Native%20Expo-blue)](https://expo.dev/)
+[![Database](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-green)](https://supabase.com/)
 
-A complete **Building Materials Delivery Management System** with RESTful API backend and React Native mobile application for iOS and Android.
+A complete **Professional Building Materials Delivery Management System** built with modern technologies - Node.js backend API, Supabase PostgreSQL database, and React Native mobile application.
 
-## 🎯 **Live Demo**
+## 🎯 **Current Status - PRODUCTION READY**
 
-- 🌐 **Backend API**: [https://your-app.vercel.app](https://your-app.vercel.app)
-- 📱 **Mobile App**: [Expo Snack Demo](https://snack.expo.dev)
-- 📚 **API Documentation**: [https://your-app.vercel.app/api-docs](https://your-app.vercel.app/api-docs)
+- 🌐 **Backend API**: Running with Supabase PostgreSQL integration
+- 📱 **Mobile App**: YouMats Professional UI with complete authentication
+- 💾 **Database**: Production Supabase PostgreSQL with complete schema
+- � **Authentication**: JWT-based with role-based access control
 
 ## 🏗️ **System Architecture**
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │                 │    │                 │    │                 │
-│  React Native   │◄───┤   RESTful API   │◄───┤   PostgreSQL    │
-│   Mobile App    │    │   (Node.js)     │    │    Database     │
-│                 │    │                 │    │                 │
+│   YouMats App   │◄───┤   RESTful API   │◄───┤   Supabase      │
+│  React Native   │    │   (Node.js)     │    │  PostgreSQL     │
+│  Professional  │    │  + TypeScript   │    │   Database      │
+│      UI         │    │                 │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
         │                        │                        │
         ▼                        ▼                        ▼
-  iOS & Android            Express + TypeScript       Mock Database
-   Expo/React Native       JWT Authentication         (Development)
-   Professional UI         Swagger Documentation
+  iOS & Android            Express + Supabase          Production DB
+   Expo/React Native       JWT Authentication         Cloud Hosted
+   LinearGradient UI       Swagger Documentation      UUID Primary Keys
+   Role-Based Access       Error Handling             Relationship Integrity
 ```
 
 ## 🚀 Features
@@ -54,46 +58,100 @@ A complete **Building Materials Delivery Management System** with RESTful API ba
 - **Dispatcher App**: Fleet coordination and assignment
 - **Admin Panel**: System management
 
-## 🛠 Tech Stack
+## � **Project Structure**
+
+```
+building-materials-delivery-app/
+├── src/                          # Backend API source code
+│   ├── controllers/              # API route handlers
+│   │   ├── AuthController.ts     # Authentication & user management
+│   │   ├── OrderController.ts    # External order management
+│   │   ├── InternalOrderController.ts # Sales app integration
+│   │   ├── VehicleController.ts  # Fleet management
+│   │   ├── DriverController.ts   # Driver management
+│   │   └── UserController.ts     # User profile management
+│   ├── routes/                   # API endpoint definitions
+│   ├── middleware/               # Authentication, validation, errors
+│   ├── types/                    # TypeScript type definitions
+│   ├── config/                   # Database & Redis configuration
+│   └── utils/                    # Utility functions & helpers
+├── YouMatsApp/                   # React Native mobile application
+│   ├── App.tsx                   # Main mobile app component
+│   ├── assets/                   # Images, icons, fonts
+│   └── package.json              # Mobile app dependencies
+├── supabase-schema.sql           # Production database schema
+├── .env                          # Environment variables
+├── package.json                  # Backend dependencies
+└── README.md                     # Project documentation
+```
+
+## �🛠 **Technology Stack**
 
 ### **Backend API**
 - **Runtime**: Node.js + TypeScript
-- **Framework**: Express.js
-- **Database**: PostgreSQL (with Redis caching)
-- **Authentication**: JWT + bcrypt
-- **Documentation**: Swagger/OpenAPI
-- **Validation**: express-validator
-- **Security**: Helmet, CORS, rate limiting
+- **Framework**: Express.js with comprehensive middleware
+- **Database**: Supabase PostgreSQL (Production)
+- **Authentication**: JWT tokens + bcrypt password hashing
+- **Documentation**: Swagger/OpenAPI integration
+- **Validation**: express-validator for all endpoints
+- **Security**: Helmet, CORS, rate limiting ready
 
-### **Mobile App**
-- **Framework**: React Native + Expo
-- **Language**: TypeScript
-- **Navigation**: React Navigation
-- **UI**: React Native Paper + Custom Components
-- **State Management**: React Hooks
-- **API Client**: Axios
+### **Mobile Application**
+- **Framework**: React Native + Expo (Cross-platform)
+- **Language**: TypeScript with strict mode
+- **UI Components**: Professional LinearGradient design
+- **Storage**: AsyncStorage for user sessions
+- **API Integration**: Fetch with comprehensive error handling
+- **Navigation**: Role-based screen routing system
 
-### **Development & Deployment**
-- **Build**: TypeScript compiler
-- **Development**: Nodemon (hot reload)
-- **Testing**: Jest + Supertest
-- **Deployment**: Vercel (API) + Expo (Mobile)
-- **Version Control**: Git + GitHub
+### **Database & Infrastructure**
+- **Database**: Supabase PostgreSQL with UUID primary keys
+- **Schema**: Complete relational design with proper constraints
+- **Hosting**: Cloud-native with global availability
+- **Access**: External API tunnel with Cloudflared
+- **Development**: Hot reload + tunnel access for mobile testing
 
-## 📋 Prerequisites
+## 📋 **Prerequisites**
 
-- Node.js 16+
-- PostgreSQL 12+
-- Redis 6+
-- npm or yarn
+- Node.js 18+
+- Supabase account (free tier available)
+- Expo CLI for mobile development
+- Mobile device with Expo Go app OR emulator
 
-## 🚀 Quick Start
+## 🚀 **Quick Start**
 
-### 1. Environment Setup
+### 1. **Environment Setup**
 
 ```bash
-# Clone and install dependencies
-cd "Building Materials Uber App"
+# Install dependencies
+npm install
+
+# Setup environment variables
+cp .env.example .env
+# Add your Supabase credentials to .env
+```
+
+### 2. **Database Setup**
+
+```sql
+-- Run this SQL in your Supabase SQL Editor
+-- Copy content from supabase-schema.sql
+```
+
+### 3. **Start Backend API**
+
+```bash
+npm run dev
+# Backend runs on http://localhost:3000
+```
+
+### 4. **Start Mobile App**
+
+```bash
+cd YouMatsApp
+npx expo start --tunnel
+# Scan QR code with Expo Go app
+```
 npm install
 
 # Copy environment file

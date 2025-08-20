@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import app from './app';
-import { connectDB } from './config/database-mock';
-import { connectRedis } from './config/redis-mock';
+import { connectDB } from './config/database-supabase';
+import { connectRedis } from './config/redis';
 import { logger } from './utils/logger';
 
 // Load environment variables
@@ -15,47 +15,39 @@ async function startServer() {
     await connectDB();
     logger.info('✅ Connected to PostgreSQL database');
 
-    // Connect to Redis
+    // Connect to Redis (non-blocking - continues without Redis if unavailable)
     await connectRedis();
-    logger.info('✅ Connected to Redis');
 
-    // Start the server
-    app.listen(PORT, () => {
+    // Start the server on all interfaces for tunnel access
+    const server = app.listen(Number(PORT), '0.0.0.0', () => {
       logger.info(`🚀 Server is running on port ${PORT}`);
       logger.info(`📚 API Documentation available at http://localhost:${PORT}/api-docs`);
       logger.info(`🩺 Health check available at http://localhost:${PORT}/health`);
-      logger.info(`🌍 Environment: ${process.env.NODE_ENV}`);
+      logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
 
+    // Keep the process alive
+    return server;
+
   } catch (error) {
-    logger.error('❌ Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   }
 }
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err: Error) => {
-  logger.error('UNHANDLED PROMISE REJECTION! 💥 Shutting down...');
-  logger.error(err.name, err.message);
-  process.exit(1);
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (err: Error) => {
-  logger.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
-  logger.error(err.name, err.message);
-  process.exit(1);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('👋 SIGTERM RECEIVED. Shutting down gracefully');
-  process.exit(0);
-});
-
+// Handle graceful shutdown
 process.on('SIGINT', () => {
   logger.info('👋 SIGINT RECEIVED. Shutting down gracefully');
   process.exit(0);
 });
 
-startServer();
+process.on('SIGTERM', () => {
+  logger.info('👋 SIGTERM RECEIVED. Shutting down gracefully');
+  process.exit(0);
+});
+
+// Start the server
+startServer().catch((error) => {
+  logger.error('Failed to start server:', error);
+  process.exit(1);
+});

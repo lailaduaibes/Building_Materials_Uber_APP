@@ -40,7 +40,7 @@ export class UserController {
         success: true,
         message: 'Users retrieved successfully',
         data: {
-          users: result.rows.map(user => ({
+          users: result.rows.map((user: any) => ({
             id: user.id,
             email: user.email,
             firstName: user.first_name,

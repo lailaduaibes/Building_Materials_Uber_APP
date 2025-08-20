@@ -33,58 +33,39 @@ export class OrderController {
       
       const orderId = uuidv4();
       
-      // Start transaction
-      await db.query('BEGIN');
-      
+      // Using postgres library - transactions are handled differently
       try {
         // Insert order
-        const orderResult = await db.query(
-          `INSERT INTO orders (
+        const orderResult = await db`
+          INSERT INTO orders (
             id, order_type, customer_id, status, total_weight, total_volume,
             pickup_address, delivery_address, scheduled_pickup_time, 
             scheduled_delivery_time, special_requirements, notes, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
-          RETURNING *`,
-          [
-            orderId,
-            OrderType.EXTERNAL,
-            req.user!.id,
-            OrderStatus.PENDING,
-            totalWeight,
-            totalVolume,
-            JSON.stringify(pickupAddress),
-            JSON.stringify(deliveryAddress),
-            scheduledPickupTime || null,
-            scheduledDeliveryTime || null,
-            specialRequirements ? JSON.stringify(specialRequirements) : null,
-            notes || null
-          ]
-        );
+          ) VALUES (
+            ${orderId}, ${OrderType.EXTERNAL}, ${req.user!.id}, ${OrderStatus.PENDING}, 
+            ${totalWeight}, ${totalVolume}, ${JSON.stringify(pickupAddress)}, 
+            ${JSON.stringify(deliveryAddress)}, ${scheduledPickupTime || null}, 
+            ${scheduledDeliveryTime || null}, ${specialRequirements ? JSON.stringify(specialRequirements) : null}, 
+            ${notes || null}, NOW(), NOW()
+          )
+          RETURNING *
+        `;
         
         // Insert order items
         for (const item of items) {
           const itemId = uuidv4();
-          await db.query(
-            `INSERT INTO order_items (
+          await db`
+            INSERT INTO order_items (
               id, order_id, material_type, description, quantity, unit, weight, volume, special_handling
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [
-              itemId,
-              orderId,
-              item.materialType,
-              item.description,
-              item.quantity,
-              item.unit,
-              item.weight,
-              item.volume || null,
-              item.specialHandling || null
-            ]
-          );
+            ) VALUES (
+              ${itemId}, ${orderId}, ${item.materialType}, ${item.description}, 
+              ${item.quantity}, ${item.unit}, ${item.weight}, ${item.volume || null}, 
+              ${item.specialHandling || null}
+            )
+          `;
         }
         
-        await db.query('COMMIT');
-        
-        const order = orderResult.rows[0];
+        const order = orderResult[0];
         
         res.status(201).json({
           success: true,
@@ -106,7 +87,7 @@ export class OrderController {
         });
         
       } catch (error) {
-        await db.query('ROLLBACK');
+        // With postgres library, we don't need manual rollback
         throw error;
       }
       
@@ -150,16 +131,20 @@ export class OrderController {
         query += ` WHERE ${conditions.join(' AND ')}`;
       }
       
-      query += ` ORDER BY o.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-      params.push(Number(limit), offset);
-      
-      const result = await db.query(query, params);
+      const result = await db`
+        SELECT o.*, u.first_name, u.last_name, u.email 
+        FROM orders o 
+        LEFT JOIN users u ON o.customer_id = u.id 
+        ORDER BY o.created_at DESC 
+        LIMIT ${Number(limit)} 
+        OFFSET ${offset}
+      `;
       
       res.json({
         success: true,
         message: 'Orders retrieved successfully',
         data: {
-          orders: result.rows.map(order => ({
+          orders: result.map((order: any) => ({
             id: order.id,
             orderType: order.order_type,
             status: order.status,
@@ -265,7 +250,7 @@ export class OrderController {
             licensePlate: order.license_plate,
             type: order.vehicle_type
           } : null,
-          items: itemsResult.rows.map(item => ({
+          items: itemsResult.rows.map((item: any) => ({
             id: item.id,
             materialType: item.material_type,
             description: item.description,

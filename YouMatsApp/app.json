@@ -1,0 +1,83 @@
+{
+  "expo": {
+    "name": "YouMats",
+    "slug": "youmats-delivery-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2C5CC5"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.youmats.delivery",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses camera to capture delivery photos for proof of delivery",
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to provide real-time delivery tracking to customers",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Drivers need continuous location access to provide real-time tracking to customers even when the app is in the background",
+        "NSLocationAlwaysUsageDescription": "Drivers need continuous location access to provide real-time delivery tracking to customers",
+        "NSPhotoLibraryUsageDescription": "This app uses photo library to upload delivery images and proof of delivery documents"
+      },
+      "config": {
+        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2C5CC5"
+      },
+      "package": "com.youmats.delivery",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow YouMats Driver to access your location for real-time delivery tracking.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2C5CC5",
+          "sounds": []
+        }
+      ]
+    ]
+  }
+}

@@ -1,43 +1,46 @@
-import { Pool } from 'pg';
+import postgres from 'postgres';
 import { logger } from '../utils/logger';
 
-let pool: Pool;
+let sql: any;
 
 export const connectDB = async (): Promise<void> => {
   try {
-    pool = new Pool({
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'delivery_app_dev',
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'password',
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    });
-
-    // Test the connection
-    const client = await pool.connect();
-    await client.query('SELECT NOW()');
-    client.release();
+    const connectionString = process.env.DATABASE_URL;
     
+    if (!connectionString) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+
+    // Create postgres connection using Supabase format
+    sql = postgres(connectionString, {
+      ssl: 'require', // Supabase requires SSL
+      max: 20,
+      idle_timeout: 30,
+      connect_timeout: 10,
+    });
+    
+    // Test the connection
+    const result = await sql`SELECT NOW() as now, version() as version`;
     logger.info('Database connection established successfully');
+    logger.info('PostgreSQL version:', result[0].version.split(' ')[0] + ' ' + result[0].version.split(' ')[1]);
+    logger.info('Server time:', result[0].now);
+    
   } catch (error) {
     logger.error('Unable to connect to the database:', error);
     throw error;
   }
 };
 
-export const getDB = (): Pool => {
-  if (!pool) {
+export const getDB = () => {
+  if (!sql) {
     throw new Error('Database not connected. Call connectDB first.');
   }
-  return pool;
+  return sql;
 };
 
 export const closeDB = async (): Promise<void> => {
-  if (pool) {
-    await pool.end();
+  if (sql) {
+    await sql.end();
     logger.info('Database connection closed');
   }
 };

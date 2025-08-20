@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouMats Admin Dashboard - Enhanced</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .admin-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid #e0e0e0;
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 12px;
+            padding: 0.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #e0e0e0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .tab.active {
+            background: #000;
+            color: white;
+        }
+
+        .tab:not(.active):hover {
+            background: #f0f0f0;
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        .drivers-grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .driver-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            overflow: hidden;
+            transition: transform 0.2s ease;
+        }
+
+        .driver-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .driver-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .driver-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .driver-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .documents-section {
+            padding: 1.5rem;
+        }
+
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .document-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .document-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .document-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .document-status {
+            font-size: 0.8rem;
+        }
+
+        .document-uploaded {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+
+        .document-missing {
+            border-color: #dc3545;
+            background: #fff8f8;
+        }
+
+        .actions {
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-approve {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background: #218838;
+        }
+
+        .btn-reject {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-reject:hover {
+            background: #c82333;
+        }
+
+        .btn-view {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background: #0056b3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .close {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .document-viewer {
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .document-image {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1001;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: #28a745;
+        }
+
+        .notification.error {
+            background: #dc3545;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .documents-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .driver-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">YouMats Admin</div>
+            <div class="admin-info">
+                <span>Enhanced Dashboard</span>
+                <div class="status-badge status-approved">
+                    <span>●</span>
+                    <span>Online</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Dashboard Stats -->
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalDrivers">0</div>
+                <div class="stat-label">Total Drivers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pendingDrivers">0</div>
+                <div class="stat-label">Pending Review</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="approvedDrivers">0</div>
+                <div class="stat-label">Approved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pendingDocuments">0</div>
+                <div class="stat-label">Pending Documents</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('drivers')">Driver Applications</div>
+            <div class="tab" onclick="switchTab('documents')">Document Review</div>
+            <div class="tab" onclick="switchTab('history')">Approval History</div>
+        </div>
+
+        <!-- Drivers Section -->
+        <div id="drivers-section" class="content-section active">
+            <div id="driversContainer" class="drivers-grid">
+                <div class="loading">Loading drivers...</div>
+            </div>
+        </div>
+
+        <!-- Documents Section -->
+        <div id="documents-section" class="content-section">
+            <div id="documentsContainer" class="drivers-grid">
+                <div class="loading">Loading documents...</div>
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div id="history-section" class="content-section">
+            <div id="historyContainer" class="drivers-grid">
+                <div class="loading">Loading history...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Driver Detail Modal -->
+    <div id="driverModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalDriverName">Driver Details</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modalContent">
+                <!-- Content will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Review Modal -->
+    <div id="documentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalDocumentTitle">Document Review</h2>
+                <span class="close" onclick="closeDocumentModal()">&times;</span>
+            </div>
+            <div id="documentModalContent">
+                <!-- Content will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification" class="notification"></div>
+
+    <script>
+        // Initialize Supabase
+        const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
+        const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8';
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseServiceKey);
+
+        let currentDrivers = [];
+        let currentDocuments = [];
+        let currentHistory = [];
+
+        // Initialize dashboard
+        async function initializeDashboard() {
+            try {
+                await loadStats();
+                await loadDrivers();
+                await loadDocuments();
+                await loadHistory();
+                
+                // Set up real-time subscriptions
+                setupRealtimeSubscriptions();
+            } catch (error) {
+                console.error('Error initializing dashboard:', error);
+                showNotification('Failed to load dashboard data', 'error');
+            }
+        }
+
+        // Load dashboard statistics
+        async function loadStats() {
+            try {
+                // Get driver stats
+                const { data: drivers, error: driversError } = await supabase
+                    .from('driver_profiles')
+                    .select('approval_status');
+
+                if (driversError) throw driversError;
+
+                const total = drivers.length;
+                const pending = drivers.filter(d => d.approval_status === 'pending').length;
+                const approved = drivers.filter(d => d.approval_status === 'approved').length;
+
+                // Get document stats
+                const { data: documents, error: documentsError } = await supabase
+                    .from('driver_documents')
+                    .select('status');
+
+                if (documentsError) throw documentsError;
+
+                const pendingDocs = documents.filter(d => d.status === 'pending').length;
+
+                // Update UI
+                document.getElementById('totalDrivers').textContent = total;
+                document.getElementById('pendingDrivers').textContent = pending;
+                document.getElementById('approvedDrivers').textContent = approved;
+                document.getElementById('pendingDocuments').textContent = pendingDocs;
+
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Load drivers
+        async function loadDrivers() {
+            try {
+                const { data: drivers, error } = await supabase
+                    .from('driver_profiles')
+                    .select(`
+                        *,
+                        users!inner(email),
+                        driver_documents(document_type, status)
+                    `)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                currentDrivers = drivers;
+                renderDrivers(drivers);
+            } catch (error) {
+                console.error('Error loading drivers:', error);
+                document.getElementById('driversContainer').innerHTML = 
+                    '<div class="empty-state">Failed to load drivers</div>';
+            }
+        }
+
+        // Load documents
+        async function loadDocuments() {
+            try {
+                const { data: documents, error } = await supabase
+                    .from('admin_driver_documents_view')
+                    .select('*')
+                    .order('uploaded_at', { ascending: false });
+
+                if (error) throw error;
+
+                currentDocuments = documents;
+                renderDocuments(documents);
+            } catch (error) {
+                console.error('Error loading documents:', error);
+                document.getElementById('documentsContainer').innerHTML = 
+                    '<div class="empty-state">Failed to load documents</div>';
+            }
+        }
+
+        // Load approval history
+        async function loadHistory() {
+            try {
+                const { data: history, error } = await supabase
+                    .from('approval_history')
+                    .select(`
+                        *,
+                        driver_profiles(first_name, last_name, phone),
+                        users!approval_history_changed_by_fkey(email)
+                    `)
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+
+                if (error) throw error;
+
+                currentHistory = history;
+                renderHistory(history);
+            } catch (error) {
+                console.error('Error loading history:', error);
+                document.getElementById('historyContainer').innerHTML = 
+                    '<div class="empty-state">Failed to load history</div>';
+            }
+        }
+
+        // Render drivers
+        function renderDrivers(drivers) {
+            const container = document.getElementById('driversContainer');
+            
+            if (drivers.length === 0) {
+                container.innerHTML = '<div class="empty-state">No drivers found</div>';
+                return;
+            }
+
+            container.innerHTML = drivers.map(driver => {
+                const documentsCount = driver.driver_documents.length;
+                const requiredDocs = ['drivers_license', 'vehicle_registration', 'insurance_certificate', 'profile_photo'];
+                const uploadedRequiredDocs = requiredDocs.filter(type => 
+                    driver.driver_documents.some(doc => doc.document_type === type)
+                ).length;
+
+                return `
+                    <div class="driver-card">
+                        <div class="driver-header">
+                            <div class="driver-name">${driver.first_name} ${driver.last_name}</div>
+                            <div class="driver-details">
+                                <div>📧 ${driver.users.email}</div>
+                                <div>📱 ${driver.phone}</div>
+                                <div>🚗 ${driver.years_experience} years experience</div>
+                                <div>📄 ${uploadedRequiredDocs}/4 required docs</div>
+                            </div>
+                        </div>
+                        
+                        <div class="documents-section">
+                            <div class="documents-grid">
+                                ${requiredDocs.map(docType => {
+                                    const doc = driver.driver_documents.find(d => d.document_type === docType);
+                                    const isUploaded = !!doc;
+                                    return `
+                                        <div class="document-item ${isUploaded ? 'document-uploaded' : 'document-missing'}">
+                                            <div class="document-icon">${getDocumentIcon(docType)}</div>
+                                            <div class="document-title">${getDocumentTitle(docType)}</div>
+                                            <div class="document-status ${isUploaded ? 'status-' + doc.status : ''}">${isUploaded ? doc.status : 'missing'}</div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <div class="actions">
+                            <div class="status-badge status-${driver.approval_status}">
+                                <span>●</span>
+                                <span>${driver.approval_status}</span>
+                            </div>
+                            <button class="btn btn-view" onclick="viewDriverDetails('${driver.id}')">
+                                View Details
+                            </button>
+                            ${driver.approval_status === 'pending' ? `
+                                <button class="btn btn-approve" onclick="approveDriver('${driver.id}')">
+                                    Approve
+                                </button>
+                                <button class="btn btn-reject" onclick="rejectDriver('${driver.id}')">
+                                    Reject
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render documents
+        function renderDocuments(documents) {
+            const container = document.getElementById('documentsContainer');
+            
+            if (documents.length === 0) {
+                container.innerHTML = '<div class="empty-state">No documents found</div>';
+                return;
+            }
+
+            // Group documents by driver
+            const groupedDocs = documents.reduce((acc, doc) => {
+                if (!acc[doc.driver_id]) {
+                    acc[doc.driver_id] = {
+                        driver: doc,
+                        documents: []
+                    };
+                }
+                acc[doc.driver_id].documents.push(doc);
+                return acc;
+            }, {});
+
+            container.innerHTML = Object.values(groupedDocs).map(group => `
+                <div class="driver-card">
+                    <div class="driver-header">
+                        <div class="driver-name">${group.driver.driver_name}</div>
+                        <div class="driver-details">
+                            <div>📱 ${group.driver.driver_phone}</div>
+                            <div>📄 ${group.documents.length} documents</div>
+                        </div>
+                    </div>
+                    
+                    <div class="documents-section">
+                        <div class="documents-grid">
+                            ${group.documents.map(doc => `
+                                <div class="document-item document-uploaded">
+                                    <div class="document-icon">${getDocumentIcon(doc.document_type)}</div>
+                                    <div class="document-title">${doc.document_title}</div>
+                                    <div class="document-status status-${doc.document_status}">${doc.document_status}</div>
+                                    <button class="btn btn-view" style="margin-top: 0.5rem; font-size: 0.8rem;" onclick="reviewDocument('${doc.id}')">
+                                        Review
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render history
+        function renderHistory(history) {
+            const container = document.getElementById('historyContainer');
+            
+            if (history.length === 0) {
+                container.innerHTML = '<div class="empty-state">No history found</div>';
+                return;
+            }
+
+            container.innerHTML = history.map(item => `
+                <div class="driver-card">
+                    <div class="driver-header">
+                        <div class="driver-name">${item.driver_profiles.first_name} ${item.driver_profiles.last_name}</div>
+                        <div class="driver-details">
+                            <div>📱 ${item.driver_profiles.phone}</div>
+                            <div>📅 ${new Date(item.created_at).toLocaleDateString()}</div>
+                            <div>👤 ${item.users?.email || 'System'}</div>
+                            <div>🔄 ${item.previous_status} → ${item.new_status}</div>
+                        </div>
+                    </div>
+                    
+                    ${item.reason ? `
+                        <div class="documents-section">
+                            <strong>Reason:</strong> ${item.reason}
+                        </div>
+                    ` : ''}
+                    
+                    ${item.notes ? `
+                        <div class="documents-section">
+                            <strong>Notes:</strong> ${item.notes}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Document helper functions
+        function getDocumentIcon(type) {
+            const icons = {
+                'drivers_license': '🪪',
+                'vehicle_registration': '📋',
+                'insurance_certificate': '🛡️',
+                'profile_photo': '📷',
+                'vehicle_photo': '🚛'
+            };
+            return icons[type] || '📄';
+        }
+
+        function getDocumentTitle(type) {
+            const titles = {
+                'drivers_license': 'License',
+                'vehicle_registration': 'Registration',
+                'insurance_certificate': 'Insurance',
+                'profile_photo': 'Profile Photo',
+                'vehicle_photo': 'Vehicle Photo'
+            };
+            return titles[type] || type;
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update content sections
+            document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+            document.getElementById(`${tabName}-section`).classList.add('active');
+        }
+
+        // Driver actions
+        async function approveDriver(driverId) {
+            if (!confirm('Are you sure you want to approve this driver?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('driver_profiles')
+                    .update({
+                        is_approved: true,
+                        approval_status: 'approved',
+                        approved_at: new Date().toISOString(),
+                        approved_by: 'admin' // In a real app, this would be the current admin user ID
+                    })
+                    .eq('id', driverId);
+
+                if (error) throw error;
+
+                showNotification('Driver approved successfully', 'success');
+                await loadStats();
+                await loadDrivers();
+            } catch (error) {
+                console.error('Error approving driver:', error);
+                showNotification('Failed to approve driver', 'error');
+            }
+        }
+
+        async function rejectDriver(driverId) {
+            const reason = prompt('Enter rejection reason:');
+            if (!reason) return;
+
+            try {
+                const { error } = await supabase
+                    .from('driver_profiles')
+                    .update({
+                        is_approved: false,
+                        approval_status: 'rejected',
+                        rejection_reason: reason,
+                        approved_by: 'admin' // In a real app, this would be the current admin user ID
+                    })
+                    .eq('id', driverId);
+
+                if (error) throw error;
+
+                showNotification('Driver rejected', 'success');
+                await loadStats();
+                await loadDrivers();
+            } catch (error) {
+                console.error('Error rejecting driver:', error);
+                showNotification('Failed to reject driver', 'error');
+            }
+        }
+
+        // Document review
+        async function reviewDocument(documentId) {
+            try {
+                const { data: document, error } = await supabase
+                    .from('admin_driver_documents_view')
+                    .select('*')
+                    .eq('id', documentId)
+                    .single();
+
+                if (error) throw error;
+
+                // Show document review modal
+                const modal = document.getElementById('documentModal');
+                const title = document.getElementById('modalDocumentTitle');
+                const content = document.getElementById('documentModalContent');
+
+                title.textContent = `Review ${document.document_title}`;
+
+                content.innerHTML = `
+                    <div class="document-viewer">
+                        ${document.file_url.toLowerCase().includes('.pdf') ? 
+                            `<iframe src="${document.file_url}" width="100%" height="400px"></iframe>` :
+                            `<img src="${document.file_url}" alt="${document.document_title}" class="document-image">`
+                        }
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Driver: ${document.driver_name}</label>
+                        <p>Phone: ${document.driver_phone}</p>
+                        <p>Uploaded: ${new Date(document.uploaded_at).toLocaleString()}</p>
+                        <p>Status: <span class="status-badge status-${document.document_status}">${document.document_status}</span></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="reviewNotes">Review Notes</label>
+                        <textarea id="reviewNotes" class="form-control" rows="3" placeholder="Enter review notes...">${document.review_notes || ''}</textarea>
+                    </div>
+
+                    <div class="actions" style="margin-top: 1.5rem;">
+                        <button class="btn btn-approve" onclick="approveDocument('${documentId}')">
+                            Approve Document
+                        </button>
+                        <button class="btn btn-reject" onclick="rejectDocument('${documentId}')">
+                            Reject Document
+                        </button>
+                        <button class="btn btn-secondary" onclick="closeDocumentModal()">
+                            Close
+                        </button>
+                    </div>
+                `;
+
+                modal.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading document:', error);
+                showNotification('Failed to load document', 'error');
+            }
+        }
+
+        async function approveDocument(documentId) {
+            const notes = document.getElementById('reviewNotes').value;
+
+            try {
+                const { error } = await supabase
+                    .from('driver_documents')
+                    .update({
+                        status: 'approved',
+                        review_notes: notes,
+                        reviewed_at: new Date().toISOString(),
+                        reviewed_by: 'admin' // In a real app, this would be the current admin user ID
+                    })
+                    .eq('id', documentId);
+
+                if (error) throw error;
+
+                showNotification('Document approved', 'success');
+                closeDocumentModal();
+                await loadStats();
+                await loadDocuments();
+            } catch (error) {
+                console.error('Error approving document:', error);
+                showNotification('Failed to approve document', 'error');
+            }
+        }
+
+        async function rejectDocument(documentId) {
+            const notes = document.getElementById('reviewNotes').value;
+            if (!notes.trim()) {
+                alert('Please provide review notes for rejection');
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('driver_documents')
+                    .update({
+                        status: 'rejected',
+                        review_notes: notes,
+                        reviewed_at: new Date().toISOString(),
+                        reviewed_by: 'admin' // In a real app, this would be the current admin user ID
+                    })
+                    .eq('id', documentId);
+
+                if (error) throw error;
+
+                showNotification('Document rejected', 'success');
+                closeDocumentModal();
+                await loadStats();
+                await loadDocuments();
+            } catch (error) {
+                console.error('Error rejecting document:', error);
+                showNotification('Failed to reject document', 'error');
+            }
+        }
+
+        // Modal functions
+        function viewDriverDetails(driverId) {
+            const driver = currentDrivers.find(d => d.id === driverId);
+            if (!driver) return;
+
+            const modal = document.getElementById('driverModal');
+            const title = document.getElementById('modalDriverName');
+            const content = document.getElementById('modalContent');
+
+            title.textContent = `${driver.first_name} ${driver.last_name}`;
+
+            content.innerHTML = `
+                <div class="form-group">
+                    <label class="form-label">Contact Information</label>
+                    <p>📧 Email: ${driver.users.email}</p>
+                    <p>📱 Phone: ${driver.phone}</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Driver Information</label>
+                    <p>🚗 Experience: ${driver.years_experience} years</p>
+                    <p>🪪 License: ${driver.license_number}</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Vehicle Information</label>
+                    <p>🚛 Model: ${driver.vehicle_info?.model || 'N/A'}</p>
+                    <p>📅 Year: ${driver.vehicle_info?.year || 'N/A'}</p>
+                    <p>🔢 Plate: ${driver.vehicle_info?.plateNumber || 'N/A'}</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <p>Status: <span class="status-badge status-${driver.approval_status}">${driver.approval_status}</span></p>
+                    <p>Created: ${new Date(driver.created_at).toLocaleString()}</p>
+                    ${driver.approved_at ? `<p>Approved: ${new Date(driver.approved_at).toLocaleString()}</p>` : ''}
+                    ${driver.rejection_reason ? `<p>Rejection Reason: ${driver.rejection_reason}</p>` : ''}
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                </div>
+            `;
+
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('driverModal').style.display = 'none';
+        }
+
+        function closeDocumentModal() {
+            document.getElementById('documentModal').style.display = 'none';
+        }
+
+        // Notification system
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Real-time subscriptions
+        function setupRealtimeSubscriptions() {
+            // Subscribe to driver profile changes
+            supabase
+                .channel('driver_profiles_changes')
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'driver_profiles'
+                }, async () => {
+                    await loadStats();
+                    await loadDrivers();
+                })
+                .subscribe();
+
+            // Subscribe to document changes
+            supabase
+                .channel('driver_documents_changes')
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'driver_documents'
+                }, async () => {
+                    await loadStats();
+                    await loadDocuments();
+                })
+                .subscribe();
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const driverModal = document.getElementById('driverModal');
+            const documentModal = document.getElementById('documentModal');
+            
+            if (event.target == driverModal) {
+                closeModal();
+            }
+            if (event.target == documentModal) {
+                closeDocumentModal();
+            }
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', initializeDashboard);
+    </script>
+</body>
+</html>

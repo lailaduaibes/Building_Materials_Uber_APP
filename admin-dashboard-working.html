@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Approval Dashboard - YouMats Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .pending-applications {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .section-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .application-item {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .application-item:last-child {
+            border-bottom: none;
+        }
+        
+        .driver-info {
+            flex: 1;
+        }
+        
+        .driver-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .driver-details {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .status-badges {
+            display: flex;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .badge-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-online {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .badge-offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-approve {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-approve:hover {
+            background: #218838;
+        }
+        
+        .btn-reject {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-reject:hover {
+            background: #c82333;
+        }
+        
+        .btn-review {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-review:hover {
+            background: #138496;
+        }
+        
+        .btn-disabled {
+            background: #6c757d;
+            color: white;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 1rem;
+            color: #495057;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚛 YouMats Driver Approval Dashboard</h1>
+        <p>Manage driver applications and vehicle verifications</p>
+    </div>
+    
+    <div class="container">
+        <div id="messageArea"></div>
+        
+        <!-- Statistics Dashboard -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalDrivers">-</div>
+                <div class="stat-label">Total Drivers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pendingApplications">-</div>
+                <div class="stat-label">Pending Approval</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="approvedDrivers">-</div>
+                <div class="stat-label">Approved Drivers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activeDrivers">-</div>
+                <div class="stat-label">Online Drivers</div>
+            </div>
+        </div>
+        
+        <!-- Driver Management -->
+        <div class="pending-applications">
+            <div class="section-header">
+                📋 Driver Management
+            </div>
+            <div id="applicationsList">
+                <div class="loading">
+                    Loading drivers...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Refresh Button -->
+    <button class="refresh-btn" onclick="loadDashboard()" title="Refresh Dashboard">
+        🔄
+    </button>
+    
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
+        const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8';
+        
+        // Global variables
+        let drivers = [];
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(loadDashboard, 30000);
+        });
+        
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                console.log('Loading dashboard data...');
+                showMessage('Loading driver data...', 'info');
+                
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?select=*`, {
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                drivers = await response.json();
+                console.log('Loaded drivers:', drivers);
+                
+                updateStatistics();
+                displayDrivers();
+                clearMessage();
+                
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                showMessage('Failed to load driver data: ' + error.message, 'error');
+            }
+        }
+        
+        // Update statistics
+        function updateStatistics() {
+            const totalDrivers = drivers.length;
+            const approvedDrivers = drivers.filter(d => isDriverApproved(d)).length;
+            const pendingDrivers = drivers.filter(d => !isDriverApproved(d)).length;
+            const onlineDrivers = drivers.filter(d => d.status === 'online').length;
+            
+            document.getElementById('totalDrivers').textContent = totalDrivers;
+            document.getElementById('pendingApplications').textContent = pendingDrivers;
+            document.getElementById('approvedDrivers').textContent = approvedDrivers;
+            document.getElementById('activeDrivers').textContent = onlineDrivers;
+        }
+        
+        // Check if driver is approved (using specializations field)
+        function isDriverApproved(driver) {
+            return driver.specializations && 
+                   Array.isArray(driver.specializations) && 
+                   driver.specializations.includes('APPROVED_BY_ADMIN');
+        }
+        
+        // Display drivers
+        function displayDrivers() {
+            const container = document.getElementById('applicationsList');
+            
+            if (!drivers || drivers.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>📭 No Drivers Found</h3>
+                        <p>No drivers are registered in the system.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = drivers.map(driver => {
+                const isApproved = isDriverApproved(driver);
+                const approvalStatus = isApproved ? 'approved' : 'pending';
+                
+                return `
+                    <div class="application-item">
+                        <div class="driver-info">
+                            <div class="driver-name">
+                                ${driver.first_name} ${driver.last_name}
+                            </div>
+                            <div class="driver-details">
+                                📱 ${driver.phone || 'No phone'}<br>
+                                🏗️ ${driver.years_experience || 0} years experience<br>
+                                📅 Registered: ${new Date(driver.created_at).toLocaleDateString()}<br>
+                                🚛 Vehicle: ${driver.vehicle_model || 'Not specified'} (${driver.vehicle_plate || 'No plate'})
+                            </div>
+                            <div class="status-badges">
+                                <span class="badge badge-${approvalStatus}">
+                                    ${isApproved ? '✅ Approved' : '⏳ Pending'}
+                                </span>
+                                <span class="badge badge-${driver.status}">
+                                    ${driver.status.toUpperCase()}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="actions">
+                            ${isApproved ? 
+                                `<button class="btn btn-reject" onclick="revokeApproval('${driver.id}', '${driver.first_name} ${driver.last_name}')">
+                                    🚫 Revoke
+                                </button>` :
+                                `<button class="btn btn-approve" onclick="approveDriver('${driver.id}', '${driver.first_name} ${driver.last_name}')">
+                                    ✅ Approve
+                                </button>`
+                            }
+                            <button class="btn btn-review" onclick="viewDriverDetails('${driver.id}')">
+                                👁️ Details
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Approve driver
+        async function approveDriver(driverId, driverName) {
+            if (!confirm(`Approve ${driverName} as a professional driver?`)) {
+                return;
+            }
+            
+            try {
+                showMessage(`Approving ${driverName}...`, 'info');
+                
+                // Find the current driver
+                const driver = drivers.find(d => d.id === driverId);
+                if (!driver) {
+                    throw new Error('Driver not found');
+                }
+                
+                // Add approval marker to specializations
+                const updatedSpecializations = [...(driver.specializations || [])];
+                if (!updatedSpecializations.includes('APPROVED_BY_ADMIN')) {
+                    updatedSpecializations.push('APPROVED_BY_ADMIN');
+                }
+                
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${driverId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        specializations: updatedSpecializations,
+                        updated_at: new Date().toISOString()
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to approve driver');
+                }
+                
+                showMessage(`✅ ${driverName} has been approved successfully!`, 'success');
+                setTimeout(() => {
+                    loadDashboard();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error approving driver:', error);
+                showMessage(`Failed to approve ${driverName}: ${error.message}`, 'error');
+            }
+        }
+        
+        // Revoke approval
+        async function revokeApproval(driverId, driverName) {
+            if (!confirm(`Revoke approval for ${driverName}?`)) {
+                return;
+            }
+            
+            try {
+                showMessage(`Revoking approval for ${driverName}...`, 'info');
+                
+                // Find the current driver
+                const driver = drivers.find(d => d.id === driverId);
+                if (!driver) {
+                    throw new Error('Driver not found');
+                }
+                
+                // Remove approval marker from specializations
+                const updatedSpecializations = (driver.specializations || [])
+                    .filter(spec => spec !== 'APPROVED_BY_ADMIN');
+                
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${driverId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        specializations: updatedSpecializations,
+                        updated_at: new Date().toISOString()
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to revoke approval');
+                }
+                
+                showMessage(`❌ Approval revoked for ${driverName}`, 'success');
+                setTimeout(() => {
+                    loadDashboard();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error revoking approval:', error);
+                showMessage(`Failed to revoke approval for ${driverName}: ${error.message}`, 'error');
+            }
+        }
+        
+        // View driver details
+        function viewDriverDetails(driverId) {
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) {
+                alert('Driver not found');
+                return;
+            }
+            
+            const isApproved = isDriverApproved(driver);
+            
+            alert(`Driver Details:\\n\\n` +
+                  `Name: ${driver.first_name} ${driver.last_name}\\n` +
+                  `Phone: ${driver.phone || 'Not provided'}\\n` +
+                  `Experience: ${driver.years_experience || 0} years\\n` +
+                  `Status: ${driver.status}\\n` +
+                  `Approval Status: ${isApproved ? 'APPROVED' : 'PENDING'}\\n` +
+                  `Vehicle: ${driver.vehicle_model || 'Not specified'}\\n` +
+                  `License Plate: ${driver.vehicle_plate || 'Not provided'}\\n` +
+                  `Rating: ${driver.rating || 'No rating'}/5\\n` +
+                  `Total Trips: ${driver.total_trips || 0}\\n` +
+                  `Specializations: ${(driver.specializations || []).filter(s => s !== 'APPROVED_BY_ADMIN').join(', ') || 'None'}\\n` +
+                  `Registered: ${new Date(driver.created_at).toLocaleDateString()}`);
+        }
+        
+        // Show message
+        function showMessage(message, type = 'info') {
+            const messageArea = document.getElementById('messageArea');
+            const className = type === 'error' ? 'error-message' : 
+                             type === 'success' ? 'success-message' : 
+                             'info-message';
+            
+            messageArea.innerHTML = `<div class="${className}">${message}</div>`;
+        }
+        
+        // Clear message
+        function clearMessage() {
+            const messageArea = document.getElementById('messageArea');
+            setTimeout(() => {
+                messageArea.innerHTML = '';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
