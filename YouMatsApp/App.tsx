@@ -46,6 +46,7 @@ import LiveTripTrackingScreen from './screens/LiveTripTrackingScreen';
 import { AuthScreensSupabase } from './AuthScreensSupabase';
 import { authService, User } from './AuthServiceSupabase';
 import EnhancedDriverRegistrationScreen from './screens/EnhancedDriverRegistrationScreen';
+import { EmailVerificationScreen } from './screens/EmailVerificationScreen';
 
 type AppScreen =
   | 'auth'
@@ -55,7 +56,8 @@ type AppScreen =
   | 'trip_history'
   | 'profile'
   | 'live_tracking'
-  | 'register';
+  | 'register'
+  | 'email_verification';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -66,6 +68,7 @@ const App: React.FC = () => {
   const [showOrderAssignment, setShowOrderAssignment] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
+  const [verificationEmail, setVerificationEmail] = useState<string>('');
 
   useEffect(() => {
     initializeApp();
@@ -241,6 +244,25 @@ const App: React.FC = () => {
     setCurrentScreen('register');
   };
 
+  const handleEmailVerificationRequired = (email: string) => {
+    setVerificationEmail(email);
+    setCurrentScreen('email_verification');
+  };
+
+  const handleEmailVerificationComplete = (driverId: string) => {
+    // The enhanced registration screen handles documents internally
+    Alert.alert(
+      'Email Verified! 📧',
+      'Your email has been verified. Please continue with document upload.',
+      [
+        {
+          text: 'Continue',
+          onPress: () => setCurrentScreen('register'), // Go back to enhanced registration
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -269,7 +291,7 @@ const App: React.FC = () => {
 
       {currentScreen === 'register' && (
         <EnhancedDriverRegistrationScreen
-          onRegistrationComplete={(success, message) => {
+          onRegistrationComplete={(success: boolean, message: string) => {
             if (success) {
               Alert.alert('Registration Complete', message);
               setCurrentScreen('auth');
@@ -278,6 +300,14 @@ const App: React.FC = () => {
             }
           }}
           onBackToLogin={() => setCurrentScreen('auth')}
+        />
+      )}
+
+      {currentScreen === 'email_verification' && (
+        <EmailVerificationScreen
+          email={verificationEmail}
+          onVerificationComplete={handleEmailVerificationComplete}
+          onBackToRegistration={() => setCurrentScreen('register')}
         />
       )}
 

@@ -30,6 +30,10 @@ export interface Driver {
   phone: string;
   years_experience: number;
   specializations: any;
+  // Vehicle information
+  vehicle_model?: string;
+  vehicle_year?: number;
+  vehicle_plate?: string;
   // New proper approval fields
   is_approved: boolean;
   approval_status: 'pending' | 'under_review' | 'approved' | 'rejected';
@@ -242,7 +246,10 @@ class DriverService {
             fullName: `${userData.first_name} ${userData.last_name}`,
             email: userData.email,
             phone: serviceDriverData.phone || '',
-            status: serviceDriverData.is_available ? 'online' : 'offline'
+            status: serviceDriverData.is_available ? 'online' : 'offline',
+            // Parse JSON fields
+            specializations: this.parseJsonField(serviceDriverData.specializations, ['general']),
+            preferred_truck_types: this.parseJsonField(serviceDriverData.preferred_truck_types, ['small_truck'])
           };
 
           this.currentDriver = driver;
@@ -283,7 +290,10 @@ class DriverService {
             fullName: `${userData.first_name} ${userData.last_name}`,
             email: userData.email,
             phone: serviceDriverData.phone || '',
-            status: serviceDriverData.is_available ? 'online' : 'offline'
+            status: serviceDriverData.is_available ? 'online' : 'offline',
+            // Parse JSON fields
+            specializations: this.parseJsonField(serviceDriverData.specializations, ['general']),
+            preferred_truck_types: this.parseJsonField(serviceDriverData.preferred_truck_types, ['small_truck'])
           };
 
           this.currentDriver = driver;
@@ -307,7 +317,10 @@ class DriverService {
         fullName: `${userData.first_name} ${userData.last_name}`,
         email: userData.email,
         phone: '', // Will be filled if needed
-        status: driverData.is_available ? 'online' : 'offline'
+        status: driverData.is_available ? 'online' : 'offline',
+        // Parse JSON fields
+        specializations: this.parseJsonField(driverData.specializations, ['general']),
+        preferred_truck_types: this.parseJsonField(driverData.preferred_truck_types, ['small_truck'])
       };
 
       this.currentDriver = driver;
@@ -414,57 +427,85 @@ class DriverService {
 
       console.log('✅ User account created:', authData.user.id);
 
-      // Step 2: Create user record in users table
-      const { error: userInsertError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          first_name: registrationData.firstName,
-          last_name: registrationData.lastName,
+      // Check if email confirmation is required
+      if (!authData.session) {
+        console.log('📧 Email confirmation required - no session returned');
+        
+        // Try to sign in immediately (this works if email confirmation is disabled)
+        console.log('🔑 Attempting to sign in after registration...');
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: registrationData.email,
-          role: 'driver',
-          user_type: 'driver'
+          password: registrationData.password
         });
 
-      if (userInsertError) {
-        console.error('❌ Error creating user record:', userInsertError);
-        // Continue anyway, might already exist
+        if (signInError) {
+          console.log('⚠️ Auto sign-in failed - email confirmation likely required:', signInError.message);
+        } else if (signInData.session) {
+          console.log('✅ Auto sign-in successful after registration');
+        }
+      } else {
+        console.log('✅ User signed in automatically after registration');
       }
 
-      // Step 3: Create driver profile with proper approval fields
+      // Step 2: Wait a moment for the user to be properly created in the database
+      // This ensures the foreign key constraint is satisfied
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Step 3: Create entry in public.users table using proven customer app method
+      console.log('� CRITICAL STEP: Creating entry in public.users table...');
+      await this.ensureUserInCustomTable(authData.user, registrationData);
+
+      // Step 4: Verify the user exists in auth.users before creating profile
+      const { data: userCheck, error: userCheckError } = await supabase
+        .from('auth.users')
+        .select('id')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (userCheckError) {
+        console.log('User verification failed, but continuing with profile creation...');
+      }
+
+      // Step 5: Create driver profile with proper approval fields
+      const profileData = {
+        user_id: authData.user.id,
+        first_name: registrationData.firstName,
+        last_name: registrationData.lastName,
+        phone: registrationData.phone,
+        years_experience: registrationData.yearsExperience,
+        vehicle_model: registrationData.vehicleInfo?.model || 'Not specified',
+        vehicle_year: registrationData.vehicleInfo?.year || 2020,
+        vehicle_plate: registrationData.vehicleInfo?.plate || 'TBD',
+        // Proper approval fields
+        is_approved: false,
+        approval_status: 'pending',
+        application_submitted_at: new Date().toISOString(),
+        // Default values - using JSONB format
+        specializations: JSON.stringify(['general']),
+        rating: 5.0,
+        total_trips: 0,
+        total_earnings: 0.0,
+        is_available: false,
+        preferred_truck_types: JSON.stringify(['small_truck']),
+        max_distance_km: 50
+      };
+
+      console.log('Creating driver profile with data:', profileData);
+
       const { data: driverProfile, error: profileError } = await supabase
         .from('driver_profiles')
-        .insert({
-          user_id: authData.user.id,
-          first_name: registrationData.firstName,
-          last_name: registrationData.lastName,
-          phone: registrationData.phone,
-          years_experience: registrationData.yearsExperience,
-          vehicle_model: registrationData.vehicleInfo?.model,
-          vehicle_plate: registrationData.vehicleInfo?.plate,
-          // Proper approval fields
-          is_approved: false,
-          approval_status: 'pending',
-          application_submitted_at: new Date().toISOString(),
-          // Default values
-          specializations: {},
-          rating: 5.0,
-          total_trips: 0,
-          total_earnings: 0.0,
-          is_available: false,
-          preferred_truck_types: {},
-          max_distance_km: 50
-        })
+        .insert(profileData)
         .select()
         .single();
 
       if (profileError) {
+        console.error('Profile creation error:', profileError);
         throw new Error(`Failed to create driver profile: ${profileError.message}`);
       }
 
       console.log('✅ Driver profile created:', driverProfile.id);
 
-      // Step 4: Create Driver object
+      // Step 6: Create Driver object
       const driver: Driver = {
         ...driverProfile,
         firstName: registrationData.firstName,
@@ -475,7 +516,7 @@ class DriverService {
         status: 'offline' as const
       };
 
-      // Step 5: Get approval status
+      // Step 7: Get approval status
       const approvalStatus: ApprovalStatus = {
         canPickTrips: false,
         status: 'pending',
@@ -730,12 +771,75 @@ class DriverService {
       }
 
       const driverPreferredTypes = this.currentDriver.preferred_truck_types || [];
-      const isCompatible = driverPreferredTypes.includes(requiredTruckType.name);
+      
+      console.log('🔍 DEBUG - Raw driver preferred truck types:', {
+        raw: this.currentDriver.preferred_truck_types,
+        type: typeof this.currentDriver.preferred_truck_types,
+        parsed: driverPreferredTypes
+      });
+      
+      // Create a mapping of common truck type variations to handle compatibility
+      const truckTypeMapping: { [key: string]: string[] } = {
+        'Small Truck': ['small_truck', 'Small Truck (up to 3.5t)', 'small'],
+        'Medium Truck': ['medium_truck', 'Medium Truck (3.5-7.5t)', 'medium'],
+        'Large Truck': ['large_truck', 'Large Truck (7.5-18t)', 'large'],
+        'Heavy Truck': ['heavy_truck', 'Heavy Truck (18t+)', 'heavy'],
+        'Flatbed Truck': ['flatbed_truck', 'Flatbed Truck', 'flatbed'],
+        'Dump Truck': ['dump_truck', 'Dump Truck', 'dump'],
+        'Concrete Mixer': ['concrete_mixer', 'Concrete Mixer', 'mixer'],
+        'Crane Truck': ['crane_truck', 'Crane Truck', 'crane'],
+        'Box Truck': ['box_truck', 'Box Truck', 'box'],
+        'Refrigerated Truck': ['refrigerated_truck', 'Refrigerated Truck', 'refrigerated']
+      };
+
+      // Check if there's a match using the mapping
+      let isCompatible = false;
+      const requiredTruckTypeName = requiredTruckType.name;
+      
+      console.log('🔍 DEBUG - Compatibility check details:', {
+        requiredTruckTypeName,
+        driverPreferredTypes,
+        driverPreferredTypesLength: driverPreferredTypes.length,
+        directMatch: driverPreferredTypes.includes(requiredTruckTypeName)
+      });
+      
+      // Direct match first
+      if (driverPreferredTypes.includes(requiredTruckTypeName)) {
+        isCompatible = true;
+        console.log('✅ Direct match found!');
+      } else {
+        console.log('❌ No direct match, checking mapping...');
+        
+        // Check using mapping
+        for (const [dbName, variations] of Object.entries(truckTypeMapping)) {
+          console.log(`🔍 Checking category: ${dbName}`);
+          console.log(`   Variations: [${variations.join(', ')}]`);
+          console.log(`   Required type "${requiredTruckTypeName}" matches category? ${requiredTruckTypeName === dbName}`);
+          
+          if (requiredTruckTypeName === dbName || variations.includes(requiredTruckTypeName)) {
+            console.log(`   ✓ ${requiredTruckTypeName} matches category ${dbName}`);
+            
+            // Check if driver has any of these variations
+            const matchingVariations = variations.filter(variation => {
+              const hasVariation = driverPreferredTypes.includes(variation);
+              console.log(`     - Driver has "${variation}"? ${hasVariation ? '✅' : '❌'}`);
+              return hasVariation;
+            });
+            
+            if (matchingVariations.length > 0) {
+              isCompatible = true;
+              console.log(`   🎯 MATCH FOUND! Driver has: ${matchingVariations.join(', ')}`);
+              break;
+            }
+          }
+        }
+      }
 
       console.log('🔍 Compatibility check result:', {
-        requiredTruckType: requiredTruckType.name,
+        requiredTruckType: requiredTruckTypeName,
         driverPreferredTypes,
-        isCompatible
+        isCompatible,
+        mappingUsed: 'Enhanced compatibility check'
       });
 
       return {
@@ -787,10 +891,43 @@ class DriverService {
 
       // Check if driver's preferred truck types include the required type
       const driverPreferredTypes = this.currentDriver.preferred_truck_types || [];
-      const isCompatible = driverPreferredTypes.includes(requiredTruckType.name);
+      
+      // Use the same enhanced compatibility logic
+      const truckTypeMapping: { [key: string]: string[] } = {
+        'Small Truck': ['small_truck', 'Small Truck (up to 3.5t)', 'small'],
+        'Medium Truck': ['medium_truck', 'Medium Truck (3.5-7.5t)', 'medium'],
+        'Large Truck': ['large_truck', 'Large Truck (7.5-18t)', 'large'],
+        'Heavy Truck': ['heavy_truck', 'Heavy Truck (18t+)', 'heavy'],
+        'Flatbed Truck': ['flatbed_truck', 'Flatbed Truck', 'flatbed'],
+        'Dump Truck': ['dump_truck', 'Dump Truck', 'dump'],
+        'Concrete Mixer': ['concrete_mixer', 'Concrete Mixer', 'mixer'],
+        'Crane Truck': ['crane_truck', 'Crane Truck', 'crane'],
+        'Box Truck': ['box_truck', 'Box Truck', 'box'],
+        'Refrigerated Truck': ['refrigerated_truck', 'Refrigerated Truck', 'refrigerated']
+      };
+
+      let isCompatible = false;
+      const requiredTruckTypeName = requiredTruckType.name;
+      
+      // Direct match first
+      if (driverPreferredTypes.includes(requiredTruckTypeName)) {
+        isCompatible = true;
+      } else {
+        // Check using mapping
+        for (const [dbName, variations] of Object.entries(truckTypeMapping)) {
+          if (requiredTruckTypeName === dbName || variations.includes(requiredTruckTypeName)) {
+            // Check if driver has any of these variations
+            const hasMatch = variations.some(variation => driverPreferredTypes.includes(variation));
+            if (hasMatch) {
+              isCompatible = true;
+              break;
+            }
+          }
+        }
+      }
 
       console.log('🔍 Truck type compatibility check:');
-      console.log('   - Required truck type:', requiredTruckType.name);
+      console.log('   - Required truck type:', requiredTruckTypeName);
       console.log('   - Driver preferred types:', driverPreferredTypes);
       console.log('   - Material type:', trip.material_type);
       console.log('   - Weight:', trip.estimated_weight_tons, 'tons');
@@ -1310,6 +1447,14 @@ class DriverService {
       
       console.log('✅ Driver approved, fetching available trips...');
       
+      // ✅ NEW: Get driver's current location first
+      const driverLocation = await this.getCurrentDriverLocation();
+      if (!driverLocation) {
+        console.log('⚠️ Cannot get driver location, showing all trips');
+      } else {
+        console.log('📍 Driver location:', driverLocation);
+      }
+      
       // Debug: Check current authentication
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       console.log('🔍 Current auth user:', { 
@@ -1414,9 +1559,37 @@ class DriverService {
 
         console.log(`✅ Found ${finalTrips.length} available trips via service role`);
 
-        // Convert to OrderAssignment format
-        const assignments: OrderAssignment[] = finalTrips.map((trip: any) => {
-          return {
+        // Convert to OrderAssignment format with distance calculation
+        const assignments: OrderAssignment[] = [];
+        const maxDistanceKm = 50; // Only show trips within 50km
+        
+        for (const trip of finalTrips) {
+          // Calculate distance from driver to pickup location
+          let distanceToPickupKm = 0;
+          
+          if (driverLocation) {
+            const pickupLat = Number(trip.pickup_latitude);
+            const pickupLng = Number(trip.pickup_longitude);
+            
+            if (pickupLat && pickupLng) {
+              distanceToPickupKm = this.calculateDistanceKm(
+                driverLocation.latitude,
+                driverLocation.longitude,
+                pickupLat,
+                pickupLng
+              );
+              
+              console.log(`📏 Trip ${trip.id}: ${distanceToPickupKm.toFixed(1)}km away (service role)`);
+              
+              // Skip trips that are too far away
+              if (distanceToPickupKm > maxDistanceKm) {
+                console.log(`⚠️ Trip ${trip.id} is ${distanceToPickupKm.toFixed(1)}km away, skipping (max: ${maxDistanceKm}km)`);
+                continue;
+              }
+            }
+          }
+          
+          const assignment = {
             id: trip.id,
             orderId: trip.id,
             customerId: trip.customer_id || '',
@@ -1444,14 +1617,22 @@ class DriverService {
             }],
             estimatedEarnings: Number(trip.quoted_price || 0),
             estimatedDuration: Number(trip.estimated_duration_minutes || 60),
-            distanceKm: Number(trip.estimated_distance_km || 0),
+            distanceKm: driverLocation ? distanceToPickupKm : Number(trip.estimated_distance_km || 0), // Use distance to pickup, not trip distance
             specialInstructions: trip.special_requirements ? 
               JSON.stringify(trip.special_requirements) : undefined,
             assignedAt: new Date().toISOString(),
             acceptDeadline: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes
             status: 'pending' as const,
           };
-        });
+          
+          assignments.push(assignment);
+        }
+
+        // Sort by distance (closest first)
+        if (driverLocation) {
+          assignments.sort((a, b) => a.distanceKm - b.distanceKm);
+          console.log(`📍 Filtered to ${assignments.length} nearby trips (within ${maxDistanceKm}km) via service role`);
+        }
 
         return assignments;
       }
@@ -1477,9 +1658,37 @@ class DriverService {
 
       console.log(`✅ Found ${trips.length} available trips`);
 
-      // Convert to OrderAssignment format
-      const assignments: OrderAssignment[] = trips.map((trip: any) => {
-        return {
+      // Convert to OrderAssignment format with distance calculation
+      const assignments: OrderAssignment[] = [];
+      const maxDistanceKm = 50; // Only show trips within 50km
+      
+      for (const trip of trips) {
+        // Calculate distance from driver to pickup location
+        let distanceToPickupKm = 0;
+        
+        if (driverLocation) {
+          const pickupLat = Number(trip.pickup_latitude);
+          const pickupLng = Number(trip.pickup_longitude);
+          
+          if (pickupLat && pickupLng) {
+            distanceToPickupKm = this.calculateDistanceKm(
+              driverLocation.latitude,
+              driverLocation.longitude,
+              pickupLat,
+              pickupLng
+            );
+            
+            console.log(`📏 Trip ${trip.id}: ${distanceToPickupKm.toFixed(1)}km away`);
+            
+            // Skip trips that are too far away
+            if (distanceToPickupKm > maxDistanceKm) {
+              console.log(`⚠️ Trip ${trip.id} is ${distanceToPickupKm.toFixed(1)}km away, skipping (max: ${maxDistanceKm}km)`);
+              continue;
+            }
+          }
+        }
+        
+        const assignment = {
           id: trip.id,
           orderId: trip.id,
           customerId: trip.customer_id || '',
@@ -1507,14 +1716,22 @@ class DriverService {
           }],
           estimatedEarnings: Number(trip.quoted_price || 0),
           estimatedDuration: Number(trip.estimated_duration_minutes || 60),
-          distanceKm: Number(trip.estimated_distance_km || 0),
+          distanceKm: driverLocation ? distanceToPickupKm : Number(trip.estimated_distance_km || 0), // Use distance to pickup, not trip distance
           specialInstructions: trip.special_requirements ? 
             JSON.stringify(trip.special_requirements) : undefined,
           assignedAt: new Date().toISOString(),
           acceptDeadline: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes
           status: 'pending' as const,
         };
-      });
+        
+        assignments.push(assignment);
+      }
+
+      // Sort by distance (closest first)
+      if (driverLocation) {
+        assignments.sort((a, b) => a.distanceKm - b.distanceKm);
+        console.log(`📍 Filtered to ${assignments.length} nearby trips (within ${maxDistanceKm}km)`);
+      }
 
       return assignments;
     } catch (error) {
@@ -1634,6 +1851,154 @@ class DriverService {
     }
   }
 
+  /**
+   * Verify email with OTP code
+   */
+  async verifyEmail(email: string, otp: string): Promise<{ success: boolean; message: string; driverId?: string }> {
+    try {
+      console.log('📧 Verifying email with OTP...');
+      
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'signup'
+      });
+
+      if (error) {
+        console.error('❌ Email verification error:', error);
+        return { success: false, message: error.message };
+      }
+
+      if (!data.user) {
+        return { success: false, message: 'Verification failed - no user returned' };
+      }
+
+      console.log('✅ Email verified successfully:', data.user.id);
+
+      // Get the driver profile ID
+      const { data: driverProfile, error: profileError } = await supabase
+        .from('driver_profiles')
+        .select('id')
+        .eq('user_id', data.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('⚠️ Could not find driver profile:', profileError);
+        return { 
+          success: true, 
+          message: 'Email verified but could not find driver profile', 
+          driverId: data.user.id 
+        };
+      }
+
+      return { 
+        success: true, 
+        message: 'Email verified successfully', 
+        driverId: driverProfile.id 
+      };
+
+    } catch (error) {
+      console.error('💥 Error verifying email:', error);
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Email verification failed' 
+      };
+    }
+  }
+
+  /**
+   * Resend verification code
+   */
+  async resendVerificationCode(email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('📧 Resending verification code...');
+      
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email
+      });
+
+      if (error) {
+        console.error('❌ Resend verification error:', error);
+        return { success: false, message: error.message };
+      }
+
+      console.log('✅ Verification code resent successfully');
+      return { success: true, message: 'Verification code sent successfully' };
+
+    } catch (error) {
+      console.error('💥 Error resending verification code:', error);
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Failed to resend verification code' 
+      };
+    }
+  }
+
+  /**
+   * Sign in with email and password
+   */
+  async signIn(email: string, password: string): Promise<{ success: boolean; message: string; user?: any }> {
+    try {
+      console.log('🔑 Signing in user...');
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        console.error('❌ Sign in error:', error);
+        return { success: false, message: error.message };
+      }
+
+      if (!data.user) {
+        return { success: false, message: 'Sign in failed - no user returned' };
+      }
+
+      console.log('✅ User signed in successfully:', data.user.id);
+      return { 
+        success: true, 
+        message: 'Signed in successfully', 
+        user: data.user 
+      };
+
+    } catch (error) {
+      console.error('💥 Error signing in:', error);
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Sign in failed' 
+      };
+    }
+  }
+
+  /**
+   * Check if user is currently authenticated
+   */
+  async isAuthenticated(): Promise<{ authenticated: boolean; user?: any; message: string }> {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('❌ Session check error:', error);
+        return { authenticated: false, message: 'Session check failed' };
+      }
+      
+      if (!session) {
+        return { authenticated: false, message: 'No active session' };
+      }
+      
+      return { 
+        authenticated: true, 
+        user: session.user, 
+        message: 'User is authenticated' 
+      };
+    } catch (error) {
+      console.error('💥 Error checking authentication:', error);
+      return { authenticated: false, message: 'Authentication check failed' };
+    }
+  }
+
   // Document Management Methods
   
   /**
@@ -1650,25 +2015,74 @@ class DriverService {
     }
   ): Promise<DocumentUploadResult> {
     try {
-      console.log(`📄 Uploading ${documentType} document for driver ${driverId.substring(0, 8)}...`);
+      console.log(`📄 Starting upload process...`);
+      console.log(`📄 Driver ID: ${driverId.substring(0, 8)}...`);
+      console.log(`📄 Document Type: ${documentType}`);
+      console.log(`📄 File info:`, { uri: file.uri, name: file.name, type: file.type, size: file.size });
 
       // Create file name
       const fileExtension = file.name?.split('.').pop() || 'jpg';
       const fileName = `${driverId}_${documentType}_${Date.now()}.${fileExtension}`;
+      console.log(`📄 Generated filename: ${fileName}`);
 
-      // Upload to Supabase Storage
+      // Check if user is authenticated
+      console.log('🔐 Checking authentication...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('❌ Authentication error:', sessionError);
+        
+        // Try to refresh the session
+        console.log('🔄 Attempting to refresh session...');
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshData.session) {
+          console.error('❌ Session refresh failed:', refreshError);
+          return { 
+            success: false, 
+            message: 'Authentication failed. Please log out and log back in.', 
+            error: 'Authentication failed' 
+          };
+        }
+        
+        console.log('✅ Session refreshed successfully');
+        console.log(`🔐 User authenticated after refresh: ${refreshData.session.user.id}`);
+      } else {
+        console.log(`🔐 User authenticated: ${session.user.id}`);
+        console.log(`🔐 Access token exists: ${!!session.access_token}`);
+      }
+
+      // Convert file URI to blob for React Native
+      console.log('🔄 Converting file to blob...');
+      const response = await fetch(file.uri);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
+      }
+      const blob = await response.blob();
+      console.log(`✅ Blob created - size: ${blob.size}, type: ${blob.type}`);
+
+      // Upload to Supabase Storage with proper authentication
+      console.log('☁️ Uploading to Supabase Storage...');
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('driver-documents')
-        .upload(fileName, {
-          uri: file.uri,
-          type: file.type,
-          name: fileName,
-        } as any);
+        .upload(fileName, blob, {
+          contentType: file.type || blob.type,
+          upsert: false
+        });
 
       if (uploadError) {
-        console.error('❌ Upload error:', uploadError);
+        console.error('❌ Storage upload error:', uploadError);
+        console.error('❌ Error details:', JSON.stringify(uploadError, null, 2));
+        
+        // Check if it's an authentication issue
+        if (uploadError.message?.includes('signature verification') || uploadError.message?.includes('Invalid API key')) {
+          return { success: false, message: 'Authentication failed. Please try logging out and back in.', error: uploadError.message };
+        }
+        
         return { success: false, message: 'Failed to upload file', error: uploadError.message };
       }
+
+      console.log('✅ File uploaded successfully to storage:', uploadData.path);
 
       // Get public URL
       const { data: urlData } = supabase.storage
@@ -1682,7 +2096,7 @@ class DriverService {
           driver_id: driverId,
           document_type: documentType,
           file_name: file.name || fileName,
-          file_size: file.size || 0,
+          file_size: file.size || blob.size,
           file_url: urlData.publicUrl,
           status: 'pending',
           uploaded_at: new Date().toISOString(),
@@ -1858,6 +2272,94 @@ class DriverService {
     }
   }
 
+  // Get driver's current location for proximity calculations
+  async getCurrentDriverLocation(): Promise<{ latitude: number; longitude: number } | null> {
+    try {
+      if (!this.currentDriver) {
+        console.log('❌ No current driver available for location');
+        return null;
+      }
+
+      // Try to get from Expo location service first (real-time GPS)
+      try {
+        const Location = require('expo-location');
+        
+        // Check permissions
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('⚠️ Location permission not granted, using database location');
+        } else {
+          // Get current location
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          
+          if (location) {
+            console.log('📍 Got driver location from GPS:', {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude
+            });
+            return {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude
+            };
+          }
+        }
+      } catch (locationError) {
+        console.log('⚠️ GPS location failed:', locationError instanceof Error ? locationError.message : 'Unknown error');
+      }
+
+      // Fallback: Get last known location from database
+      const { data: driverData, error } = await supabase
+        .from('users')
+        .select('current_latitude, current_longitude, last_location_update')
+        .eq('id', this.currentDriver.user_id)
+        .single();
+
+      if (error || !driverData) {
+        console.error('❌ Error getting driver location from database:', error);
+        return null;
+      }
+
+      if (driverData.current_latitude && driverData.current_longitude) {
+        console.log('📍 Got driver location from database:', {
+          latitude: driverData.current_latitude,
+          longitude: driverData.current_longitude,
+          lastUpdate: driverData.last_location_update
+        });
+        
+        return {
+          latitude: Number(driverData.current_latitude),
+          longitude: Number(driverData.current_longitude)
+        };
+      }
+
+      console.log('⚠️ No driver location available');
+      return null;
+    } catch (error) {
+      console.error('💥 Error getting driver location:', error);
+      return null;
+    }
+  }
+
+  // Calculate distance between two coordinates using Haversine formula
+  private calculateDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371; // Radius of the Earth in kilometers
+    const dLat = this.deg2rad(lat2 - lat1);
+    const dLng = this.deg2rad(lng2 - lng1);
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
+      Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c; // Distance in kilometers
+    return distance;
+  }
+
+  private deg2rad(deg: number): number {
+    return deg * (Math.PI/180);
+  }
+
   // Update driver location in real-time
   async updateDriverLocation(latitude: number, longitude: number): Promise<boolean> {
     try {
@@ -1880,6 +2382,213 @@ class DriverService {
       return true;
     } catch (error) {
       console.error('💥 Error in updateDriverLocation:', error);
+      return false;
+    }
+  }
+
+  // Method to ensure user exists in public.users table (copied from working customer app)
+  private async ensureUserInCustomTable(
+    supabaseUser: any, 
+    registrationData?: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    }
+  ): Promise<void> {
+    try {
+      console.log('🔍 Checking if user exists in custom users table...');
+      
+      // Check if user already exists by ID or email
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id, email')
+        .or(`id.eq.${supabaseUser.id},email.eq.${supabaseUser.email}`)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking user existence:', checkError);
+        return;
+      }
+
+      if (existingUser) {
+        console.log('✅ User found in custom users table');
+        
+        // If user exists with same email but different ID, this is likely an orphaned record
+        if (existingUser.id !== supabaseUser.id && existingUser.email === supabaseUser.email) {
+          console.log('🧹 Orphaned user detected - cleaning up old record and creating new one');
+          
+          // Delete the orphaned user record
+          const { error: deleteError } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', existingUser.id);
+          
+          if (deleteError) {
+            console.error('⚠️ Failed to delete orphaned user:', deleteError.message);
+            return;
+          }
+          
+          console.log('✅ Orphaned user record deleted');
+          // Continue to create new user record
+        } else {
+          // User exists with correct ID
+          return;
+        }
+      }
+
+      console.log('🔧 Creating missing user in custom users table...');
+      
+      // Create user in custom users table
+      const customUserData = {
+        id: supabaseUser.id,
+        email: supabaseUser.email,
+        password_hash: 'supabase_auth',
+        first_name: registrationData?.firstName || supabaseUser.user_metadata?.first_name || 'User',
+        last_name: registrationData?.lastName || supabaseUser.user_metadata?.last_name || '',
+        phone: registrationData?.phone || supabaseUser.user_metadata?.phone || '',
+        role: 'driver',
+        user_type: 'driver',
+        is_active: true
+      };
+
+      const { data: createdUser, error: createError } = await supabase
+        .from('users')
+        .insert([customUserData])
+        .select()
+        .single();
+
+      if (createError) {
+        // Check if it's a duplicate key error
+        if (createError.message.includes('duplicate key value')) {
+          console.log('⚠️ User already exists in custom table (race condition)');
+        } else {
+          console.error('⚠️ Warning: Failed to create user in custom users table:', createError.message);
+          throw new Error(`Failed to create user profile: ${createError.message}`);
+        }
+      } else {
+        console.log('✅ User created in custom users table:', createdUser.id);
+      }
+
+    } catch (error) {
+      console.error('Error ensuring user in custom table:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to parse JSON fields from database
+  private parseJsonField(field: any, defaultValue: any[]): any[] {
+    try {
+      console.log('🔍 Parsing JSON field:', { field, type: typeof field });
+      
+      if (Array.isArray(field)) {
+        console.log('✅ Field is already an array:', field);
+        return field; // Already parsed
+      }
+      
+      if (typeof field === 'string') {
+        if (field.trim() === '' || field === 'null' || field === '[]') {
+          console.log('⚠️ Field is empty/null, using default:', defaultValue);
+          return defaultValue;
+        }
+        
+        const parsed = JSON.parse(field);
+        console.log('✅ Parsed JSON string:', parsed);
+        return Array.isArray(parsed) ? parsed : defaultValue;
+      }
+      
+      if (field === null || field === undefined) {
+        console.log('⚠️ Field is null/undefined, using default:', defaultValue);
+        return defaultValue;
+      }
+      
+      console.log('⚠️ Unknown field type, using default:', defaultValue);
+      return defaultValue; // Use default if field is null/undefined
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.warn('❌ Failed to parse JSON field:', field, 'Error:', errorMessage, 'Using default:', defaultValue);
+      return defaultValue;
+    }
+  }
+
+  // Update driver specializations
+  async updateSpecializations(specializations: string[]): Promise<boolean> {
+    try {
+      console.log('🔧 Updating driver specializations:', specializations);
+      
+      const driver = this.getCurrentDriver();
+      if (!driver) {
+        throw new Error('No active driver found');
+      }
+
+      // Update in database
+      const { error } = await supabase
+        .from('driver_profiles')
+        .update({ 
+          specializations: JSON.stringify(specializations)
+        })
+        .eq('id', driver.id);
+
+      if (error) {
+        console.error('❌ Error updating specializations:', error);
+        throw error;
+      }
+
+      // Update local driver data
+      const updatedDriver = {
+        ...driver,
+        specializations: specializations
+      };
+      
+      await AsyncStorage.setItem('currentDriver', JSON.stringify(updatedDriver));
+      this.currentDriver = updatedDriver;
+
+      console.log('✅ Specializations updated successfully');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Error updating specializations:', error);
+      return false;
+    }
+  }
+
+  // Update preferred truck types
+  async updatePreferredTruckTypes(truckTypes: string[]): Promise<boolean> {
+    try {
+      console.log('🚛 Updating preferred truck types:', truckTypes);
+      
+      const driver = this.getCurrentDriver();
+      if (!driver) {
+        throw new Error('No active driver found');
+      }
+
+      // Update in database
+      const { error } = await supabase
+        .from('driver_profiles')
+        .update({ 
+          preferred_truck_types: JSON.stringify(truckTypes)
+        })
+        .eq('id', driver.id);
+
+      if (error) {
+        console.error('❌ Error updating truck types:', error);
+        throw error;
+      }
+
+      // Update local driver data
+      const updatedDriver = {
+        ...driver,
+        preferred_truck_types: truckTypes
+      };
+      
+      await AsyncStorage.setItem('currentDriver', JSON.stringify(updatedDriver));
+      this.currentDriver = updatedDriver;
+
+      console.log('✅ Preferred truck types updated successfully');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Error updating truck types:', error);
       return false;
     }
   }

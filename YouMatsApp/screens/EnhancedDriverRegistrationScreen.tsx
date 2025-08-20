@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { DocumentUploadScreen } from './DocumentUploadScreen';
+import { EmailVerificationScreen } from './EmailVerificationScreen';
 
 const { width } = Dimensions.get('window');
 
@@ -38,7 +39,7 @@ interface EnhancedDriverRegistrationScreenProps {
   onBackToLogin: () => void;
 }
 
-type RegistrationStep = 'account' | 'personal' | 'vehicle' | 'documents' | 'complete';
+type RegistrationStep = 'account' | 'personal' | 'vehicle' | 'email_verification' | 'documents' | 'complete';
 
 export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrationScreenProps> = ({
   onRegistrationComplete,
@@ -75,6 +76,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
     { id: 'account', title: 'Account', icon: 'person-outline' },
     { id: 'personal', title: 'Personal', icon: 'information-circle-outline' },
     { id: 'vehicle', title: 'Vehicle', icon: 'car-outline' },
+    { id: 'email_verification', title: 'Verify Email', icon: 'mail-outline' },
     { id: 'documents', title: 'Documents', icon: 'document-text-outline' },
     { id: 'complete', title: 'Complete', icon: 'checkmark-circle-outline' }
   ];
@@ -220,7 +222,17 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
       
       if (result.success && result.data?.driverProfile?.id) {
         setDriverId(result.data.driverProfile.id);
-        setCurrentStep('documents');
+        
+        // Check if email verification is required
+        const authStatus = await driverService.isAuthenticated();
+        
+        if (!authStatus.authenticated) {
+          // Email verification required
+          setCurrentStep('email_verification');
+        } else {
+          // User is already authenticated - skip to documents
+          setCurrentStep('documents');
+        }
       } else {
         Alert.alert('Registration Failed', result.message || 'Failed to register driver');
       }
@@ -234,6 +246,14 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
 
   const handleDocumentsUploaded = () => {
     setCurrentStep('complete');
+  };
+
+  const handleEmailVerificationComplete = (verifiedDriverId: string) => {
+    // Update the driver ID if different and proceed to documents
+    if (verifiedDriverId) {
+      setDriverId(verifiedDriverId);
+    }
+    setCurrentStep('documents');
   };
 
   const handleComplete = () => {
@@ -548,6 +568,13 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
         {currentStep === 'account' && renderAccountStep()}
         {currentStep === 'personal' && renderPersonalStep()}
         {currentStep === 'vehicle' && renderVehicleStep()}
+        {currentStep === 'email_verification' && (
+          <EmailVerificationScreen
+            email={formData.email}
+            onVerificationComplete={handleEmailVerificationComplete}
+            onBackToRegistration={() => setCurrentStep('vehicle')}
+          />
+        )}
         {currentStep === 'documents' && driverId ? (
           <DocumentUploadScreen
             driverId={driverId}
@@ -573,7 +600,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
       </View>
 
       {/* Navigation Buttons */}
-      {currentStep !== 'documents' && currentStep !== 'complete' && (
+      {currentStep !== 'documents' && currentStep !== 'complete' && currentStep !== 'email_verification' && (
         <View style={styles.navigationContainer}>
           <TouchableOpacity
             style={[styles.button, styles.nextButton]}

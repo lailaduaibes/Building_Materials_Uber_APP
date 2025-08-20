@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 import VehicleManagementScreen from './VehicleManagementScreen';
+import SpecializationsManagementScreen from './SpecializationsManagementScreen';
 
 const { width } = Dimensions.get('window');
 const isTablet = width >= 768;
@@ -57,11 +58,9 @@ interface DriverProfile {
   status: string;
   isAvailable: boolean;
   vehicleInfo?: {
-    make?: string;
     model?: string;
     year?: number;
     licensePlate?: string;
-    color?: string;
   };
 }
 
@@ -69,6 +68,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
   const [driverProfile, setDriverProfile] = useState<DriverProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showVehicleManagement, setShowVehicleManagement] = useState(false);
+  const [showSpecializationsManagement, setShowSpecializationsManagement] = useState(false);
   const [settings, setSettings] = useState({
     notifications: true,
     locationSharing: true,
@@ -89,6 +89,23 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         console.error('No current driver found');
         return;
       }
+
+      // Debug: Log the actual driver data to see what we're working with
+      console.log('🔍 Current driver data from service:', {
+        id: currentDriver.id,
+        firstName: currentDriver.firstName,
+        lastName: currentDriver.lastName,
+        phone: currentDriver.phone,
+        years_experience: currentDriver.years_experience,
+        vehicle_model: currentDriver.vehicle_model,
+        vehicle_year: currentDriver.vehicle_year,
+        vehicle_plate: currentDriver.vehicle_plate,
+        specializations: currentDriver.specializations,
+        preferred_truck_types: currentDriver.preferred_truck_types,
+        rating: currentDriver.rating,
+        total_trips: currentDriver.total_trips,
+        total_earnings: currentDriver.total_earnings
+      });
 
       // Get trip statistics
       const tripStats = await driverService.getDriverStats();
@@ -113,7 +130,11 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         preferredTruckTypes: currentDriver.preferred_truck_types || [],
         status: currentDriver.status || 'offline',
         isAvailable: currentDriver.is_available || false,
-        vehicleInfo: undefined, // Will be populated when vehicle data is available
+        vehicleInfo: {
+          model: currentDriver.vehicle_model || 'Not specified',
+          year: currentDriver.vehicle_year || 2020,
+          licensePlate: currentDriver.vehicle_plate || 'TBD'
+        },
       };
 
       setDriverProfile(profile);
@@ -204,18 +225,14 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
           {driverProfile.vehicleInfo ? (
             <>
               <View style={styles.vehicleRow}>
-                <Text style={styles.vehicleLabel}>Make & Model:</Text>
+                <Text style={styles.vehicleLabel}>Model:</Text>
                 <Text style={styles.vehicleValue}>
-                  {driverProfile.vehicleInfo.make} {driverProfile.vehicleInfo.model} ({driverProfile.vehicleInfo.year})
+                  {driverProfile.vehicleInfo.model} ({driverProfile.vehicleInfo.year})
                 </Text>
               </View>
               <View style={styles.vehicleRow}>
                 <Text style={styles.vehicleLabel}>License Plate:</Text>
                 <Text style={styles.vehicleValue}>{driverProfile.vehicleInfo.licensePlate}</Text>
-              </View>
-              <View style={styles.vehicleRow}>
-                <Text style={styles.vehicleLabel}>Color:</Text>
-                <Text style={styles.vehicleValue}>{driverProfile.vehicleInfo.color}</Text>
               </View>
             </>
           ) : (
@@ -238,17 +255,29 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Specializations</Text>
-          <TouchableOpacity onPress={() => Alert.alert('Edit Skills', 'Manage your specializations')}>
-            <Ionicons name="add" size={20} color={theme.primary} />
+          <TouchableOpacity onPress={() => setShowSpecializationsManagement(true)}>
+            <Ionicons name="pencil" size={20} color={theme.primary} />
           </TouchableOpacity>
         </View>
         
         <View style={styles.specializationsContainer}>
-          {driverProfile.specializations.map((spec, index) => (
-            <View key={index} style={styles.specializationTag}>
-              <Text style={styles.specializationText}>{spec}</Text>
-            </View>
-          ))}
+          {driverProfile.specializations.length > 0 ? (
+            driverProfile.specializations.map((spec, index) => (
+              <View key={index} style={styles.specializationTag}>
+                <Text style={styles.specializationText}>
+                  {spec.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <TouchableOpacity 
+              style={styles.addSpecializationButton}
+              onPress={() => setShowSpecializationsManagement(true)}
+            >
+              <Ionicons name="add-circle-outline" size={24} color={theme.lightText} />
+              <Text style={styles.addSpecializationText}>Add your specializations</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -315,6 +344,13 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
     <SafeAreaView style={styles.container}>
       {showVehicleManagement ? (
         <VehicleManagementScreen onBack={() => setShowVehicleManagement(false)} />
+      ) : showSpecializationsManagement ? (
+        <SpecializationsManagementScreen 
+          onBack={() => setShowSpecializationsManagement(false)}
+          currentSpecializations={driverProfile?.specializations || []}
+          currentTruckTypes={driverProfile?.preferredTruckTypes || []}
+          onUpdate={loadDriverProfile}
+        />
       ) : (
         <>
           {/* Header */}
@@ -500,6 +536,24 @@ const styles = StyleSheet.create({
     color: theme.white,
     fontSize: 12,
     fontWeight: '500',
+  },
+  addSpecializationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderWidth: 2,
+    borderColor: theme.border,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    backgroundColor: theme.cardBackground,
+  },
+  addSpecializationText: {
+    fontSize: 14,
+    color: theme.lightText,
+    marginLeft: 8,
+    fontStyle: 'italic',
   },
   settingItem: {
     flexDirection: 'row',

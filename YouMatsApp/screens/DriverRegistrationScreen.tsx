@@ -16,11 +16,13 @@ import { driverService } from '../services/DriverService';
 
 interface DriverRegistrationScreenProps {
   onRegistrationComplete: (success: boolean, message: string) => void;
+  onEmailVerificationRequired: (email: string) => void;
   onBackToLogin: () => void;
 }
 
 export const DriverRegistrationScreen: React.FC<DriverRegistrationScreenProps> = ({
   onRegistrationComplete,
+  onEmailVerificationRequired,
   onBackToLogin,
 }) => {
   const [formData, setFormData] = useState({
@@ -120,16 +122,34 @@ export const DriverRegistrationScreen: React.FC<DriverRegistrationScreenProps> =
       const result = await driverService.registerNewDriver(registrationData);
 
       if (result.success) {
-        Alert.alert(
-          'Registration Successful! 🎉',
-          'Your driver application has been submitted. An admin will review your application and you will be notified once approved.',
-          [
-            {
-              text: 'OK',
-              onPress: () => onRegistrationComplete(true, result.message),
-            },
-          ]
-        );
+        // Check if email verification is required
+        const authStatus = await driverService.isAuthenticated();
+        
+        if (!authStatus.authenticated) {
+          // Email verification required - show verification screen
+          Alert.alert(
+            'Check Your Email! 📧',
+            'We\'ve sent a verification code to your email address. Please verify your email to continue.',
+            [
+              {
+                text: 'Verify Email',
+                onPress: () => onEmailVerificationRequired(formData.email.trim()),
+              },
+            ]
+          );
+        } else {
+          // User is already authenticated - proceed to document upload
+          Alert.alert(
+            'Registration Successful! 🎉',
+            'Your driver application has been submitted. Please upload your required documents.',
+            [
+              {
+                text: 'Continue',
+                onPress: () => onRegistrationComplete(true, result.message),
+              },
+            ]
+          );
+        }
       } else {
         Alert.alert('Registration Failed', result.message);
       }

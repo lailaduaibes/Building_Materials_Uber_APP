@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { createClient } from '@supabase/supabase-js';
+import { driverService } from '../services/DriverService'; // Use DriverService instead of direct Supabase
 
 const { width } = Dimensions.get('window');
 
@@ -32,12 +32,6 @@ const theme = {
   error: '#F44336',
   border: '#E0E0E0',
 };
-
-// Initialize Supabase (replace with your config)
-const supabase = createClient(
-  'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.UGJqVfUaOZXJM7CHNz9Gv2sAixKY5Lw0t6sAG0qXDH8'
-);
 
 interface DocumentUploadScreenProps {
   driverId: string;
@@ -142,15 +136,34 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('driver_documents')
-        .select('*')
-        .eq('driver_id', driverId)
-        .order('uploaded_at', { ascending: false });
-
-      if (error) throw error;
-
-      setUploadedDocuments(data || []);
+      // First check if user is authenticated
+      const authStatus = await driverService.isAuthenticated();
+      if (!authStatus.authenticated) {
+        console.log('❌ User not authenticated for document loading:', authStatus.message);
+        Alert.alert(
+          'Authentication Required', 
+          'You need to be logged in to access documents. Please log in again.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // Use DriverService to get documents
+      const documents = await driverService.getDriverDocuments(driverId);
+      
+      // Convert DriverDocument[] to UploadedDocument[] format
+      const convertedDocuments: UploadedDocument[] = documents.map(doc => ({
+        id: doc.id,
+        type: doc.document_type,
+        fileName: doc.file_name,
+        fileSize: doc.file_size,
+        uploadedAt: doc.uploaded_at,
+        status: doc.status,
+        url: doc.file_url
+      }));
+      
+      setUploadedDocuments(convertedDocuments);
+      
     } catch (error) {
       console.error('Error loading documents:', error);
       Alert.alert('Error', 'Failed to load existing documents');
@@ -228,50 +241,35 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
     try {
       setUploadingDocuments(prev => [...prev, documentType.id]);
 
-      // Create file name
-      const fileExtension = file.name?.split('.').pop() || 'jpg';
-      const fileName = `${driverId}_${documentType.id}_${Date.now()}.${fileExtension}`;
+      // First check authentication
+      const authStatus = await driverService.isAuthenticated();
+      if (!authStatus.authenticated) {
+        Alert.alert(
+          'Authentication Required', 
+          'You need to be logged in to upload documents. Please log in again.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
 
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('driver-documents')
-        .upload(fileName, {
-          uri: file.uri,
-          type: file.mimeType || 'image/jpeg',
-          name: fileName,
-        } as any);
+      // Use DriverService for upload
+      const result = await driverService.uploadDocument(driverId, documentType.id, {
+        uri: file.uri,
+        name: file.name || `${documentType.id}.jpg`,
+        type: file.mimeType || file.type || 'image/jpeg',
+        size: file.size
+      });
 
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('driver-documents')
-        .getPublicUrl(fileName);
-
-      // Save document record to database
-      const { data: documentData, error: dbError } = await supabase
-        .from('driver_documents')
-        .insert({
-          driver_id: driverId,
-          document_type: documentType.id,
-          file_name: file.name || fileName,
-          file_size: file.size || 0,
-          file_url: urlData.publicUrl,
-          status: 'pending',
-          uploaded_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (dbError) throw dbError;
-
-      // Update local state
-      setUploadedDocuments(prev => [documentData, ...prev]);
-
-      Alert.alert(
-        'Success',
-        `${documentType.title} uploaded successfully and is pending review.`
-      );
+      if (result.success) {
+        Alert.alert(
+          'Success',
+          `${documentType.title} uploaded successfully and is pending review.`
+        );
+        // Refresh the documents list
+        loadExistingDocuments();
+      } else {
+        Alert.alert('Upload Failed', result.message || 'Failed to upload document. Please try again.');
+      }
 
     } catch (error) {
       console.error('Error uploading document:', error);
@@ -292,18 +290,16 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('driver_documents')
-                .delete()
-                .eq('id', documentId);
+              const success = await driverService.deleteDocument(documentId);
 
-              if (error) throw error;
-
-              setUploadedDocuments(prev => 
-                prev.filter(doc => doc.id !== documentId)
-              );
-
-              Alert.alert('Success', 'Document deleted successfully');
+              if (success) {
+                setUploadedDocuments(prev => 
+                  prev.filter(doc => doc.id !== documentId)
+                );
+                Alert.alert('Success', 'Document deleted successfully');
+              } else {
+                Alert.alert('Error', 'Failed to delete document');
+              }
             } catch (error) {
               console.error('Error deleting document:', error);
               Alert.alert('Error', 'Failed to delete document');
