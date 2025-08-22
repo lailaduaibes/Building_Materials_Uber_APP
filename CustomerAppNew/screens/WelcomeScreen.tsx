@@ -1,18 +1,18 @@
 /**
  * YouMats Welcome Screen
- * Professional welcome screen with brand identity
+ * Professional welcome screen with brand identity and animations
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Image,
+  Animated,
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Screen, Button, Card } from '../components';
+import { Screen, Button, YouMatsLogo } from '../components';
 import { Theme } from '../theme';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 
@@ -28,81 +28,113 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onGetStarted,
   onLogin,
 }) => {
+  // Animation values
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.5)).current;
+  const logoRotate = useRef(new Animated.Value(0)).current;
+  const taglineOpacity = useRef(new Animated.Value(0)).current;
+  const buttonsTranslateY = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    // Sequential animations for professional entrance
+    Animated.sequence([
+      // Logo entrance with scale and fade
+      Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Subtle rotation animation
+      Animated.timing(logoRotate, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      // Tagline fade in
+      Animated.timing(taglineOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      // Buttons slide up
+      Animated.timing(buttonsTranslateY, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Continuous subtle rotation for logo
+    const rotateLoop = () => {
+      Animated.loop(
+        Animated.timing(logoRotate, {
+          toValue: 2,
+          duration: 8000,
+          useNativeDriver: true,
+        })
+      ).start();
+    };
+
+    const rotateTimer = setTimeout(rotateLoop, 2000);
+    return () => clearTimeout(rotateTimer);
+  }, []);
+
+  const rotateInterpolate = logoRotate.interpolate({
+    inputRange: [0, 1, 2],
+    outputRange: ['0deg', '2deg', '0deg'],
+  });
+
   return (
     <Screen safeArea={false} padding={false}>
       <LinearGradient
-        colors={['#000000', '#1a1a1a', '#000000']}
+        colors={Theme.colors.gradients.primary}
         style={styles.gradientContainer}
       >
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.brandContainer}>
-            <View style={styles.logoContainer}>
-              {/* Placeholder for logo - replace with actual logo */}
-              <View style={styles.logoPlaceholder}>
-                <Text style={styles.logoIcon}>🏗️</Text>
-              </View>
-              <Text style={styles.brandName}>YouMats</Text>
-            </View>
-            <Text style={styles.brandTagline}>Building Materials Delivered</Text>
-          </View>
-          
-          <Text style={styles.mainTitle}>
-            Professional Construction Materials
-          </Text>
-          
-          <Text style={styles.subtitle}>
-            Fast delivery • Quality materials • Trusted service
-          </Text>
-        </View>
+        {/* Main Content Container */}
+        <View style={styles.mainContainer}>
+          {/* Animated Logo Section */}
+          <Animated.View 
+            style={[
+              styles.logoContainer,
+              {
+                opacity: logoOpacity,
+                transform: [
+                  { scale: logoScale },
+                  { rotate: rotateInterpolate }
+                ]
+              }
+            ]}
+          >
+            <YouMatsLogo size="xlarge" style={styles.logo} animated={true} />
+          </Animated.View>
 
-        {/* Features Section */}
-        <View style={styles.featuresContainer}>
-          <Card style={styles.featureCard}>
-            <View style={styles.featureRow}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureIconText}>🚚</Text>
-              </View>
-              <View style={styles.featureContent}>
-                <Text style={styles.featureTitle}>Fast Delivery</Text>
-                <Text style={styles.featureDescription}>
-                  Same-day delivery for urgent projects
-                </Text>
-              </View>
-            </View>
-          </Card>
-
-          <Card style={styles.featureCard}>
-            <View style={styles.featureRow}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureIconText}>📋</Text>
-              </View>
-              <View style={styles.featureContent}>
-                <Text style={styles.featureTitle}>Easy Ordering</Text>
-                <Text style={styles.featureDescription}>
-                  Quick search and order placement
-                </Text>
-              </View>
-            </View>
-          </Card>
-
-          <Card style={styles.featureCard}>
-            <View style={styles.featureRow}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureIconText}>📍</Text>
-              </View>
-              <View style={styles.featureContent}>
-                <Text style={styles.featureTitle}>Real-Time Tracking</Text>
-                <Text style={styles.featureDescription}>
-                  Track your delivery every step of the way
-                </Text>
-              </View>
-            </View>
-          </Card>
+          {/* Animated Tagline */}
+          <Animated.View 
+            style={[
+              styles.taglineContainer,
+              { opacity: taglineOpacity }
+            ]}
+          >
+            <Text style={styles.powerText}>Power</Text>
+            <Text style={styles.youMatsText}>YouMats</Text>
+          </Animated.View>
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.actionContainer}>
+        <Animated.View 
+          style={[
+            styles.actionContainer,
+            { transform: [{ translateY: buttonsTranslateY }] }
+          ]}
+        >
           <Button
             title="Get Started"
             onPress={onGetStarted}
@@ -120,7 +152,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             fullWidth
             style={styles.secondaryButton}
           />
-        </View>
+        </Animated.View>
       </LinearGradient>
     </Screen>
   );
@@ -134,126 +166,66 @@ const styles = StyleSheet.create({
     alignSelf: isTablet ? 'center' : 'stretch',
   },
   
-  header: {
-    flex: 1,
+  mainContainer: {
+    flex: 2,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: responsive.spacing(Theme.spacing.xxxl, 60),
-  },
-  
-  brandContainer: {
-    alignItems: 'center',
-    marginBottom: responsive.spacing(Theme.spacing.xxl, 50),
+    paddingTop: responsive.spacing(Theme.spacing.xl, 40),
   },
   
   logoContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsive.spacing(Theme.spacing.sm, 16),
+    marginBottom: responsive.spacing(Theme.spacing.xxl, 60),
   },
   
-  logoPlaceholder: {
-    width: responsive.spacing(56, 70),
-    height: responsive.spacing(56, 70),
-    borderRadius: responsive.spacing(16, 20),
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
+  logo: {
+    // Additional styling for the logo if needed
+  },
+  
+  taglineContainer: {
     alignItems: 'center',
-    marginRight: responsive.spacing(Theme.spacing.md, 20),
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   
-  logoIcon: {
-    fontSize: responsive.fontSize(28, 34),
-  },
-  
-  brandName: {
+  powerText: {
     fontSize: responsive.fontSize(28, 36),
     color: '#ffffff',
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  
-  brandTagline: {
-    fontSize: responsive.fontSize(16, 18),
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '300',
+    letterSpacing: 1,
     textAlign: 'center',
-    fontWeight: '500',
+    marginBottom: responsive.spacing(4, 6),
   },
   
-  mainTitle: {
-    fontSize: responsive.fontSize(20, 26),
+  youMatsText: {
+    fontSize: responsive.fontSize(32, 42),
     color: '#ffffff',
+    fontWeight: '700',
+    letterSpacing: 1.5,
     textAlign: 'center',
-    marginBottom: responsive.spacing(Theme.spacing.md, 20),
-    paddingHorizontal: responsive.spacing(Theme.spacing.lg, 32),
-  },
-  
-  subtitle: {
-    fontSize: responsive.fontSize(16, 18),
-    color: '#ffffff',
-    textAlign: 'center',
-    opacity: 0.8,
-    paddingHorizontal: responsive.spacing(Theme.spacing.lg, 32),
-  },
-  
-  featuresContainer: {
-    paddingVertical: responsive.spacing(Theme.spacing.xxl, 50),
-  },
-  
-  featureCard: {
-    marginBottom: responsive.spacing(Theme.spacing.md, 20),
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-  },
-  
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  
-  featureIcon: {
-    width: responsive.spacing(48, 56),
-    height: responsive.spacing(48, 56),
-    borderRadius: responsive.spacing(24, 28),
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: responsive.spacing(Theme.spacing.lg, 24),
-  },
-  
-  featureIconText: {
-    fontSize: responsive.fontSize(24, 28),
-  },
-  
-  featureContent: {
-    flex: 1,
-  },
-  
-  featureTitle: {
-    fontSize: responsive.fontSize(18, 20),
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: responsive.spacing(Theme.spacing.xs, 8),
-  },
-  
-  featureDescription: {
-    fontSize: responsive.fontSize(14, 16),
-    color: '#666666',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   
   actionContainer: {
-    paddingBottom: responsive.spacing(Theme.spacing.xxxl, 60),
+    paddingBottom: responsive.spacing(Theme.spacing.lg, 32),
+    paddingTop: responsive.spacing(Theme.spacing.md, 16),
+    paddingHorizontal: responsive.padding(Theme.spacing.screen.horizontal, 40),
   },
   
   primaryButton: {
     marginBottom: responsive.spacing(Theme.spacing.lg, 24),
     minHeight: deviceTypes.isAndroid ? 56 : 50,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   
   secondaryButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderColor: '#ffffff',
+    borderWidth: 1,
     minHeight: deviceTypes.isAndroid ? 56 : 50,
   },
 });

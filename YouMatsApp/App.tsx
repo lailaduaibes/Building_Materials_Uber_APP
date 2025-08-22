@@ -38,6 +38,7 @@ import { driverLocationService } from './services/DriverLocationService';
 
 // Import modern screens
 import ModernDriverDashboard from './screens/ModernDriverDashboard';
+import ProfessionalDriverDashboard from './screens/ProfessionalDriverDashboard';
 import OrderAssignmentScreen from './screens/OrderAssignmentScreen';
 import EarningsScreen from './screens/EarningsScreen';
 import TripHistoryScreen from './screens/TripHistoryScreen';
@@ -69,6 +70,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const [verificationEmail, setVerificationEmail] = useState<string>('');
+  const [useProfessionalDashboard, setUseProfessionalDashboard] = useState(true); // Default to new professional dashboard
 
   useEffect(() => {
     initializeApp();
@@ -312,13 +314,25 @@ const App: React.FC = () => {
       )}
 
       {currentScreen === 'dashboard' && currentDriver && (
-        <ModernDriverDashboard
-          key={dashboardRefreshKey}
-          onNavigateToOrder={handleNavigateToOrder}
-          onNavigateToEarnings={handleNavigateToEarnings}
-          onNavigateToTripHistory={handleNavigateToTripHistory}
-          onNavigateToProfile={handleNavigateToProfile}
-        />
+        <>
+          {useProfessionalDashboard ? (
+            <ProfessionalDriverDashboard
+              key={dashboardRefreshKey}
+              onNavigateToOrder={handleNavigateToOrder}
+              onNavigateToEarnings={handleNavigateToEarnings}
+              onNavigateToTripHistory={handleNavigateToTripHistory}
+              onNavigateToProfile={handleNavigateToProfile}
+            />
+          ) : (
+            <ModernDriverDashboard
+              key={dashboardRefreshKey}
+              onNavigateToOrder={handleNavigateToOrder}
+              onNavigateToEarnings={handleNavigateToEarnings}
+              onNavigateToTripHistory={handleNavigateToTripHistory}
+              onNavigateToProfile={handleNavigateToProfile}
+            />
+          )}
+        </>
       )}
 
       {currentScreen === 'earnings' && (

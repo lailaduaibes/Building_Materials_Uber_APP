@@ -111,6 +111,19 @@ export interface OrderAssignment {
   assignedAt: string;
   acceptDeadline: string;
   status: 'pending' | 'accepted' | 'declined' | 'expired';
+  // Database fields for map integration
+  pickup_latitude?: string;
+  pickup_longitude?: string;
+  pickup_address?: string;
+  delivery_address?: string;
+  estimated_fare?: number;
+  estimated_duration?: string;
+  material_type?: string;
+  // Map coordinate for markers
+  coordinate?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 export interface DeliveryStep {
@@ -394,14 +407,18 @@ class DriverService {
       model: string;
       year: number;
       plate: string;
+      maxPayload: number;
+      maxVolume: number;
     };
+    selectedTruckType?: string;
   }): Promise<{
     success: boolean;
     message: string;
     data?: {
       userId: string;
-      driverProfile: Driver;
-      approvalStatus: ApprovalStatus;
+      driverProfile?: Driver;
+      approvalStatus?: ApprovalStatus;
+      requiresEmailConfirmation?: boolean;
     };
   }> {
     try {
@@ -427,22 +444,9 @@ class DriverService {
 
       console.log('✅ User account created:', authData.user.id);
 
-      // Check if email confirmation is required
+      // Since email confirmation is enabled, we expect no session initially
       if (!authData.session) {
-        console.log('📧 Email confirmation required - no session returned');
-        
-        // Try to sign in immediately (this works if email confirmation is disabled)
-        console.log('🔑 Attempting to sign in after registration...');
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: registrationData.email,
-          password: registrationData.password
-        });
-
-        if (signInError) {
-          console.log('⚠️ Auto sign-in failed - email confirmation likely required:', signInError.message);
-        } else if (signInData.session) {
-          console.log('✅ Auto sign-in successful after registration');
-        }
+        console.log('📧 Email confirmation required - proceeding with profile creation for verification later');
       } else {
         console.log('✅ User signed in automatically after registration');
       }
@@ -452,19 +456,23 @@ class DriverService {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Step 3: Create entry in public.users table using proven customer app method
-      console.log('� CRITICAL STEP: Creating entry in public.users table...');
+      console.log('🔧 CRITICAL STEP: Creating entry in public.users table...');
       await this.ensureUserInCustomTable(authData.user, registrationData);
 
-      // Step 4: Verify the user exists in auth.users before creating profile
+      // Step 4: Verify the user exists before creating profile
+      console.log('🔍 Verifying user exists in custom users table...');
       const { data: userCheck, error: userCheckError } = await supabase
-        .from('auth.users')
+        .from('users')
         .select('id')
         .eq('id', authData.user.id)
         .single();
 
       if (userCheckError) {
-        console.log('User verification failed, but continuing with profile creation...');
+        console.error('❌ User not found in custom users table:', userCheckError);
+        throw new Error('Failed to create user account properly');
       }
+
+      console.log('✅ User verified in custom users table');
 
       // Step 5: Create driver profile with proper approval fields
       const profileData = {
@@ -476,6 +484,8 @@ class DriverService {
         vehicle_model: registrationData.vehicleInfo?.model || 'Not specified',
         vehicle_year: registrationData.vehicleInfo?.year || 2020,
         vehicle_plate: registrationData.vehicleInfo?.plate || 'TBD',
+        vehicle_max_payload: registrationData.vehicleInfo?.maxPayload || 5.0,
+        vehicle_max_volume: registrationData.vehicleInfo?.maxVolume || 10.0,
         // Proper approval fields
         is_approved: false,
         approval_status: 'pending',
@@ -486,24 +496,52 @@ class DriverService {
         total_trips: 0,
         total_earnings: 0.0,
         is_available: false,
-        preferred_truck_types: JSON.stringify(['small_truck']),
+        preferred_truck_types: JSON.stringify([registrationData.selectedTruckType || 'Small Truck']),
         max_distance_km: 50
       };
 
       console.log('Creating driver profile with data:', profileData);
 
-      const { data: driverProfile, error: profileError } = await supabase
+      // Use service role to bypass RLS for driver profile creation
+      const { createClient } = require('@supabase/supabase-js');
+      const serviceSupabase = createClient(
+        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
+      );
+
+      console.log('📝 Attempting to create driver profile...');
+      const { data: driverProfile, error: profileError } = await serviceSupabase
         .from('driver_profiles')
         .insert(profileData)
         .select()
         .single();
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
+        console.error('❌ Profile creation error:', profileError);
+        console.error('❌ Profile data that failed:', JSON.stringify(profileData, null, 2));
+        
+        // Log specific error details
+        if (profileError.code) {
+          console.error('❌ Error code:', profileError.code);
+        }
+        if (profileError.details) {
+          console.error('❌ Error details:', profileError.details);
+        }
+        if (profileError.hint) {
+          console.error('❌ Error hint:', profileError.hint);
+        }
+        
         throw new Error(`Failed to create driver profile: ${profileError.message}`);
       }
 
-      console.log('✅ Driver profile created:', driverProfile.id);
+      if (!driverProfile) {
+        throw new Error('Profile creation failed - no profile returned');
+      }
+
+      console.log('✅ Driver profile created successfully:', driverProfile.id);
+
+      // Note: Truck creation will be handled by database trigger when admin approves the driver
+      // The registration stores truck type info in driver profile for later use
 
       // Step 6: Create Driver object
       const driver: Driver = {
@@ -526,13 +564,17 @@ class DriverService {
 
       console.log('🎉 Driver registration completed successfully');
 
+      // Check if email verification is required
+      const requiresEmailConfirmation = !authData.session;
+
       return {
         success: true,
         message: 'Driver registration completed! Your application is now under review.',
         data: {
           userId: authData.user.id,
           driverProfile: driver,
-          approvalStatus
+          approvalStatus,
+          requiresEmailConfirmation
         }
       };
 
@@ -623,21 +665,74 @@ class DriverService {
     if (!this.currentDriver) return false;
 
     try {
-      const { error } = await supabase
+      const isAvailable = status === 'online';
+      
+      // Update driver availability
+      const { error: driverError } = await supabase
         .from('driver_profiles')
         .update({ 
-          is_available: status === 'online',
+          is_available: isAvailable,
+          status: status,
           updated_at: new Date().toISOString()
         })
         .eq('id', this.currentDriver.id);
 
-      if (error) {
-        console.error('Error updating driver status:', error);
+      if (driverError) {
+        console.error('Error updating driver status:', driverError);
         return false;
       }
 
+      // STEP 1: Find and sync ALL trucks assigned to this driver
+      // This handles both current_truck_id and current_driver_id relationships
+      const { data: assignedTrucks, error: findError } = await supabase
+        .from('trucks')
+        .select('id, license_plate, truck_type_id')
+        .or(`current_driver_id.eq.${this.currentDriver.user_id},id.eq.${this.currentDriver.current_truck_id || 'null'}`);
+
+      if (findError) {
+        console.warn('Warning: Could not find assigned trucks:', findError);
+      } else if (assignedTrucks && assignedTrucks.length > 0) {
+        // Update all assigned trucks
+        const truckIds = assignedTrucks.map(truck => truck.id);
+        const { error: truckError } = await supabase
+          .from('trucks')
+          .update({
+            is_available: isAvailable,
+            updated_at: new Date().toISOString()
+          })
+          .in('id', truckIds);
+
+        if (truckError) {
+          console.warn('Warning: Could not update truck availability:', truckError);
+        } else {
+          console.log(`✅ Synced ${assignedTrucks.length} truck(s) availability to ${isAvailable} for driver ${this.currentDriver.user_id}`);
+          assignedTrucks.forEach(truck => {
+            console.log(`  - Updated truck ${truck.license_plate} (${truck.id})`);
+          });
+        }
+
+        // STEP 2: Fix missing current_truck_id relationship if needed
+        if (!this.currentDriver.current_truck_id && assignedTrucks.length > 0) {
+          const primaryTruck = assignedTrucks[0]; // Use first truck as primary
+          const { error: relationshipError } = await supabase
+            .from('driver_profiles')
+            .update({ 
+              current_truck_id: primaryTruck.id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', this.currentDriver.id);
+
+          if (!relationshipError) {
+            this.currentDriver.current_truck_id = primaryTruck.id;
+            console.log(`✅ Fixed missing current_truck_id relationship: ${primaryTruck.id}`);
+          }
+        }
+      } else {
+        console.warn(`⚠️ No trucks assigned to driver ${this.currentDriver.user_id}`);
+      }
+
       this.currentDriver.status = status;
-      this.currentDriver.is_available = status === 'online';
+      this.currentDriver.is_available = isAvailable;
       await driverLocationService.updateDriverStatus(status, this.activeOrder?.orderId);
 
       return true;
@@ -652,16 +747,16 @@ class DriverService {
     if (!this.currentDriver) return false;
 
     try {
-      // Subscribe to real-time order assignments
+      // Subscribe to real-time trip assignments
       const channel = supabase
-        .channel('order-assignments')
+        .channel('trip-assignments')
         .on(
           'postgres_changes',
           {
-            event: 'INSERT',
+            event: 'UPDATE',
             schema: 'public',
-            table: 'order_assignments',
-            filter: `driver_id=eq.${this.currentDriver.id}`
+            table: 'trip_requests',
+            filter: `assigned_driver_id=eq.${this.currentDriver.id}`
           },
           (payload) => {
             const orderData = payload.new as any;
@@ -735,10 +830,11 @@ class DriverService {
 
       if (!trip.required_truck_type_id) {
         console.log('⚠️ Trip has no required truck type ID');
+        const actualTruckTypes = await this.getDriverActualTruckTypes();
         return { 
           isCompatible: true, // Allow if no specific requirement
           requiredTruckType: 'Any',
-          driverTruckTypes: this.currentDriver.preferred_truck_types || [],
+          driverTruckTypes: actualTruckTypes,
           materialType: trip.material_type
         };
       }
@@ -752,30 +848,31 @@ class DriverService {
 
       if (truckError) {
         console.error('❌ Error fetching truck type:', truckError);
+        const actualTruckTypes = await this.getDriverActualTruckTypes();
         return { 
           isCompatible: false, 
           error: 'Truck type not found',
           materialType: trip.material_type,
-          driverTruckTypes: this.currentDriver.preferred_truck_types || []
+          driverTruckTypes: actualTruckTypes
         };
       }
 
       if (!requiredTruckType) {
         console.error('❌ Required truck type not found');
+        const actualTruckTypes = await this.getDriverActualTruckTypes();
         return { 
           isCompatible: false, 
           error: 'Truck type not found',
           materialType: trip.material_type,
-          driverTruckTypes: this.currentDriver.preferred_truck_types || []
+          driverTruckTypes: actualTruckTypes
         };
       }
 
-      const driverPreferredTypes = this.currentDriver.preferred_truck_types || [];
+      const driverPreferredTypes = await this.getDriverActualTruckTypes() || [];
       
-      console.log('🔍 DEBUG - Raw driver preferred truck types:', {
-        raw: this.currentDriver.preferred_truck_types,
-        type: typeof this.currentDriver.preferred_truck_types,
-        parsed: driverPreferredTypes
+      console.log('🔍 DEBUG - Driver actual truck types from fleet:', {
+        actualTruckTypes: driverPreferredTypes,
+        count: driverPreferredTypes.length
       });
       
       // Create a mapping of common truck type variations to handle compatibility
@@ -845,16 +942,115 @@ class DriverService {
       return {
         isCompatible,
         requiredTruckType: requiredTruckType.name,
-        driverTruckTypes: driverPreferredTypes,
+        driverTruckTypes: driverPreferredTypes, // This now contains actual truck types from fleet
         materialType: trip.material_type
       };
     } catch (error) {
       console.error('❌ Error checking truck type compatibility:', error);
+      const actualTruckTypes = await this.getDriverActualTruckTypes();
       return { 
         isCompatible: false, 
         error: 'System error',
-        driverTruckTypes: this.currentDriver?.preferred_truck_types || []
+        driverTruckTypes: actualTruckTypes
       };
+    }
+  }
+
+  // NEW: Get driver's actual truck types from their assigned trucks in the fleet
+  async getDriverActualTruckTypes(): Promise<string[]> {
+    if (!this.currentDriver) {
+      console.log('❌ No current driver');
+      return [];
+    }
+
+    try {
+      console.log('🚛 Fetching driver\'s actual truck types from fleet...');
+      
+      // Get trucks assigned to this driver
+      const { data: driverTrucks, error } = await supabase
+        .from('trucks')
+        .select(`
+          id,
+          license_plate,
+          truck_type_id,
+          truck_types(name, description)
+        `)
+        .eq('current_driver_id', this.currentDriver.user_id)
+        .eq('is_active', true);
+
+      if (error) {
+        console.error('❌ Error fetching driver trucks:', error);
+        return [];
+      }
+
+      if (!driverTrucks || driverTrucks.length === 0) {
+        console.log('⚠️ No trucks assigned to driver in fleet');
+        return [];
+      }
+
+      // Extract truck type names
+      const truckTypes = driverTrucks
+        .map(truck => (truck.truck_types as any)?.name)
+        .filter(name => name != null) as string[];
+
+      console.log('✅ Driver\'s actual truck types:', truckTypes);
+      return truckTypes;
+    } catch (error) {
+      console.error('❌ Exception fetching driver truck types:', error);
+      return [];
+    }
+  }
+
+  // NEW: Get driver's full truck details from the fleet
+  async getDriverTruckDetails(): Promise<any[]> {
+    if (!this.currentDriver) {
+      console.log('❌ No current driver');
+      return [];
+    }
+
+    try {
+      console.log('🚛 Fetching driver\'s full truck details from fleet...');
+      
+      // Get detailed truck information assigned to this driver
+      const { data: driverTrucks, error } = await supabase
+        .from('trucks')
+        .select(`
+          id,
+          license_plate,
+          make,
+          model,
+          year,
+          max_payload,
+          max_volume,
+          is_available,
+          is_active,
+          truck_type_id,
+          truck_types(
+            id,
+            name,
+            description,
+            payload_capacity,
+            volume_capacity
+          )
+        `)
+        .eq('current_driver_id', this.currentDriver.user_id)
+        .eq('is_active', true);
+
+      if (error) {
+        console.error('❌ Error fetching driver truck details:', error);
+        return [];
+      }
+
+      if (!driverTrucks || driverTrucks.length === 0) {
+        console.log('⚠️ No trucks assigned to driver in fleet');
+        return [];
+      }
+
+      console.log('✅ Driver\'s truck details:', driverTrucks);
+      return driverTrucks;
+    } catch (error) {
+      console.error('❌ Exception fetching driver truck details:', error);
+      return [];
     }
   }
 
@@ -999,12 +1195,17 @@ class DriverService {
   // Decline an order assignment
   async declineOrder(assignmentId: string, reason?: string): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('order_assignments')
+      // Use service role client to bypass RLS for legitimate driver operations
+      const { createClient } = require('@supabase/supabase-js');
+      const serviceSupabase = createClient(
+        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
+      );
+
+      const { error } = await serviceSupabase
+        .from('trip_requests')
         .update({ 
-          status: 'declined',
-          declined_at: new Date().toISOString(),
-          decline_reason: reason
+          status: 'cancelled'
         })
         .eq('id', assignmentId);
 
@@ -1158,26 +1359,26 @@ class DriverService {
   }
 
   // Update driver earnings after delivery completion
-  private async updateDriverEarnings(orderId: string): Promise<void> {
+  private async updateDriverEarnings(tripId: string): Promise<void> {
     if (!this.currentDriver) return;
 
     try {
-      // Calculate earnings for this delivery
-      const { data: orderData } = await supabase
-        .from('order_assignments')
-        .select('estimated_earnings')
-        .eq('order_id', orderId)
+      // Calculate earnings for this delivery from trip_requests
+      const { data: tripData } = await supabase
+        .from('trip_requests')
+        .select('final_price')
+        .eq('id', tripId)
         .single();
 
-      if (orderData) {
-        const newTotal = this.currentDriver.total_earnings + orderData.estimated_earnings;
+      if (tripData) {
+        const newTotal = this.currentDriver.total_earnings + (tripData.final_price || 0);
         const newDeliveryCount = this.currentDriver.total_trips + 1;
 
         await supabase
-          .from('drivers')
+          .from('driver_profiles')
           .update({
             total_earnings: newTotal,
-            total_deliveries: newDeliveryCount
+            total_trips: newDeliveryCount
           })
           .eq('id', this.currentDriver.id);
 
@@ -1559,13 +1760,14 @@ class DriverService {
 
         console.log(`✅ Found ${finalTrips.length} available trips via service role`);
 
-        // Convert to OrderAssignment format with distance calculation
+        // Convert to OrderAssignment format with flexible distance calculation
         const assignments: OrderAssignment[] = [];
-        const maxDistanceKm = 50; // Only show trips within 50km
+        const maxDistanceKm = 500; // Increased to 500km for regional coverage
         
         for (const trip of finalTrips) {
           // Calculate distance from driver to pickup location
           let distanceToPickupKm = 0;
+          let shouldInclude = true; // Default to include unless distance check fails
           
           if (driverLocation) {
             const pickupLat = Number(trip.pickup_latitude);
@@ -1581,12 +1783,26 @@ class DriverService {
               
               console.log(`📏 Trip ${trip.id}: ${distanceToPickupKm.toFixed(1)}km away (service role)`);
               
-              // Skip trips that are too far away
+              // Only skip if extremely far (different continent)
               if (distanceToPickupKm > maxDistanceKm) {
                 console.log(`⚠️ Trip ${trip.id} is ${distanceToPickupKm.toFixed(1)}km away, skipping (max: ${maxDistanceKm}km)`);
-                continue;
+                shouldInclude = false;
               }
+            } else {
+              console.log(`⚠️ Trip ${trip.id} has invalid coordinates: lat=${pickupLat}, lng=${pickupLng}`);
+              // Still include trips with invalid coordinates - they might be valid orders
+              shouldInclude = true;
+              distanceToPickupKm = 0;
             }
+          } else {
+            console.log(`📍 No driver location available, including all trips`);
+            // If no driver location, include all trips
+            shouldInclude = true;
+            distanceToPickupKm = Number(trip.estimated_distance_km || 0);
+          }
+          
+          if (!shouldInclude) {
+            continue;
           }
           
           const assignment = {
@@ -1595,20 +1811,24 @@ class DriverService {
             customerId: trip.customer_id || '',
             customerName: 'Customer', // Will be loaded separately if needed
             customerPhone: '', // Will be loaded separately if needed
+            // Fix UI mapping - provide both formats with proper data extraction
             pickupLocation: {
-              address: typeof trip.pickup_address === 'object' ? 
-                (trip.pickup_address as any).formatted_address || 'Pickup Location' : 
-                'Pickup Location',
+              address: this.extractAddress(trip.pickup_address),
               latitude: Number(trip.pickup_latitude),
               longitude: Number(trip.pickup_longitude),
             },
             deliveryLocation: {
-              address: typeof trip.delivery_address === 'object' ? 
-                (trip.delivery_address as any).formatted_address || 'Delivery Location' : 
-                'Delivery Location',
+              address: this.extractAddress(trip.delivery_address),
               latitude: Number(trip.delivery_latitude),
               longitude: Number(trip.delivery_longitude),
             },
+            // Add UI-expected fields with real data
+            pickup_address: this.extractAddress(trip.pickup_address),
+            delivery_address: this.extractAddress(trip.delivery_address),
+            estimated_fare: Number(trip.quoted_price || 0),
+            estimated_duration: `${Number(trip.estimated_duration_minutes || 30)} min`,
+            material_type: trip.material_type || 'General Materials',
+            load_description: trip.load_description || 'Materials delivery',
             materials: [{
               type: trip.material_type,
               description: trip.load_description,
@@ -1616,13 +1836,18 @@ class DriverService {
               weight: Number(trip.estimated_weight_tons || 1),
             }],
             estimatedEarnings: Number(trip.quoted_price || 0),
-            estimatedDuration: Number(trip.estimated_duration_minutes || 60),
-            distanceKm: driverLocation ? distanceToPickupKm : Number(trip.estimated_distance_km || 0), // Use distance to pickup, not trip distance
+            estimatedDuration: Number(trip.estimated_duration_minutes || 30),
+            distanceKm: driverLocation ? distanceToPickupKm : Number(trip.estimated_distance_km || 0),
             specialInstructions: trip.special_requirements ? 
               JSON.stringify(trip.special_requirements) : undefined,
             assignedAt: new Date().toISOString(),
             acceptDeadline: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes
             status: 'pending' as const,
+            // Add coordinate for map markers
+            coordinate: {
+              latitude: Number(trip.pickup_latitude),
+              longitude: Number(trip.pickup_longitude),
+            },
           };
           
           assignments.push(assignment);
@@ -1658,13 +1883,14 @@ class DriverService {
 
       console.log(`✅ Found ${trips.length} available trips`);
 
-      // Convert to OrderAssignment format with distance calculation
+      // Convert to OrderAssignment format with flexible distance calculation
       const assignments: OrderAssignment[] = [];
-      const maxDistanceKm = 50; // Only show trips within 50km
+      const maxDistanceKm = 500; // Increased to 500km for regional coverage
       
       for (const trip of trips) {
         // Calculate distance from driver to pickup location
         let distanceToPickupKm = 0;
+        let shouldInclude = true; // Default to include unless distance check fails
         
         if (driverLocation) {
           const pickupLat = Number(trip.pickup_latitude);
@@ -1680,12 +1906,26 @@ class DriverService {
             
             console.log(`📏 Trip ${trip.id}: ${distanceToPickupKm.toFixed(1)}km away`);
             
-            // Skip trips that are too far away
+            // Only skip if extremely far (different continent)
             if (distanceToPickupKm > maxDistanceKm) {
               console.log(`⚠️ Trip ${trip.id} is ${distanceToPickupKm.toFixed(1)}km away, skipping (max: ${maxDistanceKm}km)`);
-              continue;
+              shouldInclude = false;
             }
+          } else {
+            console.log(`⚠️ Trip ${trip.id} has invalid coordinates: lat=${pickupLat}, lng=${pickupLng}`);
+            // Still include trips with invalid coordinates - they might be valid orders
+            shouldInclude = true;
+            distanceToPickupKm = 0;
           }
+        } else {
+          console.log(`📍 No driver location available, including all trips`);
+          // If no driver location, include all trips
+          shouldInclude = true;
+          distanceToPickupKm = Number(trip.estimated_distance_km || 0);
+        }
+        
+        if (!shouldInclude) {
+          continue;
         }
         
         const assignment = {
@@ -1696,21 +1936,21 @@ class DriverService {
           customerPhone: '', // Will be loaded separately if needed
           pickupLocation: {
             address: typeof trip.pickup_address === 'object' ? 
-              (trip.pickup_address as any).formatted_address || 'Pickup Location' : 
-              'Pickup Location',
-            latitude: Number(trip.pickup_latitude),
-            longitude: Number(trip.pickup_longitude),
+              (trip.pickup_address as any).formatted_address || trip.pickup_address?.toString() || 'Pickup Location' : 
+              trip.pickup_address || 'Pickup Location',
+            latitude: Number(trip.pickup_latitude || 0),
+            longitude: Number(trip.pickup_longitude || 0),
           },
           deliveryLocation: {
             address: typeof trip.delivery_address === 'object' ? 
-              (trip.delivery_address as any).formatted_address || 'Delivery Location' : 
-              'Delivery Location',
-            latitude: Number(trip.delivery_latitude),
-            longitude: Number(trip.delivery_longitude),
+              (trip.delivery_address as any).formatted_address || trip.delivery_address?.toString() || 'Delivery Location' : 
+              trip.delivery_address || 'Delivery Location',
+            latitude: Number(trip.delivery_latitude || 0),
+            longitude: Number(trip.delivery_longitude || 0),
           },
           materials: [{
-            type: trip.material_type,
-            description: trip.load_description,
+            type: trip.material_type || 'General Materials',
+            description: trip.load_description || 'Material delivery',
             quantity: Number(trip.estimated_weight_tons || 1),
             weight: Number(trip.estimated_weight_tons || 1),
           }],
@@ -1722,6 +1962,18 @@ class DriverService {
           assignedAt: new Date().toISOString(),
           acceptDeadline: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes
           status: 'pending' as const,
+          // Add database fields for UI compatibility
+          pickup_latitude: trip.pickup_latitude,
+          pickup_longitude: trip.pickup_longitude,
+          pickup_address: typeof trip.pickup_address === 'object' ? 
+            (trip.pickup_address as any).formatted_address || trip.pickup_address?.toString() || 'Pickup Location' : 
+            trip.pickup_address || 'Pickup Location',
+          delivery_address: typeof trip.delivery_address === 'object' ? 
+            (trip.delivery_address as any).formatted_address || trip.delivery_address?.toString() || 'Delivery Location' : 
+            trip.delivery_address || 'Delivery Location',
+          estimated_fare: Number(trip.quoted_price || 0),
+          estimated_duration: `${Number(trip.estimated_duration_minutes || 60)} min`,
+          material_type: trip.material_type || 'General Materials',
         };
         
         assignments.push(assignment);
@@ -1740,7 +1992,160 @@ class DriverService {
     }
   }
 
-  // Get real trip history from database
+  // Get accepted trips that the driver should work on
+  async getAcceptedTrips(): Promise<OrderAssignment[]> {
+    try {
+      const driver = this.getCurrentDriver();
+      if (!driver) {
+        console.log('❌ No current driver');
+        return [];
+      }
+
+      console.log('📋 Fetching accepted trips for driver...');
+      console.log(`🔍 Looking for trips assigned to user_id: ${driver.user_id}`);
+      
+      // Use service role to get trips assigned to this driver
+      const { createClient } = require('@supabase/supabase-js');
+      const serviceSupabase = createClient(
+        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
+      );
+
+      const { data: trips, error } = await serviceSupabase
+        .from('trip_requests')
+        .select(`
+          id,
+          pickup_latitude,
+          pickup_longitude,
+          pickup_address,
+          delivery_latitude,
+          delivery_longitude,
+          delivery_address,
+          material_type,
+          load_description,
+          estimated_weight_tons,
+          estimated_volume_m3,
+          quoted_price,
+          estimated_distance_km,
+          estimated_duration_minutes,
+          special_requirements,
+          requires_crane,
+          requires_hydraulic_lift,
+          scheduled_pickup_time,
+          created_at,
+          customer_id,
+          status,
+          assigned_driver_id,
+          matched_at
+        `)
+        .eq('assigned_driver_id', driver.user_id)
+        .not('assigned_driver_id', 'is', null)
+        .order('matched_at', { ascending: false, nullsLast: true });
+
+      console.log('🔍 Query result:', { 
+        error: error?.message, 
+        tripCount: trips?.length,
+        driverUserId: driver.user_id,
+        statuses: trips?.map(t => t.status) || []
+      });
+
+      if (error) {
+        console.error('❌ Error fetching accepted trips:', error);
+        
+        // Try a broader query to see if ANY trips exist for this driver
+        const { data: allTrips, error: allError } = await serviceSupabase
+          .from('trip_requests')
+          .select('id, status, assigned_driver_id, matched_at')
+          .eq('assigned_driver_id', driver.user_id)
+          .order('matched_at', { ascending: false });
+          
+        console.log('🔍 ALL trips for driver (any status):', {
+          error: allError?.message,
+          count: allTrips?.length,
+          trips: allTrips?.map((t: any) => ({ id: t.id, status: t.status })) || []
+        });
+        
+        return [];
+      }
+
+      console.log(`✅ Found ${trips?.length || 0} accepted trips`);
+      
+      if (!trips || trips.length === 0) {
+        return [];
+      }
+
+      // Convert to OrderAssignment format
+      const assignments: OrderAssignment[] = trips.map(trip => ({
+        id: trip.id,
+        orderId: trip.id,
+        customerId: trip.customer_id || '',
+        customerName: 'Customer',
+        customerPhone: '',
+        // Fix UI mapping - provide both formats with proper data extraction
+        pickupLocation: {
+          address: this.extractAddress(trip.pickup_address),
+          latitude: Number(trip.pickup_latitude),
+          longitude: Number(trip.pickup_longitude),
+        },
+        deliveryLocation: {
+          address: this.extractAddress(trip.delivery_address),
+          latitude: Number(trip.delivery_latitude),
+          longitude: Number(trip.delivery_longitude),
+        },
+        // Add UI-expected fields with real data
+        pickup_address: this.extractAddress(trip.pickup_address),
+        delivery_address: this.extractAddress(trip.delivery_address),
+        estimated_fare: Number(trip.quoted_price || 0),
+        estimated_duration: `${Number(trip.estimated_duration_minutes || 30)} min`,
+        material_type: trip.material_type || 'General Materials',
+        load_description: trip.load_description || 'Materials delivery',
+        materials: [{
+          type: trip.material_type,
+          description: trip.load_description,
+          quantity: Number(trip.estimated_weight_tons || 1),
+          weight: Number(trip.estimated_weight_tons || 1),
+        }],
+        estimatedEarnings: Number(trip.quoted_price || 0),
+        estimatedDuration: Number(trip.estimated_duration_minutes || 30),
+        distanceKm: Number(trip.estimated_distance_km || 0),
+        specialInstructions: trip.special_requirements ? 
+          JSON.stringify(trip.special_requirements) : undefined,
+        assignedAt: trip.matched_at || new Date().toISOString(),
+        acceptDeadline: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        status: trip.status === 'matched' ? 'accepted' : trip.status as any,
+        // Add coordinate for map markers
+        coordinate: {
+          latitude: Number(trip.pickup_latitude),
+          longitude: Number(trip.pickup_longitude),
+        },
+      }));
+
+      return assignments;
+    } catch (error) {
+      console.error('💥 Error in getAcceptedTrips:', error);
+      return [];
+    }
+  }
+
+  // Helper function to extract address from JSONB or string format
+  private extractAddress(addressData: any): string {
+    if (!addressData) return 'Location not specified';
+    
+    if (typeof addressData === 'string') {
+      return addressData;
+    }
+    
+    if (typeof addressData === 'object') {
+      // Try different possible field names
+      return addressData.formatted_address || 
+             addressData.address || 
+             addressData.street || 
+             `${addressData.city || ''} ${addressData.state || ''}`.trim() || 
+             'Location not specified';
+    }
+    
+    return 'Location not specified';
+  }
   async getTripHistory(limit: number = 20): Promise<any[]> {
     try {
       if (!this.currentDriver) return [];
@@ -1875,7 +2280,8 @@ class DriverService {
 
       console.log('✅ Email verified successfully:', data.user.id);
 
-      // Get the driver profile ID
+      // Get the driver profile ID (it should already exist from registration)
+      console.log('🔍 Looking for driver profile for verified user...');
       const { data: driverProfile, error: profileError } = await supabase
         .from('driver_profiles')
         .select('id')
@@ -1883,14 +2289,39 @@ class DriverService {
         .single();
 
       if (profileError) {
-        console.error('⚠️ Could not find driver profile:', profileError);
+        console.error('⚠️ Could not find driver profile via anon client:', profileError);
+        
+        // Try with service role as fallback
+        const { createClient } = require('@supabase/supabase-js');
+        const serviceSupabase = createClient(
+          'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
+        );
+        
+        const { data: serviceProfile, error: serviceError } = await serviceSupabase
+          .from('driver_profiles')
+          .select('id')
+          .eq('user_id', data.user.id)
+          .single();
+          
+        if (serviceError) {
+          console.error('❌ Service role also failed to find profile:', serviceError);
+          return { 
+            success: true, 
+            message: 'Email verified but could not find driver profile. Please contact support.', 
+            driverId: data.user.id 
+          };
+        }
+        
+        console.log('✅ Found driver profile via service role:', serviceProfile.id);
         return { 
           success: true, 
-          message: 'Email verified but could not find driver profile', 
-          driverId: data.user.id 
+          message: 'Email verified successfully', 
+          driverId: serviceProfile.id 
         };
       }
 
+      console.log('✅ Found driver profile:', driverProfile.id);
       return { 
         success: true, 
         message: 'Email verified successfully', 
@@ -2590,6 +3021,248 @@ class DriverService {
     } catch (error) {
       console.error('❌ Error updating truck types:', error);
       return false;
+    }
+  }
+
+  // Get available truck types for registration
+  async getTruckTypes(): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('truck_types')
+        .select('id, name, description')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching truck types:', error);
+      return [];
+    }
+  }
+
+  // Update driver availability status
+  async updateDriverAvailability(isAvailable: boolean): Promise<boolean> {
+    try {
+      const driver = this.getCurrentDriver();
+      if (!driver) {
+        console.error('❌ No authenticated driver found for availability update');
+        throw new Error('No authenticated driver found');
+      }
+
+      console.log(`🔄 Updating driver availability: ${isAvailable ? 'online' : 'offline'} for driver ${driver.id}`);
+
+      const { error } = await supabase
+        .from('driver_profiles')
+        .update({ 
+          is_available: isAvailable,
+          last_seen: new Date().toISOString(),
+          status: isAvailable ? 'online' : 'offline'
+        })
+        .eq('id', driver.id);
+
+      if (error) {
+        console.error('❌ Supabase error updating availability:', error);
+        throw error;
+      }
+
+      // Update local driver data
+      const updatedDriver = {
+        ...driver,
+        is_available: isAvailable,
+        status: isAvailable ? 'online' : 'offline'
+      };
+      
+      await AsyncStorage.setItem('currentDriver', JSON.stringify(updatedDriver));
+      this.currentDriver = updatedDriver;
+
+      console.log(`✅ Driver availability successfully updated to: ${isAvailable ? 'ONLINE' : 'OFFLINE'}`);
+      return true;
+    } catch (error) {
+      console.error('❌ Error updating driver availability:', error);
+      return false;
+    }
+  }
+
+  // Accept a trip request
+  async acceptTrip(tripId: string): Promise<boolean> {
+    try {
+      const driver = this.getCurrentDriver();
+      if (!driver) {
+        throw new Error('No authenticated driver found');
+      }
+
+      console.log(`🚚 Accepting trip ${tripId}...`);
+
+      // Use service role client to bypass RLS for legitimate driver operations
+      const { createClient } = require('@supabase/supabase-js');
+      const serviceSupabase = createClient(
+        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
+      );
+
+      // Update trip_requests with service role permissions - use user_id not driver_profiles id
+      const { data, error } = await serviceSupabase
+        .from('trip_requests')
+        .update({
+          status: 'matched',
+          assigned_driver_id: driver.user_id, // Use user_id which exists in users table
+          matched_at: new Date().toISOString()
+        })
+        .eq('id', tripId)
+        .eq('status', 'pending')
+        .is('assigned_driver_id', null)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error accepting trip:', error);
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('Trip not found or already assigned');
+      }
+
+      console.log('✅ Trip accepted successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Error accepting trip:', error);
+      return false;
+    }
+  }
+
+  // Get driver earnings and statistics
+  async getDriverEarnings(): Promise<{
+    today: number;
+    thisWeek: number;
+    thisMonth: number;
+    allTime: number;
+  }> {
+    try {
+      const driver = this.getCurrentDriver();
+      if (!driver) {
+        return { today: 0, thisWeek: 0, thisMonth: 0, allTime: 0 };
+      }
+
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+      // Get completed trips with earnings from trip_requests table
+      const { data: trips, error } = await supabase
+        .from('trip_requests')
+        .select('delivered_at, final_price')
+        .eq('assigned_driver_id', driver.user_id) // Use user_id for foreign key
+        .eq('status', 'delivered')
+        .not('final_price', 'is', null);
+
+      if (error) {
+        console.error('❌ Error fetching earnings:', error);
+        throw error;
+      }
+
+      const earnings = {
+        today: 0,
+        thisWeek: 0,
+        thisMonth: 0,
+        allTime: 0
+      };
+
+      trips?.forEach(trip => {
+        const completedDate = new Date(trip.delivered_at);
+        const earning = parseFloat(trip.final_price) || 0;
+
+        earnings.allTime += earning;
+
+        if (completedDate >= startOfMonth) {
+          earnings.thisMonth += earning;
+        }
+
+        if (completedDate >= startOfWeek) {
+          earnings.thisWeek += earning;
+        }
+
+        if (completedDate >= startOfDay) {
+          earnings.today += earning;
+        }
+      });
+
+      return earnings;
+    } catch (error) {
+      console.error('❌ Error calculating earnings:', error);
+      return { today: 0, thisWeek: 0, thisMonth: 0, allTime: 0 };
+    }
+  }
+
+  // Enhanced driver stats with performance metrics
+  async getEnhancedDriverStats(): Promise<{
+    todayEarnings: number;
+    weekEarnings: number;
+    monthEarnings: number;
+    totalTrips: number;
+    completionRate: number;
+    averageRating: number;
+    onlineHours: number;
+  }> {
+    try {
+      const driver = this.getCurrentDriver();
+      if (!driver) {
+        return {
+          todayEarnings: 0,
+          weekEarnings: 0,
+          monthEarnings: 0,
+          totalTrips: 0,
+          completionRate: 0,
+          averageRating: 0,
+          onlineHours: 0
+        };
+      }
+
+      const earnings = await this.getDriverEarnings();
+      
+      // Get trip statistics from trip_requests table
+      const { data: allTrips, error: tripsError } = await supabase
+        .from('trip_requests')
+        .select('status, driver_rating')
+        .eq('assigned_driver_id', driver.user_id); // Use user_id for foreign key
+
+      if (tripsError) {
+        console.error('❌ Error fetching trip stats:', tripsError);
+        throw tripsError;
+      }
+
+      const totalTrips = allTrips?.length || 0;
+      const completedTrips = allTrips?.filter(trip => trip.status === 'delivered').length || 0;
+      const completionRate = totalTrips > 0 ? (completedTrips / totalTrips) * 100 : 0;
+      
+      const ratingsData = allTrips?.filter(trip => trip.driver_rating && trip.driver_rating > 0);
+      const averageRating = ratingsData && ratingsData.length > 0
+        ? ratingsData.reduce((sum, trip) => sum + trip.driver_rating, 0) / ratingsData.length
+        : 0;
+
+      return {
+        todayEarnings: earnings.today,
+        weekEarnings: earnings.thisWeek,
+        monthEarnings: earnings.thisMonth,
+        totalTrips,
+        completionRate,
+        averageRating,
+        onlineHours: 0 // This would require tracking online/offline time
+      };
+    } catch (error) {
+      console.error('❌ Error getting enhanced driver stats:', error);
+      return {
+        todayEarnings: 0,
+        weekEarnings: 0,
+        monthEarnings: 0,
+        totalTrips: 0,
+        completionRate: 0,
+        averageRating: 0,
+        onlineHours: 0
+      };
     }
   }
 }

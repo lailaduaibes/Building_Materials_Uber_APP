@@ -17,15 +17,18 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import TripService, { TripOrder } from './services/TripService';
+import { Theme } from './theme';
 
 interface OrderHistoryScreenProps {
   onBack: () => void;
   onOrderSelect: (orderId: string) => void;
+  orderTypeFilter?: string;
 }
 
 export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
   onBack,
   onOrderSelect,
+  orderTypeFilter,
 }) => {
   const [orders, setOrders] = useState<TripOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,12 +36,12 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
 
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [orderTypeFilter]);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const tripHistory = await TripService.getTripHistory();
+      const tripHistory = await TripService.getTripHistory(orderTypeFilter);
       setOrders(tripHistory);
     } catch (error) {
       Alert.alert('Error', 'Failed to load trip history');
@@ -61,6 +64,8 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
         return '#3498db';
       case 'assigned':
         return '#9b59b6';
+      case 'matched':
+        return '#8e44ad';
       case 'picked_up':
         return '#e67e22';
       case 'in_transit':
@@ -82,6 +87,8 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
         return 'Confirmed';
       case 'assigned':
         return 'Assigned';
+      case 'matched':
+        return 'Driver Matched';
       case 'picked_up':
         return 'Picked Up';
       case 'in_transit':
@@ -135,15 +142,32 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
       </View>
 
       <View style={styles.deliveryInfo}>
+        {/* Show primary location - delivery for most orders */}
         <View style={styles.locationRow}>
-          <MaterialIcons name="location-on" size={16} color="#666" />
+          <MaterialIcons name="location-on" size={16} color={Theme.colors.text.secondary} />
           <Text style={styles.deliveryText}>
-            {item.deliveryAddress.city}, {item.deliveryAddress.state}
+            {item.deliveryAddress.city !== 'Unknown' 
+              ? `${item.deliveryAddress.city}, ${item.deliveryAddress.state}`
+              : item.deliveryAddress.street
+            }
           </Text>
         </View>
+        
+        {/* Show pickup location if different and available */}
+        {item.pickupAddress && 
+         item.pickupAddress.city !== 'Unknown' && 
+         item.pickupAddress.city !== item.deliveryAddress.city && (
+          <View style={styles.locationRow}>
+            <MaterialIcons name="my-location" size={16} color={Theme.colors.text.secondary} />
+            <Text style={styles.deliveryText}>
+              From: {item.pickupAddress.city}, {item.pickupAddress.state}
+            </Text>
+          </View>
+        )}
+        
         {item.estimatedDelivery && (
           <View style={styles.timeRow}>
-            <MaterialIcons name="access-time" size={16} color="#666" />
+            <MaterialIcons name="access-time" size={16} color={Theme.colors.text.secondary} />
             <Text style={styles.estimatedDelivery}>
               Est. delivery: {formatDate(item.estimatedDelivery)}
             </Text>
@@ -153,7 +177,7 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
 
       {item.driverName && (
         <View style={styles.driverInfo}>
-          <MaterialIcons name="local-shipping" size={16} color="#666" />
+          <MaterialIcons name="local-shipping" size={16} color={Theme.colors.text.secondary} />
           <Text style={styles.driverText}>Driver: {item.driverName}</Text>
         </View>
       )}
@@ -164,21 +188,28 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <MaterialIcons name="arrow-back" size={24} color="#000" />
+          <MaterialIcons name="arrow-back" size={24} color={Theme.colors.text.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Trip History</Text>
+        <Text style={styles.headerTitle}>
+          {orderTypeFilter === 'active' 
+            ? 'Active Orders' 
+            : orderTypeFilter 
+              ? `${orderTypeFilter.charAt(0).toUpperCase() + orderTypeFilter.slice(1)} Orders` 
+              : 'Order History'
+          }
+        </Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.content}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#000" />
+            <ActivityIndicator size="large" color={Theme.colors.text.white} />
             <Text style={styles.loadingText}>Loading your trips...</Text>
           </View>
         ) : orders.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="history" size={80} color="#ccc" />
+            <MaterialIcons name="history" size={80} color={Theme.colors.text.light} />
             <Text style={styles.emptyTitle}>No trips yet</Text>
             <Text style={styles.emptyText}>
               When you book your first delivery, it will appear here.
@@ -202,8 +233,8 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={handleRefresh}
-                  colors={['#000']}
-                  tintColor="#000"
+                  colors={[Theme.colors.primary]}
+                  tintColor={Theme.colors.text.white}
                 />
               }
               contentContainerStyle={styles.listContainer}
@@ -211,6 +242,16 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
           </>
         )}
       </View>
+
+      {/* Floating Action Button for filtered views */}
+      {orderTypeFilter && (
+        <TouchableOpacity 
+          style={styles.fab}
+          onPress={() => onBack()} // Navigate back to create new order
+        >
+          <MaterialIcons name="add" size={24} color="white" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 };
@@ -227,16 +268,18 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   backButton: {
     padding: 8,
     marginRight: 12,
+    backgroundColor: Theme.colors.primary,
+    borderRadius: 20,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000',
+    color: Theme.colors.primary,
     flex: 1,
   },
   headerSpacer: {
@@ -250,41 +293,52 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: Theme.colors.primary,
   },
   summaryContainer: {
+    backgroundColor: Theme.colors.primary,
+    margin: 20,
     padding: 20,
-    paddingBottom: 10,
+    borderRadius: 12,
+    shadowColor: Theme.colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   summaryTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   summarySubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: 'rgba(255,255,255,0.9)',
   },
   listContainer: {
     paddingHorizontal: 20,
   },
   orderCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Theme.colors.primary,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
-    shadowColor: '#000',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: Theme.colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   orderHeader: {
     flexDirection: 'row',
@@ -298,17 +352,18 @@ const styles = StyleSheet.create({
   orderNumber: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   orderDate: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.8)',
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   statusText: {
     fontSize: 12,
@@ -323,19 +378,19 @@ const styles = StyleSheet.create({
   },
   itemCount: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.8)',
   },
   orderAmount: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#FFFFFF',
   },
   orderSummary: {
     marginBottom: 12,
   },
   summaryText: {
     fontSize: 14,
-    color: '#333',
+    color: 'rgba(255,255,255,0.9)',
     lineHeight: 20,
   },
   deliveryInfo: {
@@ -392,6 +447,22 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
 

@@ -66,6 +66,7 @@ interface DriverProfile {
 
 export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileScreenProps) {
   const [driverProfile, setDriverProfile] = useState<DriverProfile | null>(null);
+  const [driverTrucks, setDriverTrucks] = useState<any[]>([]); // NEW: Store actual truck data
   const [loading, setLoading] = useState(true);
   const [showVehicleManagement, setShowVehicleManagement] = useState(false);
   const [showSpecializationsManagement, setShowSpecializationsManagement] = useState(false);
@@ -76,6 +77,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
 
   useEffect(() => {
     loadDriverProfile();
+    loadDriverTrucks(); // NEW: Load actual truck data
   }, []);
 
   const loadDriverProfile = async () => {
@@ -138,6 +140,8 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
       };
 
       setDriverProfile(profile);
+      // Also reload truck data
+      await loadDriverTrucks();
       console.log('✅ Driver profile loaded:', profile.name);
     } catch (error) {
       console.error('❌ Error loading driver profile:', error);
@@ -160,6 +164,22 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // NEW: Load driver's actual trucks from the fleet
+  const loadDriverTrucks = async () => {
+    try {
+      console.log('🚛 Loading driver trucks from fleet...');
+      
+      // Get detailed truck information from the fleet
+      const truckDetails = await driverService.getDriverTruckDetails();
+      console.log('✅ Driver truck details:', truckDetails);
+      
+      setDriverTrucks(truckDetails);
+    } catch (error) {
+      console.error('❌ Error loading driver trucks:', error);
+      setDriverTrucks([]);
     }
   };
 
@@ -221,7 +241,9 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
           </TouchableOpacity>
         </View>
         
+        {/* Driver Profile Vehicle Info */}
         <View style={styles.vehicleCard}>
+          <Text style={styles.vehicleSubtitle}>Registration Details</Text>
           {driverProfile.vehicleInfo ? (
             <>
               <View style={styles.vehicleRow}>
@@ -241,6 +263,65 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
               <TouchableOpacity onPress={() => setShowVehicleManagement(true)}>
                 <Text style={[styles.vehicleValue, { color: theme.accent }]}>Add Vehicle</Text>
               </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* NEW: Actual Fleet Trucks */}
+        <View style={styles.vehicleCard}>
+          <Text style={styles.vehicleSubtitle}>Fleet Assignment</Text>
+          {driverTrucks && driverTrucks.length > 0 ? (
+            driverTrucks.map((truck, index) => (
+              <View key={truck.id || index} style={styles.truckCard}>
+                <View style={styles.truckHeader}>
+                  <Ionicons name="car-sport" size={20} color={theme.primary} />
+                  <Text style={styles.truckTitle}>
+                    {(truck.truck_types as any)?.name || 'Unknown Type'}
+                  </Text>
+                  <View style={[styles.statusBadge, { 
+                    backgroundColor: truck.is_available ? theme.success : theme.warning 
+                  }]}>
+                    <Text style={styles.statusText}>
+                      {truck.is_available ? 'Available' : 'In Use'}
+                    </Text>
+                  </View>
+                </View>
+                
+                <View style={styles.truckDetails}>
+                  <View style={styles.vehicleRow}>
+                    <Text style={styles.vehicleLabel}>Vehicle:</Text>
+                    <Text style={styles.vehicleValue}>
+                      {truck.make} {truck.model} ({truck.year})
+                    </Text>
+                  </View>
+                  <View style={styles.vehicleRow}>
+                    <Text style={styles.vehicleLabel}>License Plate:</Text>
+                    <Text style={styles.vehicleValue}>{truck.license_plate}</Text>
+                  </View>
+                  <View style={styles.vehicleRow}>
+                    <Text style={styles.vehicleLabel}>Max Payload:</Text>
+                    <Text style={styles.vehicleValue}>{truck.max_payload} tons</Text>
+                  </View>
+                  <View style={styles.vehicleRow}>
+                    <Text style={styles.vehicleLabel}>Max Volume:</Text>
+                    <Text style={styles.vehicleValue}>{truck.max_volume} m³</Text>
+                  </View>
+                  {(truck.truck_types as any)?.description && (
+                    <View style={styles.vehicleRow}>
+                      <Text style={styles.vehicleLabel}>Description:</Text>
+                      <Text style={styles.vehicleValue}>{(truck.truck_types as any).description}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.noTrucksContainer}>
+              <Ionicons name="car-outline" size={40} color={theme.lightText} />
+              <Text style={styles.noTrucksText}>No trucks assigned yet</Text>
+              <Text style={styles.noTrucksSubtext}>
+                Once approved, your vehicle will appear here
+              </Text>
             </View>
           )}
         </View>
@@ -631,5 +712,66 @@ const styles = StyleSheet.create({
     color: theme.primary,
     marginLeft: 4,
     fontWeight: '500',
+  },
+  // NEW: Truck display styles
+  vehicleSubtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 12,
+  },
+  truckCard: {
+    backgroundColor: theme.white,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    overflow: 'hidden',
+  },
+  truckHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: theme.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  truckTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+    marginLeft: 8,
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.white,
+  },
+  truckDetails: {
+    padding: 12,
+  },
+  noTrucksContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  noTrucksText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.lightText,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  noTrucksSubtext: {
+    fontSize: 14,
+    color: theme.lightText,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });

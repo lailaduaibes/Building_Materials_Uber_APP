@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import paymentService, { PaymentService, CardDetails, PaymentResponse } from './services/PaymentService';
+import { Theme } from './theme';
 
 interface AddPaymentMethodScreenProps {
   onBack: () => void;
@@ -255,7 +256,7 @@ export default function AddPaymentMethodScreen({ onBack, onPaymentAdded }: AddPa
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color="#000" />
+          <MaterialIcons name="arrow-back" size={24} color={Theme.colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Payment Method</Text>
         <View style={styles.placeholder} />
@@ -362,7 +363,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Theme.colors.primary,
   },
   placeholder: {
     width: 40,
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Theme.colors.primary,
     marginBottom: 15,
   },
   paymentTypeButtons: {
@@ -397,8 +398,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
   },
   paymentTypeButtonActive: {
-    backgroundColor: '#000',
-    borderColor: '#000',
+    backgroundColor: Theme.colors.primary,
+    borderColor: Theme.colors.primary,
   },
   paymentTypeText: {
     marginLeft: 8,
@@ -418,7 +419,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333',
+    color: Theme.colors.primary,
     marginBottom: 8,
   },
   input: {
@@ -427,7 +428,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 15,
     fontSize: 16,
-    color: '#000',
+    color: Theme.colors.primary,
     backgroundColor: '#f9f9f9',
   },
   row: {
@@ -455,7 +456,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#f0f0f0',
   },
   addButton: {
-    backgroundColor: '#000',
+    backgroundColor: Theme.colors.primary,
     paddingVertical: 15,
     borderRadius: 8,
     alignItems: 'center',

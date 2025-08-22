@@ -26,15 +26,20 @@ import { Theme } from './theme';
 // Import our new UI components
 import { Screen, Button, Card } from './components';
 
-// Import our new screens (renamed for Uber-style with black/white theme)
+// Import our new screens (renamed for Uber-style with blue theme)
 import WelcomeScreen from './screens/WelcomeScreen';
 import UberStyleDashboard from './screens/UberStyleDashboard';
 import { AuthScreensSupabase } from './AuthScreensSupabase';
-import RequestTruckScreenMinimal from './screens/RequestTruckScreenMinimal'; // New minimal Uber-style screen
+import RequestTruckScreen from './screens/EnhancedRequestTruckScreen';
+
+// Import new Uber-style components
+import UberStyleMainDashboard from './components/UberStyleMainDashboard';
+import UberStyleLocationPicker from './components/UberStyleLocationPicker';
+import UberStyleMapPicker from './components/UberStyleMapPicker';
 
 // Import Enhanced UI Components
-import OrderHistoryScreen from './OrderHistoryScreen'; // Updated modern black/white theme
-import EnhancedAccountSettingsScreen from './screens/EnhancedAccountSettingsScreen'; // Main settings screen (in proper screens directory)
+import OrderHistoryScreen from './OrderHistoryScreen';
+import EnhancedAccountSettingsScreen from './screens/EnhancedAccountSettingsScreen';
 import WorkingSupportScreen from './screens/WorkingSupportScreen';
 import LiveTrackingScreenTrip from './LiveTrackingScreenTrip';
 
@@ -49,14 +54,19 @@ import { setupAndroidStatusBar } from './utils/AndroidFixes';
 const { width } = Dimensions.get('window');
 
 type AuthFlow = 'welcome' | 'login' | 'signup';
-type MainScreen = 'dashboard' | 'requestTruck' | 'trackTrip' | 'tripHistory' | 'settings' | 'support';
+type MainScreen = 'dashboard' | 'locationPicker' | 'mapPicker' | 'requestTruck' | 'trackTrip' | 'tripHistory' | 'settings' | 'support';
 
 // Use Supabase User interface (CORRECT ARCHITECTURE)
 import { User } from './AuthServiceSupabase';
 
 interface NavigationState {
   screen: MainScreen;
-  tripId?: string; // Changed from orderId to tripId
+  tripId?: string;
+  // Add location picker state
+  pickupLocation?: string;
+  destinationLocation?: string;
+  // Add order type filtering
+  orderType?: string;
 }
 
 export default function App() {
@@ -176,35 +186,76 @@ export default function App() {
     }
   }
 
+  // Handle service type navigation (delivery, pickup, urgent, bulk)
+  const handleNavigateToServiceType = (serviceType: string) => {
+    console.log(`🛠️ Navigating to ${serviceType} service`);
+    switch (serviceType) {
+      case 'delivery':
+        setNavigationState({ screen: 'tripHistory' }); // Order History
+        break;
+      case 'urgent':
+        setNavigationState({ screen: 'requestTruck' }); // New Order
+        break;
+      case 'bulk':
+        // Show active orders (in_transit, matched, picked_up)
+        setNavigationState({ screen: 'tripHistory', orderType: 'active' }); // Track Active Orders
+        break;
+      case 'tripHistory':
+        setNavigationState({ screen: 'support' }); // Support
+        break;
+      default:
+        setNavigationState({ screen: 'tripHistory' });
+    }
+  };
+
   // Navigation handler for dashboard  
   const handleNavigate = (screen: string) => {
     if (screen.startsWith('TrackTrip:')) {
       const tripId = screen.split(':')[1];
       setNavigationState({ screen: 'trackTrip', tripId });
     } else {
-      // Handle main navigation screens (matching UberStyleDashboard buttons)
+      // Handle main navigation screens
       switch (screen) {
-        case 'RequestTruck': // From UberStyleDashboard
+        case 'RequestTruck': // From dashboard - go directly to truck request screen
+        case 'requestTruck': // Lowercase version
+        case 'locationPicker': // Redirect to main truck request screen
+        case 'mapPicker': // Redirect to main truck request screen
+          console.log('✅ Navigating to requestTruck screen');
           setNavigationState({ screen: 'requestTruck' });
           break;
-        case 'TrackTrip': // From UberStyleDashboard
+        case 'TrackTrip':
           Alert.alert('Track Trip', 'Please select a trip to track from your recent trips.');
           break;
-        case 'TripHistory': // From UberStyleDashboard
+        case 'TripHistory':
           setNavigationState({ screen: 'tripHistory' });
           break;
-        case 'settings': // From UberStyleDashboard settings icon
-        case 'AccountSettings': // Alternative
+        case 'settings':
+        case 'AccountSettings':
           setNavigationState({ screen: 'settings' });
           break;
-        case 'support': // From UberStyleDashboard support button
-        case 'CustomerSupport': // Alternative
+        case 'support':
+        case 'CustomerSupport':
           setNavigationState({ screen: 'support' });
           break;
         default:
           console.log(`Navigation to ${screen} - feature coming soon!`);
       }
     }
+  };
+
+  // New handlers for Uber-style flow
+  const handleLocationConfirm = (pickup: string, destination: string) => {
+    setNavigationState({ 
+      screen: 'requestTruck',
+      pickupLocation: pickup,
+      destinationLocation: destination
+    });
+  };
+
+  const handleMapLocationSelect = (location: { latitude: number; longitude: number; address: string }) => {
+    // Handle map-selected location
+    console.log('Selected location:', location);
+    setNavigationState({ screen: 'locationPicker' });
   };
 
   const handleBackToDashboard = () => {
@@ -229,10 +280,12 @@ export default function App() {
   };
 
   // Handle screen navigation for logged-in users
+  console.log('🔍 Current navigation state:', navigationState.screen);
   switch (navigationState.screen) {
     case 'requestTruck':
+      console.log('📱 Rendering RequestTruckScreen');
       return (
-        <RequestTruckScreenMinimal
+        <RequestTruckScreen
           onBack={handleBackToDashboard}
           onOrderCreated={handleTripCreated}
         />
@@ -249,6 +302,7 @@ export default function App() {
         <OrderHistoryScreen
           onBack={handleBackToDashboard}
           onOrderSelect={(tripId: string) => setNavigationState({ screen: 'trackTrip', tripId })}
+          orderTypeFilter={navigationState.orderType}
         />
       );
     case 'settings':
@@ -265,11 +319,15 @@ export default function App() {
         />
       );
     default:
-      // Black & White Themed Main Dashboard (Android Compatible)
+      // New Uber-style Main Dashboard
       return (
-        <UberStyleDashboard
-          onNavigate={handleNavigate}
-          onLogout={handleLogout}
+        <UberStyleMainDashboard
+          onNavigateToLocation={() => handleNavigate('requestTruck')}
+          onNavigateToProfile={() => handleNavigate('settings')}
+          onNavigateToActivity={() => handleNavigate('tripHistory')}
+          onNavigateToServices={() => handleNavigate('requestTruck')}
+          onNavigateToServiceType={handleNavigateToServiceType}
+          userName={currentUser?.firstName || 'User'}
         />
       );
   }

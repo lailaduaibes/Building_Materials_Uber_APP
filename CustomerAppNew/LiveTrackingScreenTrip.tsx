@@ -28,19 +28,20 @@ import {
 } from './LocationTrackingService';
 import tripService, { TripRequest } from './services/TripService';
 import { createClient } from '@supabase/supabase-js';
+import { Theme } from './theme';
 
 const { width, height } = Dimensions.get('window');
 
-// Minimal theme - black, white, subtle accents
+// YouMats Blue theme
 const theme = {
-  primary: '#000000',
-  secondary: '#FFFFFF',
-  accent: '#007AFF',
-  success: '#34C759',
-  background: '#FFFFFF',
-  text: '#000000',
-  lightText: '#8E8E93',
-  border: '#C6C6C8',
+  primary: Theme.colors.primary,
+  secondary: Theme.colors.background.primary,
+  accent: Theme.colors.secondary,
+  success: Theme.colors.success,
+  background: Theme.colors.background.primary,
+  text: Theme.colors.text.primary,
+  lightText: Theme.colors.text.secondary,
+  border: Theme.colors.border.light,
 };
 
 // Supabase client for real-time subscriptions - CORRECTED URL
@@ -474,10 +475,7 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
 
       {/* Bottom Info Panel */}
       <View style={styles.bottomPanel}>
-        <LinearGradient
-          colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,1)']}
-          style={styles.gradientPanel}
-        >
+        <View style={styles.gradientPanel}>
           {/* Trip Status */}
           <View style={styles.statusContainer}>
             <View style={styles.statusIndicator} />
@@ -549,7 +547,7 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
               </View>
             </View>
           )}
-        </LinearGradient>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -558,22 +556,22 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.background,
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     fontSize: 16,
-    color: theme.lightText,
+    color: theme.primary,
     marginTop: 16,
   },
   loadingSubtext: {
     fontSize: 14,
-    color: theme.lightText,
+    color: theme.primary,
     marginTop: 8,
     textAlign: 'center',
     paddingHorizontal: 32,
@@ -584,17 +582,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: theme.background,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   backButton: {
     padding: 8,
+    backgroundColor: theme.primary,
+    borderRadius: 20,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: theme.primary,
   },
   centerButton: {
     padding: 8,
@@ -628,8 +628,17 @@ const styles = StyleSheet.create({
   },
   gradientPanel: {
     padding: 20,
+    backgroundColor: theme.primary,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    shadowColor: theme.primary,
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
   },
   statusContainer: {
     flexDirection: 'row',
@@ -646,7 +655,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: '#FFFFFF',
     flex: 1,
   },
   driverInfoContainer: {
@@ -655,13 +664,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#eee',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   driverAvatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -672,12 +681,12 @@ const styles = StyleSheet.create({
   driverName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   vehicleInfo: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.8)',
     marginBottom: 4,
   },
   ratingContainer: {
@@ -686,7 +695,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.8)',
     marginLeft: 4,
   },
   callButton: {

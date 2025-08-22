@@ -28,6 +28,7 @@ import userPreferencesService, { NotificationPreferences } from '../services/Use
 import notificationManager from '../services/NotificationManager';
 import AddPaymentMethodScreen from '../AddPaymentMethodScreen';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
+import { Theme } from '../theme';
 
 const { width } = Dimensions.get('window');
 const isTablet = width >= 768;
@@ -275,7 +276,7 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1B365D" />
+        <ActivityIndicator size="large" color={Theme.colors.primary} />
         <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
@@ -297,7 +298,7 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator size="small" color="#1B365D" />
+            <ActivityIndicator size="small" color={Theme.colors.primary} />
           ) : (
             <Text style={styles.editButtonText}>
               {editMode ? 'Save' : 'Edit'}
@@ -393,14 +394,14 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
               style={styles.addButton}
               onPress={() => setShowAddPayment(true)}
             >
-              <MaterialIcons name="add" size={20} color="#FF6B35" />
+              <MaterialIcons name="add" size={20} color={Theme.colors.secondary} />
               <Text style={styles.addButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
           
           {loadingPayments ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#FF6B35" />
+              <ActivityIndicator size="small" color={Theme.colors.secondary} />
               <Text style={styles.loadingText}>Loading payment methods...</Text>
             </View>
           ) : paymentMethods.length === 0 ? (
@@ -474,7 +475,7 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
                 const newNotifications = {...notifications, orderUpdates: value};
                 saveNotificationPreferences(newNotifications);
               }}
-              trackColor={{false: '#767577', true: '#FF6B35'}}
+              trackColor={{false: '#767577', true: Theme.colors.secondary}}
               thumbColor={notifications.orderUpdates ? '#fff' : '#f4f3f4'}
               disabled={savingNotifications}
             />
@@ -491,7 +492,7 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
                 const newNotifications = {...notifications, promotions: value};
                 saveNotificationPreferences(newNotifications);
               }}
-              trackColor={{false: '#767577', true: '#FF6B35'}}
+              trackColor={{false: '#767577', true: Theme.colors.secondary}}
               thumbColor={notifications.promotions ? '#fff' : '#f4f3f4'}
               disabled={savingNotifications}
             />
@@ -508,7 +509,7 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
                 const newNotifications = {...notifications, newsletter: value};
                 saveNotificationPreferences(newNotifications);
               }}
-              trackColor={{false: '#767577', true: '#FF6B35'}}
+              trackColor={{false: '#767577', true: Theme.colors.secondary}}
               thumbColor={notifications.newsletter ? '#fff' : '#f4f3f4'}
               disabled={savingNotifications}
             />
@@ -525,7 +526,7 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
                 const newNotifications = {...notifications, pushNotifications: value};
                 saveNotificationPreferences(newNotifications);
               }}
-              trackColor={{false: '#767577', true: '#FF6B35'}}
+              trackColor={{false: '#767577', true: Theme.colors.secondary}}
               thumbColor={notifications.pushNotifications ? '#fff' : '#f4f3f4'}
               disabled={savingNotifications}
             />
@@ -543,7 +544,7 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
 
           <TouchableOpacity style={[styles.actionButton, styles.logoutButton]} onPress={handleLogout}>
             <View style={styles.logoutButtonContent}>
-              <MaterialIcons name="logout" size={20} color="#FF6B35" />
+              <MaterialIcons name="logout" size={20} color={Theme.colors.secondary} />
               <Text style={[styles.actionButtonText, styles.logoutButtonText]}>Logout</Text>
             </View>
             <Text style={[styles.actionArrow, styles.logoutButtonText]}>→</Text>
@@ -593,18 +594,18 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: responsive.spacing(16, 20),
     fontSize: responsive.fontSize(16, 18),
-    color: '#FFFFFF',
+    color: Theme.colors.primary,
     fontWeight: '500',
   },
   header: {
@@ -614,9 +615,9 @@ const styles = StyleSheet.create({
     paddingTop: responsive.spacing(60, 70),
     paddingBottom: responsive.spacing(20, 25),
     paddingHorizontal: responsive.padding(20, 40),
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#333333',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
     maxWidth: isTablet ? 600 : '100%',
     alignSelf: isTablet ? 'center' : 'stretch',
   },
@@ -624,26 +625,26 @@ const styles = StyleSheet.create({
     width: responsive.spacing(36, 44),
     height: responsive.spacing(36, 44),
     borderRadius: responsive.spacing(18, 22),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: deviceTypes.isAndroid ? 44 : 36,
     minWidth: deviceTypes.isAndroid ? 44 : 36,
   },
   backButtonText: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontSize: responsive.fontSize(18, 20),
     fontWeight: 'bold',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: Theme.colors.primary,
     fontSize: responsive.fontSize(20, 24),
     fontWeight: '600',
     flex: 1,
     textAlign: 'center',
   },
   editButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Theme.colors.primary,
     paddingHorizontal: responsive.padding(16, 20),
     paddingVertical: responsive.padding(8, 12),
     borderRadius: responsive.spacing(20, 24),
@@ -653,24 +654,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   editButtonText: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontSize: responsive.fontSize(14, 16),
     fontWeight: '600',
   },
   content: {
     flex: 1,
     paddingHorizontal: responsive.padding(20, 40),
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
     maxWidth: isTablet ? 600 : '100%',
     alignSelf: isTablet ? 'center' : 'stretch',
   },
   section: {
-    backgroundColor: '#111111',
+    backgroundColor: Theme.colors.primary,
     borderRadius: responsive.spacing(12, 16),
     padding: responsive.padding(20, 30),
     marginTop: responsive.spacing(20, 25),
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: Theme.colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   sectionTitle: {
     fontSize: responsive.fontSize(18, 22),
@@ -679,7 +688,7 @@ const styles = StyleSheet.create({
     marginBottom: responsive.spacing(16, 20),
   },
   dangerTitle: {
-    color: '#DC3545',
+    color: '#FF4444',
   },
   inputGroup: {
     marginBottom: responsive.spacing(16, 20),
@@ -687,27 +696,27 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: responsive.fontSize(14, 16),
     fontWeight: '600',
-    color: '#CCCCCC',
+    color: 'rgba(255,255,255,0.9)',
     marginBottom: responsive.spacing(8, 10),
   },
   input: {
     borderWidth: 1,
-    borderColor: '#444444',
+    borderColor: 'rgba(255,255,255,0.3)',
     borderRadius: responsive.spacing(8, 10),
     padding: responsive.padding(12, 16),
     fontSize: responsive.fontSize(16, 18),
-    backgroundColor: '#222222',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     color: '#FFFFFF',
     minHeight: deviceTypes.isAndroid ? 48 : 40,
   },
   inputDisabled: {
-    backgroundColor: '#1A1A1A',
-    color: '#888888',
-    borderColor: '#333333',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    color: 'rgba(255,255,255,0.7)',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   inputNote: {
     fontSize: 12,
-    color: '#888888',
+    color: 'rgba(255,255,255,0.7)',
     marginTop: 4,
     fontStyle: 'italic',
   },
@@ -717,11 +726,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333333',
+    borderBottomColor: 'rgba(255,255,255,0.2)',
   },
   statusLabel: {
     fontSize: 16,
-    color: '#CCCCCC',
+    color: 'rgba(255,255,255,0.9)',
     fontWeight: '500',
   },
   statusValue: {
@@ -729,11 +738,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   verified: {
-    color: '#28A745',
+    color: '#4CAF50',
     fontWeight: '600',
   },
   unverified: {
-    color: '#DC3545',
+    color: '#FF6B6B',
     fontWeight: '600',
   },
   notificationRow: {
@@ -742,7 +751,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333333',
+    borderBottomColor: 'rgba(255,255,255,0.2)',
   },
   notificationInfo: {
     flex: 1,
@@ -756,7 +765,7 @@ const styles = StyleSheet.create({
   },
   notificationSubtitle: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: 'rgba(255,255,255,0.8)',
   },
   actionButton: {
     flexDirection: 'row',
@@ -764,16 +773,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#222222',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 8,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#444444',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   dangerButton: {
-    backgroundColor: '#2A1515',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
-    borderColor: '#FF4444',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   actionButtonText: {
     fontSize: 16,
@@ -781,7 +790,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   dangerButtonText: {
-    color: '#FF4444',
+    color: '#FFFFFF',
   },
   actionArrow: {
     fontSize: 18,
@@ -803,16 +812,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: 'rgba(255,255,255,0.4)',
   },
   addButtonText: {
     marginLeft: 4,
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#FFFFFF',
   },
   emptyPaymentMethods: {
     alignItems: 'center',
@@ -828,17 +837,17 @@ const styles = StyleSheet.create({
   },
   emptyPaymentMethodsSubtext: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: 'rgba(255,255,255,0.8)',
     marginTop: 8,
     textAlign: 'center',
   },
   paymentMethodCard: {
-    backgroundColor: '#222222',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#444444',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   paymentMethodInfo: {
     flexDirection: 'row',
@@ -857,13 +866,13 @@ const styles = StyleSheet.create({
   },
   paymentMethodSubtitle: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: 'rgba(255,255,255,0.8)',
   },
   defaultBadge: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FF6B35',
-    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    color: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
@@ -880,32 +889,32 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: 'rgba(255,255,255,0.4)',
     borderRadius: 6,
     marginRight: 8,
   },
   setDefaultButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#FFFFFF',
   },
   deletePaymentButton: {
     padding: 8,
     borderRadius: 6,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   // Logout Button Styles
   logoutButton: {
-    backgroundColor: 'rgba(255, 107, 53, 0.05)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 107, 53, 0.2)',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   logoutButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   logoutButtonText: {
-    color: '#FF6B35',
+    color: '#FFFFFF',
     marginLeft: 8,
   },
 });

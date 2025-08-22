@@ -50,6 +50,15 @@ class AuthServiceSupabase {
       console.log('Auth state changed:', event, session?.user?.email);
       
       if (session?.user) {
+        // Validate user type before setting session
+        const isValidUser = await this.validateUserTypeForDriver(session.user.id);
+        
+        if (!isValidUser) {
+          console.log('🚫 Invalid user type detected for driver app, signing out');
+          await this.supabase.auth.signOut();
+          return;
+        }
+        
         this.currentSession = session;
         this.currentUser = this.mapSupabaseUserToUser(session.user);
         await this.storeUserData(this.currentUser);
@@ -65,12 +74,64 @@ class AuthServiceSupabase {
     this.initializeUser();
   }
 
+  // Validate user type - only drivers allowed in driver app
+  private async validateUserTypeForDriver(userId: string): Promise<boolean> {
+    try {
+      console.log('🔍 Validating user type for driver app, user:', userId);
+      
+      const { data: userData, error } = await this.supabase
+        .from('users')
+        .select('user_type, role, id, email')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('❌ Error checking user type:', error);
+        // If we can't check the user type, allow access (fail open for now)
+        console.log('✅ Allowing access due to database error (fail open)');
+        return true;
+      }
+
+      console.log('👤 User data found:', { 
+        id: userData.id, 
+        email: userData.email, 
+        user_type: userData.user_type,
+        role: userData.role
+      });
+
+      // ONLY allow if explicitly marked as 'driver' in user_type
+      if (userData.user_type === 'driver') {
+        console.log('✅ Allowing driver access');
+        return true;
+      }
+
+      // Block everything else (customer, null, undefined, etc.)
+      console.log('🚫 Blocking non-driver access - user type:', userData.user_type || 'null/undefined');
+      return false;
+      
+    } catch (error) {
+      console.error('💥 Error validating user type:', error);
+      // If validation fails, allow access (fail open)
+      console.log('✅ Allowing access due to validation error (fail open)');
+      return true;
+    }
+  }
+
   private async initializeUser(): Promise<void> {
     try {
       // Get current session from Supabase
       const { data: { session }, error } = await this.supabase.auth.getSession();
       
       if (!error && session?.user) {
+        // Validate user type before initializing
+        const isValidUser = await this.validateUserTypeForDriver(session.user.id);
+        
+        if (!isValidUser) {
+          console.log('🚫 Invalid user type detected during initialization, signing out');
+          await this.supabase.auth.signOut();
+          return;
+        }
+        
         this.currentSession = session;
         this.currentUser = this.mapSupabaseUserToUser(session.user);
         await this.storeUserData(this.currentUser);
@@ -232,12 +293,16 @@ class AuthServiceSupabase {
 
       const user = this.mapSupabaseUserToUser(data.user);
       
-      // Validate that user has driver role
-      if (user.role !== 'driver') {
+      // Validate that user has driver type in database
+      const isValidDriverUser = await this.validateUserTypeForDriver(data.user.id);
+      if (!isValidDriverUser) {
+        // Sign out the user immediately
+        await this.supabase.auth.signOut();
+        
         return {
           success: false,
           message: 'Access denied. This appears to be a customer account. Please use the customer app or contact support to create a driver account.',
-          error: 'Invalid role for driver app',
+          error: 'Invalid user type for driver app',
         };
       }
       

@@ -27,18 +27,18 @@ const { width, height } = Dimensions.get('window');
 const isTablet = width >= 768;
 const isLargeTablet = width >= 1024;
 
-// Professional minimal theme - black, white, subtle accents
+// Professional YouMats Blue theme
 const theme = {
-  primary: '#000000',        // Pure black
+  primary: '#1E3A8A',        // YouMats Blue
   secondary: '#FFFFFF',      // Pure white
-  accent: '#007AFF',         // iOS blue for interactive elements
-  success: '#34C759',        // iOS green for success states
+  accent: '#3B82F6',         // Bright blue for interactive elements
+  success: '#10B981',        // Green for success states
   background: '#FFFFFF',     // White background
   cardBackground: '#FFFFFF', // White cards
-  text: '#000000',          // Black text
-  lightText: '#8E8E93',     // iOS light gray for secondary text
-  border: '#C6C6C8',        // iOS light border
-  shadow: 'rgba(0,0,0,0.04)', // Very subtle shadow
+  text: '#1E3A8A',          // YouMats Blue text
+  lightText: '#64748B',     // Blue-gray for secondary text
+  border: '#E2E8F0',        // Light blue-gray border
+  shadow: 'rgba(30,58,138,0.08)', // YouMats blue shadow
 };
 
 interface User {

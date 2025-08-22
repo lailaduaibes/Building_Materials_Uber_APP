@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { DocumentUploadScreen } from './DocumentUploadScreen';
 import { EmailVerificationScreen } from './EmailVerificationScreen';
+import { createClient } from '@supabase/supabase-js';
 
 const { width } = Dimensions.get('window');
 
@@ -48,6 +49,8 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
   const [currentStep, setCurrentStep] = useState<RegistrationStep>('account');
   const [driverId, setDriverId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [truckTypes, setTruckTypes] = useState<any[]>([]);
+  const [selectedTruckType, setSelectedTruckType] = useState<string>('');
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -62,6 +65,8 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
     vehicleModel: '',
     vehicleYear: '',
     vehiclePlate: '',
+    maxPayload: '',
+    maxVolume: '',
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -69,6 +74,52 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Load truck types on component mount
+  useEffect(() => {
+    loadTruckTypes();
+  }, []);
+
+  const loadTruckTypes = async () => {
+    try {
+      const supabase = createClient(
+        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28'
+      );
+
+      const { data, error } = await supabase
+        .from('truck_types')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) {
+        console.error('Error loading truck types:', error);
+        // Set default truck types if loading fails
+        setTruckTypes([
+          { id: 'small', name: 'Small Truck', payload_capacity: 2, volume_capacity: 8 },
+          { id: 'medium', name: 'Medium Truck', payload_capacity: 5, volume_capacity: 15 },
+          { id: 'large', name: 'Large Truck', payload_capacity: 10, volume_capacity: 25 }
+        ]);
+      } else {
+        setTruckTypes(data || []);
+        // Set default selection to Small Truck
+        if (data && data.length > 0) {
+          const smallTruck = data.find(truck => truck.name === 'Small Truck') || data[0];
+          setSelectedTruckType(smallTruck.name);
+          updateField('maxPayload', smallTruck.payload_capacity.toString());
+          updateField('maxVolume', smallTruck.volume_capacity.toString());
+        }
+      }
+    } catch (error) {
+      console.error('Exception loading truck types:', error);
+      // Set fallback truck types
+      setTruckTypes([
+        { id: 'small', name: 'Small Truck', payload_capacity: 2, volume_capacity: 8 },
+        { id: 'medium', name: 'Medium Truck', payload_capacity: 5, volume_capacity: 15 }
+      ]);
+    }
   };
 
   // Step progress
@@ -135,7 +186,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
   };
 
   const validateVehicleStep = () => {
-    const { vehicleModel, vehicleYear, vehiclePlate } = formData;
+    const { vehicleModel, vehicleYear, vehiclePlate, maxPayload, maxVolume } = formData;
     
     if (!vehicleModel.trim()) {
       Alert.alert('Error', 'Please enter your vehicle model');
@@ -151,6 +202,23 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
     const currentYear = new Date().getFullYear();
     if (isNaN(year) || year < 1990 || year > currentYear + 1) {
       Alert.alert('Error', 'Please enter a valid vehicle year');
+      return false;
+    }
+
+    if (!selectedTruckType) {
+      Alert.alert('Error', 'Please select a truck type');
+      return false;
+    }
+
+    const payload = parseFloat(maxPayload);
+    if (isNaN(payload) || payload <= 0) {
+      Alert.alert('Error', 'Please enter a valid maximum payload');
+      return false;
+    }
+
+    const volume = parseFloat(maxVolume);
+    if (isNaN(volume) || volume <= 0) {
+      Alert.alert('Error', 'Please enter a valid maximum volume');
       return false;
     }
     
@@ -215,7 +283,10 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           model: formData.vehicleModel,
           year: parseInt(formData.vehicleYear),
           plate: formData.vehiclePlate,
-        }
+          maxPayload: parseFloat(formData.maxPayload),
+          maxVolume: parseFloat(formData.maxVolume),
+        },
+        selectedTruckType: selectedTruckType
       };
 
       const result = await driverService.registerNewDriver(registrationData);
@@ -223,14 +294,14 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
       if (result.success && result.data?.driverProfile?.id) {
         setDriverId(result.data.driverProfile.id);
         
-        // Check if email verification is required
-        const authStatus = await driverService.isAuthenticated();
-        
-        if (!authStatus.authenticated) {
-          // Email verification required
+        // Check if email verification is required based on registration result
+        if (result.data.requiresEmailConfirmation !== false) {
+          // Email verification is required (default) or not specified
+          console.log('📧 Email verification required - proceeding to verification step');
           setCurrentStep('email_verification');
         } else {
-          // User is already authenticated - skip to documents
+          // Email verification was not required (rare case)
+          console.log('✅ No email verification needed - proceeding to documents');
           setCurrentStep('documents');
         }
       } else {
@@ -460,7 +531,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
       <Text style={styles.stepTitle}>Vehicle Information</Text>
       <Text style={styles.stepDescription}>
-        Provide details about your delivery vehicle
+        Provide details about your delivery vehicle and capabilities
       </Text>
 
       <View style={styles.inputGroup}>
@@ -499,10 +570,71 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
         />
       </View>
 
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>Truck Type *</Text>
+        <Text style={styles.inputDescription}>Select the type that best matches your vehicle</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.truckTypeContainer}>
+          {truckTypes.map((truckType) => (
+            <TouchableOpacity
+              key={truckType.id}
+              style={[
+                styles.truckTypeCard,
+                selectedTruckType === truckType.name && styles.truckTypeCardSelected
+              ]}
+              onPress={() => {
+                setSelectedTruckType(truckType.name);
+                updateField('maxPayload', truckType.payload_capacity.toString());
+                updateField('maxVolume', truckType.volume_capacity.toString());
+              }}
+            >
+              <Text style={[
+                styles.truckTypeName,
+                selectedTruckType === truckType.name && styles.truckTypeNameSelected
+              ]}>
+                {truckType.name}
+              </Text>
+              <Text style={[
+                styles.truckTypeSpecs,
+                selectedTruckType === truckType.name && styles.truckTypeSpecsSelected
+              ]}>
+                {truckType.payload_capacity}t • {truckType.volume_capacity}m³
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      <View style={styles.row}>
+        <View style={[styles.inputGroup, styles.halfWidth]}>
+          <Text style={styles.inputLabel}>Max Payload (tons) *</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.maxPayload}
+            onChangeText={(value) => updateField('maxPayload', value)}
+            placeholder="e.g., 5.0"
+            placeholderTextColor={theme.lightText}
+            keyboardType="decimal-pad"
+          />
+        </View>
+
+        <View style={[styles.inputGroup, styles.halfWidth]}>
+          <Text style={styles.inputLabel}>Max Volume (m³) *</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.maxVolume}
+            onChangeText={(value) => updateField('maxVolume', value)}
+            placeholder="e.g., 10.0"
+            placeholderTextColor={theme.lightText}
+            keyboardType="decimal-pad"
+          />
+        </View>
+      </View>
+
       <View style={styles.infoBox}>
         <Ionicons name="car-outline" size={20} color={theme.warning} />
         <Text style={styles.infoText}>
-          You'll need to upload vehicle registration and insurance documents in the next step
+          You'll need to upload vehicle registration and insurance documents in the next step. 
+          Your truck type selection helps us match you with appropriate delivery orders.
         </Text>
       </View>
     </ScrollView>
@@ -861,6 +993,58 @@ const styles = StyleSheet.create({
     color: theme.white,
     fontSize: 16,
     fontWeight: '600',
+  },
+  // New styles for truck type selection and layout
+  inputDescription: {
+    fontSize: 12,
+    color: theme.lightText,
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  truckTypeContainer: {
+    marginBottom: 10,
+  },
+  truckTypeCard: {
+    backgroundColor: theme.white,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 12,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  truckTypeCardSelected: {
+    borderColor: theme.primary,
+    backgroundColor: '#f8f9fa',
+  },
+  truckTypeName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.text,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  truckTypeNameSelected: {
+    color: theme.primary,
+  },
+  truckTypeSpecs: {
+    fontSize: 12,
+    color: theme.lightText,
+    textAlign: 'center',
+  },
+  truckTypeSpecsSelected: {
+    color: theme.primary,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  halfWidth: {
+    flex: 1,
+    marginHorizontal: 5,
   },
 });
 

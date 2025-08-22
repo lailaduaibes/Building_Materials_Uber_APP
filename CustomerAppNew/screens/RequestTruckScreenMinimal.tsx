@@ -1,6 +1,6 @@
 /**
- * RequestTruckScreen - Minimal Black & White Theme
- * Clean, minimal design with smart location features
+ * RequestTruckScreen - Uber-style Truck Delivery Interface
+ * Main view with map integration like Uber
  */
 
 import React, { useState, useEffect } from 'react';
@@ -8,35 +8,37 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   Alert,
   SafeAreaView,
   StatusBar,
-  Switch,
   Modal,
   FlatList,
   ActivityIndicator,
+  Dimensions,
+  ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Location from 'expo-location';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import TripService, { TruckType, TripRequest } from '../services/TripService';
-import { LocationPickerEnhanced } from '../components/LocationPickerEnhanced';
 import { authService } from '../AuthServiceSupabase';
+import { Theme } from '../theme';
 
-// Minimal theme - black, white, subtle accents
+const { width, height } = Dimensions.get('window');
+
+// YouMats Blue theme
 const theme = {
-  primary: '#000000',
-  secondary: '#FFFFFF',
-  accent: '#007AFF',
-  success: '#34C759',
-  background: '#FFFFFF',
-  text: '#000000',
-  lightText: '#8E8E93',
-  border: '#C6C6C8',
-  inputBackground: '#F2F2F7',
+  primary: Theme.colors.primary,     // '#1E3A8A'
+  secondary: Theme.colors.secondary, // '#FFFFFF'
+  accent: Theme.colors.secondary,    // '#3B82F6'
+  success: Theme.colors.success,     // '#10B981'
+  background: Theme.colors.background.primary,
+  text: Theme.colors.text.primary,
+  lightText: Theme.colors.text.secondary,
+  border: Theme.colors.border.light,
+  inputBackground: Theme.colors.background.secondary,
 };
 
 // Material Types for truck delivery
@@ -59,16 +61,6 @@ interface LocationData {
   formatted_address: string;
 }
 
-interface Address {
-  street: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  formatted_address: string;
-  latitude?: number;
-  longitude?: number;
-}
-
 interface RequestTruckScreenProps {
   onBack: () => void;
   onOrderCreated: (tripId: string) => void;
@@ -83,6 +75,16 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
   const [deliveryLocation, setDeliveryLocation] = useState<LocationData | null>(null);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
 
+  // Map State
+  const [mapRegion, setMapRegion] = useState({
+    latitude: 24.7136,
+    longitude: 46.6753,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
+  const [selectedMapLocation, setSelectedMapLocation] = useState<{latitude: number, longitude: number} | null>(null);
+  const [isSelectingPickup, setIsSelectingPickup] = useState(true);
+
   // Material and Load Details
   const [materialType, setMaterialType] = useState('');
   const [loadDescription, setLoadDescription] = useState('');
@@ -91,13 +93,6 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
   // Truck Requirements
   const [truckTypes, setTruckTypes] = useState<TruckType[]>([]);
   const [selectedTruckType, setSelectedTruckType] = useState<string>('');
-  const [requiresCrane, setRequiresCrane] = useState(false);
-  const [requiresHydraulicLift, setRequiresHydraulicLift] = useState(false);
-
-  // Timing
-  const [pickupTimePreference, setPickupTimePreference] = useState<'asap' | 'scheduled'>('asap');
-  const [scheduledPickupTime, setScheduledPickupTime] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Pricing
   const [estimatedPrice, setEstimatedPrice] = useState<number>(0);
@@ -130,6 +125,15 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         accuracy: Location.Accuracy.High,
       });
 
+      const newRegion = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+
+      setMapRegion(newRegion);
+
       const address = await Location.reverseGeocodeAsync({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
@@ -137,7 +141,6 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
 
       if (address.length > 0) {
         const addr = address[0];
-        // Safely handle null/undefined values to prevent Android NullPointerException
         const street = addr.street || '';
         const name = addr.name || '';
         const city = addr.city || '';
@@ -156,6 +159,42 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
     } catch (error) {
       console.error('Error getting location:', error);
     }
+  };
+
+  const onMapPress = async (event: any) => {
+    const coordinate = event.nativeEvent.coordinate;
+    setSelectedMapLocation(coordinate);
+    
+    try {
+      const address = await Location.reverseGeocodeAsync({
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
+      });
+
+      if (address.length > 0) {
+        const addr = address[0];
+        const formattedAddress = `${addr.street || ''} ${addr.name || ''}, ${addr.city || ''}, ${addr.region || ''}`.trim();
+        
+        const locationData = {
+          latitude: coordinate.latitude,
+          longitude: coordinate.longitude,
+          address: formattedAddress,
+          formatted_address: formattedAddress,
+        };
+
+        if (isSelectingPickup) {
+          setPickupLocation(locationData);
+        } else {
+          setDeliveryLocation(locationData);
+        }
+      }
+    } catch (error) {
+      console.error('Error reverse geocoding:', error);
+    }
+  };
+
+  const handleLocationTypeSelect = (isPickup: boolean) => {
+    setIsSelectingPickup(isPickup);
   };
 
   const loadTruckTypes = async () => {
@@ -201,12 +240,12 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
 
   const validateForm = (): boolean => {
     if (!pickupLocation) {
-      Alert.alert('Error', 'Please set pickup location');
+      Alert.alert('Error', 'Please set pickup location by tapping on the map');
       return false;
     }
 
     if (!deliveryLocation) {
-      Alert.alert('Error', 'Please set delivery location');
+      Alert.alert('Error', 'Please set delivery location by tapping on the map');
       return false;
     }
 
@@ -234,69 +273,65 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
     setIsLoading(true);
 
     try {
-      // First check if user is authenticated
-      console.log('🔐 Checking user authentication...');
       const currentUser = await authService.getCurrentUser();
       
       if (!currentUser) {
-        console.error('❌ No authenticated user found');
         Alert.alert(
           'Authentication Required', 
           'Please log in to place an order.',
-          [
-            { text: 'OK', onPress: () => {
-              // You might want to navigate back to login screen here
-            }}
-          ]
+          [{ text: 'OK' }]
         );
+        setIsLoading(false);
         return;
       }
 
-      console.log('✅ User authenticated:', currentUser.email);
-
-      const tripData: TripRequest = {
+      const tripRequest: TripRequest = {
+        customer_id: currentUser.id,
         pickup_latitude: pickupLocation!.latitude,
         pickup_longitude: pickupLocation!.longitude,
         pickup_address: {
-          formatted_address: pickupLocation!.address,
-          street: pickupLocation!.address.split(',')[0] || '',
-          city: pickupLocation!.address.split(',')[1]?.trim() || '',
+          street: '',
+          city: '',
           state: '',
-          postal_code: ''
+          postal_code: '',
+          formatted_address: pickupLocation!.address,
         },
         delivery_latitude: deliveryLocation!.latitude,
         delivery_longitude: deliveryLocation!.longitude,
         delivery_address: {
-          formatted_address: deliveryLocation!.address,
-          street: deliveryLocation!.address.split(',')[0] || '',
-          city: deliveryLocation!.address.split(',')[1]?.trim() || '',
+          street: '',
+          city: '',
           state: '',
-          postal_code: ''
+          postal_code: '',
+          formatted_address: deliveryLocation!.address,
         },
         material_type: materialType,
         load_description: loadDescription,
-        estimated_weight_tons: parseFloat(estimatedWeight) || undefined,
+        estimated_weight_tons: parseFloat(estimatedWeight) || 0,
         required_truck_type_id: selectedTruckType,
-        requires_crane: requiresCrane,
-        requires_hydraulic_lift: requiresHydraulicLift,
-        pickup_time_preference: pickupTimePreference,
-        scheduled_pickup_time: pickupTimePreference === 'scheduled' 
-          ? scheduledPickupTime.toISOString() 
-          : undefined,
+        quoted_price: estimatedPrice,
+        pickup_time_preference: 'asap',
+        scheduled_pickup_time: new Date().toISOString(),
       };
 
-      console.log('🚛 Submitting trip request...');
-      const result = await TripService.createTripRequest(tripData);
-
+      const result = await TripService.createTripRequest(tripRequest);
+      
       if (result.success && result.tripId) {
-        console.log('✅ Trip created successfully:', result.tripId);
-        onOrderCreated(result.tripId);
+        Alert.alert(
+          'Success!',
+          'Your truck request has been submitted. You will be notified when a driver accepts.',
+          [
+            {
+              text: 'OK',
+              onPress: () => onOrderCreated(result.tripId!),
+            }
+          ]
+        );
       } else {
-        console.error('❌ Trip creation failed:', result.error);
-        Alert.alert('Error', result.error || 'Failed to request truck');
+        throw new Error(result.error || 'Failed to create trip request');
       }
     } catch (error) {
-      console.error('❌ Error requesting truck:', error);
+      console.error('Error requesting truck:', error);
       Alert.alert('Error', 'Failed to request truck. Please try again.');
     } finally {
       setIsLoading(false);
@@ -310,8 +345,53 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
       
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Map as main view */}
+      <MapView
+        provider={PROVIDER_GOOGLE}
+        style={styles.map}
+        region={mapRegion}
+        onPress={onMapPress}
+        showsUserLocation={true}
+        showsMyLocationButton={false}
+      >
+        {/* Pickup location marker */}
+        {pickupLocation && (
+          <Marker
+            coordinate={{
+              latitude: pickupLocation.latitude,
+              longitude: pickupLocation.longitude,
+            }}
+            title="Pickup Location"
+            description={pickupLocation.address}
+            pinColor="green"
+          />
+        )}
+        
+        {/* Delivery location marker */}
+        {deliveryLocation && (
+          <Marker
+            coordinate={{
+              latitude: deliveryLocation.latitude,
+              longitude: deliveryLocation.longitude,
+            }}
+            title="Delivery Location"
+            description={deliveryLocation.address}
+            pinColor="red"
+          />
+        )}
+        
+        {/* Selected location marker */}
+        {selectedMapLocation && (
+          <Marker
+            coordinate={selectedMapLocation}
+            title={isSelectingPickup ? "Pickup Location" : "Delivery Location"}
+            pinColor={isSelectingPickup ? "green" : "red"}
+          />
+        )}
+      </MapView>
+
+      {/* Header overlay */}
+      <View style={styles.headerOverlay}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
@@ -319,32 +399,66 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         <View style={styles.headerPlaceholder} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Location selection cards overlay */}
+      <View style={styles.locationOverlay}>
+        <TouchableOpacity 
+          style={[styles.locationCard, isSelectingPickup && styles.locationCardActive]}
+          onPress={() => handleLocationTypeSelect(true)}
+        >
+          <MaterialIcons 
+            name="radio-button-unchecked" 
+            size={20} 
+            color={isSelectingPickup ? theme.primary : theme.lightText} 
+          />
+          <View style={styles.locationTextContainer}>
+            <Text style={styles.locationLabel}>From</Text>
+            <Text style={styles.locationAddress}>
+              {pickupLocation?.address || 'Tap on map to set pickup location'}
+            </Text>
+          </View>
+        </TouchableOpacity>
         
-        {/* Smart Location Selection */}
-        <View style={styles.section}>
-          <LocationPickerEnhanced
-            label="Pickup Location"
-            placeholder="Where should we pick up?"
-            value={pickupLocation}
-            onLocationSelect={setPickupLocation}
-            currentLocation={currentLocation}
+        <View style={styles.locationDivider} />
+        
+        <TouchableOpacity 
+          style={[styles.locationCard, !isSelectingPickup && styles.locationCardActive]}
+          onPress={() => handleLocationTypeSelect(false)}
+        >
+          <MaterialIcons 
+            name="location-on" 
+            size={20} 
+            color={!isSelectingPickup ? theme.primary : theme.lightText} 
           />
-          
-          <View style={styles.locationDivider} />
-          
-          <LocationPickerEnhanced
-            label="Delivery Location"
-            placeholder="Where should we deliver?"
-            value={deliveryLocation}
-            onLocationSelect={setDeliveryLocation}
-            currentLocation={currentLocation}
-          />
-        </View>
+          <View style={styles.locationTextContainer}>
+            <Text style={styles.locationLabel}>To</Text>
+            <Text style={styles.locationAddress}>
+              {deliveryLocation?.address || 'Tap on map to set delivery location'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
-        {/* Material Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What are you shipping?</Text>
+      {/* Current location button */}
+      <TouchableOpacity 
+        style={styles.currentLocationButton}
+        onPress={getCurrentLocation}
+      >
+        <MaterialIcons name="my-location" size={24} color={theme.primary} />
+      </TouchableOpacity>
+
+      {/* Bottom sheet with truck details */}
+      {(pickupLocation && deliveryLocation) && (
+        <View style={styles.bottomSheet}>
+          <View style={styles.dragHandle} />
+          
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Material Selection */}
+            <Text style={styles.sectionTitle}>What are you shipping?</Text>
           
           <TouchableOpacity 
             style={styles.selector}
@@ -360,137 +474,64 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
           </TouchableOpacity>
 
           <TextInput
-            style={styles.textInput}
-            placeholder="Describe your load (e.g., 10 steel beams, 3 meters each)"
+            style={styles.textInputCompact}
+            placeholder="Describe your load"
             placeholderTextColor={theme.lightText}
             multiline
-            numberOfLines={3}
+            numberOfLines={2}
             value={loadDescription}
             onChangeText={setLoadDescription}
           />
 
-          <TextInput
-            style={styles.textInput}
-            placeholder="Estimated weight (tons)"
-            placeholderTextColor={theme.lightText}
-            keyboardType="numeric"
-            value={estimatedWeight}
-            onChangeText={setEstimatedWeight}
-          />
-        </View>
-
-        {/* Truck Type */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Vehicle type</Text>
-          
-          <TouchableOpacity 
-            style={styles.selector}
-            onPress={() => setShowTruckTypePicker(true)}
-          >
-            <Text style={[styles.selectorText, !selectedTruck && styles.placeholderText]}>
-              {selectedTruck ? selectedTruck.name : 'Select truck type'}
-            </Text>
-            <MaterialIcons name="keyboard-arrow-down" size={24} color={theme.lightText} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Special Requirements */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Special requirements</Text>
-          
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Requires crane</Text>
-            <Switch
-              value={requiresCrane}
-              onValueChange={setRequiresCrane}
-              trackColor={{ false: '#E5E5EA', true: theme.accent }}
-              thumbColor={theme.background}
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.textInputCompact, styles.inputHalf]}
+              placeholder="Weight (tons)"
+              placeholderTextColor={theme.lightText}
+              keyboardType="numeric"
+              value={estimatedWeight}
+              onChangeText={setEstimatedWeight}
             />
-          </View>
-
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Requires hydraulic lift</Text>
-            <Switch
-              value={requiresHydraulicLift}
-              onValueChange={setRequiresHydraulicLift}
-              trackColor={{ false: '#E5E5EA', true: theme.accent }}
-              thumbColor={theme.background}
-            />
-          </View>
-        </View>
-
-        {/* Timing */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>When do you need pickup?</Text>
-          
-          <View style={styles.timingRow}>
-            <TouchableOpacity
-              style={[styles.timingOption, pickupTimePreference === 'asap' && styles.timingSelected]}
-              onPress={() => setPickupTimePreference('asap')}
-            >
-              <Text style={[styles.timingText, pickupTimePreference === 'asap' && styles.timingTextSelected]}>
-                Now
-              </Text>
-            </TouchableOpacity>
             
-            <TouchableOpacity
-              style={[styles.timingOption, pickupTimePreference === 'scheduled' && styles.timingSelected]}
-              onPress={() => setPickupTimePreference('scheduled')}
-            >
-              <Text style={[styles.timingText, pickupTimePreference === 'scheduled' && styles.timingTextSelected]}>
-                Schedule
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {pickupTimePreference === 'scheduled' && (
             <TouchableOpacity 
-              style={styles.dateButton}
-              onPress={() => setShowDatePicker(true)}
+              style={[styles.selector, styles.inputHalf, { marginLeft: 8 }]}
+              onPress={() => setShowTruckTypePicker(true)}
             >
-              <View style={styles.dateButtonContent}>
-                <MaterialIcons name="schedule" size={20} color={theme.lightText} />
-                <Text style={styles.dateText}>
-                  {scheduledPickupTime.toLocaleDateString()} at {scheduledPickupTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                </Text>
-              </View>
-              <MaterialIcons name="keyboard-arrow-right" size={20} color={theme.lightText} />
+              <Text style={[styles.selectorTextSmall, !selectedTruck && styles.placeholderText]}>
+                {selectedTruck ? selectedTruck.name : 'Truck type'}
+              </Text>
+              <MaterialIcons name="keyboard-arrow-down" size={20} color={theme.lightText} />
             </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Price Estimate */}
-        {estimatedPrice > 0 && (
-          <View style={styles.priceContainer}>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Estimated fare</Text>
-              <Text style={styles.priceAmount}>R{estimatedPrice.toFixed(2)}</Text>
-            </View>
           </View>
-        )}
 
-        {/* Request Button */}
-        <TouchableOpacity 
-          style={[styles.requestButton, isLoading && styles.requestButtonDisabled]}
-          onPress={handleRequestTruck}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={theme.background} size="small" />
-          ) : (
-            <Text style={styles.requestButtonText}>Request Truck</Text>
+          {/* Price and Request Button */}
+          {estimatedPrice > 0 && (
+            <View style={styles.priceContainer}>
+              <Text style={styles.priceText}>Estimated Price: ${estimatedPrice}</Text>
+            </View>
           )}
-        </TouchableOpacity>
 
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
+          <TouchableOpacity 
+            style={[styles.requestButton, (!materialType || !loadDescription.trim() || !selectedTruckType) && styles.requestButtonDisabled]}
+            onPress={handleRequestTruck}
+            disabled={isLoading || !materialType || !loadDescription.trim() || !selectedTruckType}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.requestButtonText}>Request Truck</Text>
+            )}
+          </TouchableOpacity>
+          </ScrollView>
+        </View>
+      )}
 
-      {/* Material Picker Modal */}
+      {/* Material Type Picker Modal */}
       <Modal visible={showMaterialPicker} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select material type</Text>
+              <Text style={styles.modalTitle}>Select Material Type</Text>
               <TouchableOpacity onPress={() => setShowMaterialPicker(false)}>
                 <MaterialIcons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
@@ -499,11 +540,12 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
               data={MATERIAL_TYPES}
               keyExtractor={(item) => item.value}
               renderItem={({ item }) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.modalItem}
                   onPress={() => handleMaterialTypeSelect(item)}
                 >
-                  <Text style={styles.modalItemText}>{item.icon} {item.label}</Text>
+                  <Text style={styles.modalItemIcon}>{item.icon}</Text>
+                  <Text style={styles.modalItemText}>{item.label}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -516,7 +558,7 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select vehicle type</Text>
+              <Text style={styles.modalTitle}>Select Truck Type</Text>
               <TouchableOpacity onPress={() => setShowTruckTypePicker(false)}>
                 <MaterialIcons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
@@ -525,62 +567,23 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
               data={truckTypes}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.modalItem}
                   onPress={() => {
                     setSelectedTruckType(item.id);
                     setShowTruckTypePicker(false);
                   }}
                 >
-                  <View>
-                    <Text style={styles.modalItemText}>{item.name}</Text>
-                    <Text style={styles.modalItemSubtext}>
-                      {item.payload_capacity}t capacity • R{item.base_rate_per_km}/km
-                    </Text>
-                  </View>
+                  <Text style={styles.modalItemText}>{item.name}</Text>
+                  <Text style={styles.modalItemSubtext}>
+                    Capacity: {item.payload_capacity}t | Rate: ${item.base_rate_per_km}/km
+                  </Text>
                 </TouchableOpacity>
               )}
             />
           </View>
         </View>
       </Modal>
-
-      {/* Date & Time Picker Modal */}
-      {showDatePicker && (
-        <Modal
-          visible={showDatePicker}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <View style={styles.datePickerModal}>
-            <View style={styles.datePickerContainer}>
-              <View style={styles.datePickerHeader}>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={styles.datePickerCancel}>Cancel</Text>
-                </TouchableOpacity>
-                <Text style={styles.datePickerTitle}>Select Date & Time</Text>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={styles.datePickerDone}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={scheduledPickupTime}
-                mode="datetime"
-                display="spinner"
-                onChange={(event, selectedDate) => {
-                  if (selectedDate) {
-                    setScheduledPickupTime(selectedDate);
-                  }
-                }}
-                minimumDate={new Date()}
-                textColor={theme.text}
-                themeVariant="light"
-              />
-            </View>
-          </View>
-        </Modal>
-      )}
     </SafeAreaView>
   );
 };
@@ -588,274 +591,260 @@ const RequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: '#FFFFFF',
   },
-  header: {
+  map: {
+    flex: 1,
+  },
+  headerOverlay: {
+    position: 'absolute',
+    top: StatusBar.currentHeight || 44,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    zIndex: 100,
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.text,
+    color: '#000',
   },
   headerPlaceholder: {
     width: 40,
   },
-  content: {
-    flex: 1,
+  locationOverlay: {
+    position: 'absolute',
+    top: (StatusBar.currentHeight || 44) + 70,
+    left: 16,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 90,
   },
-  section: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 16,
-  },
-  locationItem: {
+  locationCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-  },
-  locationIcon: {
-    width: 24,
     alignItems: 'center',
-    paddingTop: 12,
+    padding: 16,
   },
-  locationContent: {
+  locationCardActive: {
+    backgroundColor: '#F8F9FA',
+  },
+  locationTextContainer: {
     flex: 1,
     marginLeft: 12,
   },
   locationLabel: {
-    fontSize: 14,
-    color: theme.lightText,
-    marginBottom: 4,
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
   },
-  locationInput: {
+  locationAddress: {
     fontSize: 16,
-    color: theme.text,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    color: '#000',
   },
   locationDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: theme.border,
-    marginLeft: 12,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 16,
+  },
+  currentLocationButton: {
+    position: 'absolute',
+    bottom: 240,
+    right: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  bottomSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 15,
+    minHeight: height * 0.45,
+    maxHeight: height * 0.75,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 20,
+    marginTop: 8,
   },
   selector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: theme.inputBackground,
+    backgroundColor: '#F8F9FA',
     borderRadius: 12,
-    marginBottom: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   selectorText: {
     fontSize: 16,
-    color: theme.text,
+    color: '#000',
+    fontWeight: '500',
+  },
+  selectorTextSmall: {
+    fontSize: 15,
+    color: '#000',
+    fontWeight: '500',
   },
   placeholderText: {
-    color: theme.lightText,
+    color: '#9CA3AF',
+    fontWeight: '400',
   },
-  textInput: {
-    backgroundColor: theme.inputBackground,
+  textInputCompact: {
+    backgroundColor: '#F8F9FA',
     borderRadius: 12,
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     fontSize: 16,
-    color: theme.text,
-    marginBottom: 12,
-    textAlignVertical: 'top',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  switchLabel: {
-    fontSize: 16,
-    color: theme.text,
-  },
-  timingRow: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  timingOption: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    color: '#000',
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: theme.border,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginRight: 8,
-    backgroundColor: theme.background,
+    borderColor: '#E5E7EB',
   },
-  timingSelected: {
-    backgroundColor: theme.primary,
-    borderColor: theme.primary,
-  },
-  timingText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.text,
-  },
-  timingTextSelected: {
-    color: theme.background,
-  },
-  dateButton: {
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    backgroundColor: theme.inputBackground,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-    minHeight: 60,
+    marginBottom: 20,
   },
-  dateButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  inputHalf: {
     flex: 1,
-  },
-  dateText: {
-    marginLeft: 12,
-    fontSize: 16,
-    color: theme.text,
-    fontWeight: '500',
-    flex: 1,
+    marginBottom: 0,
   },
   priceContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  priceLabel: {
-    fontSize: 16,
-    color: theme.text,
-  },
-  priceAmount: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: theme.text,
-  },
-  requestButton: {
-    backgroundColor: theme.primary,
-    marginHorizontal: 20,
-    marginTop: 20,
-    paddingVertical: 16,
+    backgroundColor: '#F0F7FF',
     borderRadius: 12,
-    alignItems: 'center',
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#3B82F6',
   },
-  requestButtonDisabled: {
-    opacity: 0.5,
-  },
-  requestButtonText: {
-    color: theme.background,
+  priceText: {
     fontSize: 18,
     fontWeight: '700',
+    color: '#1E3A8A',
+    textAlign: 'center',
   },
-  bottomSpacing: {
-    height: 40,
+  requestButton: {
+    backgroundColor: '#1E3A8A',
+    borderRadius: 12,
+    paddingVertical: 18,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  requestButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+  },
+  requestButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: theme.background,
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
+    maxHeight: height * 0.7,
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: '#E5E7EB',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.text,
+    color: '#000',
   },
   modalItem: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
-  },
-  modalItemText: {
-    fontSize: 16,
-    color: theme.text,
-  },
-  modalItemSubtext: {
-    fontSize: 14,
-    color: theme.lightText,
-    marginTop: 4,
-  },
-  datePickerModal: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  datePickerContainer: {
-    backgroundColor: theme.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 40,
-  },
-  datePickerHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: '#F3F4F6',
   },
-  datePickerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.text,
+  modalItemIcon: {
+    fontSize: 24,
+    marginRight: 12,
   },
-  datePickerCancel: {
+  modalItemText: {
+    flex: 1,
     fontSize: 16,
-    color: theme.lightText,
+    color: '#000',
   },
-  datePickerDone: {
-    fontSize: 16,
-    color: theme.primary,
-    fontWeight: '600',
+  modalItemSubtext: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
 });
 

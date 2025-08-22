@@ -82,7 +82,8 @@ export interface AvailableDriver {
 export interface TripOrder {
   id: string;
   orderNumber: string;
-  status: 'pending' | 'assigned' | 'picked_up' | 'in_transit' | 'delivered' | 'cancelled';
+  status: 'pending' | 'assigned' | 'matched' | 'picked_up' | 'in_transit' | 'delivered' | 'cancelled';
+  orderType?: string; // Add order type for filtering
   items: Array<{
     materialName: string;
     quantity: number;
@@ -96,6 +97,12 @@ export interface TripOrder {
     state: string;
     zipCode: string;
   };
+  pickupAddress: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
   finalAmount: number;
   orderDate: string;
   estimatedDelivery?: string;
@@ -103,7 +110,98 @@ export interface TripOrder {
 }
 
 class TripService {
-  // Get available truck types
+  // Get only truck types that have available physical trucks
+  async getAvailableTruckTypes(): Promise<TruckType[]> {
+    try {
+      // Get truck types that have at least one available truck
+      const { data, error } = await supabase
+        .from('truck_types')
+        .select(`
+          *,
+          trucks!inner(id, license_plate, is_available)
+        `)
+        .eq('is_active', true)
+        .eq('trucks.is_available', true)
+        .order('name');
+
+      if (error) throw error;
+      
+      // Remove duplicate truck types (inner join can create duplicates)
+      const uniqueTruckTypes = data?.reduce((acc: TruckType[], current) => {
+        const existing = acc.find(item => item.id === current.id);
+        if (!existing) {
+          acc.push({
+            id: current.id,
+            name: current.name,
+            description: current.description,
+            payload_capacity: current.payload_capacity,
+            volume_capacity: current.volume_capacity,
+            suitable_materials: current.suitable_materials,
+            base_rate_per_km: current.base_rate_per_km,
+            base_rate_per_hour: current.base_rate_per_hour,
+            icon_url: current.icon_url
+          });
+        }
+        return acc;
+      }, []) || [];
+
+      return uniqueTruckTypes;
+    } catch (error) {
+      console.error('Error fetching available truck types:', error);
+      return [];
+    }
+  }
+
+  // Check how many trucks are available for a specific truck type
+  async getTruckAvailabilityCount(truckTypeId: string): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('trucks')
+        .select('id', { count: 'exact' })
+        .eq('truck_type_id', truckTypeId)
+        .eq('is_available', true);
+
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Error checking truck availability:', error);
+      return 0;
+    }
+  }
+
+  // Get detailed availability info for all truck types
+  async getTruckTypesWithAvailability(): Promise<(TruckType & { availableCount: number })[]> {
+    try {
+      const { data, error } = await supabase
+        .from('truck_types')
+        .select(`
+          *,
+          trucks(id, is_available)
+        `)
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      
+      return data?.map(truckType => ({
+        id: truckType.id,
+        name: truckType.name,
+        description: truckType.description,
+        payload_capacity: truckType.payload_capacity,
+        volume_capacity: truckType.volume_capacity,
+        suitable_materials: truckType.suitable_materials,
+        base_rate_per_km: truckType.base_rate_per_km,
+        base_rate_per_hour: truckType.base_rate_per_hour,
+        icon_url: truckType.icon_url,
+        availableCount: truckType.trucks?.filter((truck: any) => truck.is_available).length || 0
+      })) || [];
+    } catch (error) {
+      console.error('Error fetching truck types with availability:', error);
+      return [];
+    }
+  }
+
+  // Get available truck types (original method for backward compatibility)
   async getTruckTypes(): Promise<TruckType[]> {
     try {
       const { data, error } = await supabase
@@ -438,47 +536,181 @@ class TripService {
   }
 
   // Get trip history for the authenticated user
-  async getTripHistory(): Promise<TripOrder[]> {
+  async getTripHistory(orderTypeFilter?: string): Promise<TripOrder[]> {
     try {
       const currentUser = await this.getCurrentUser();
       if (!currentUser) {
         throw new Error('No authenticated user found');
       }
 
-      const { data, error } = await supabase
-        .from('trip_requests')
-        .select('*')
-        .eq('customer_id', currentUser.id)
-        .order('created_at', { ascending: false });
+      let allTrips: any[] = [];
 
-      if (error) {
-        console.error('Error fetching trip history:', error);
-        throw error;
+      // Fetch from trip_requests table (external delivery requests)
+      let tripQuery = supabase
+        .from('trip_requests')
+        .select(`
+          *,
+          driver_profiles:assigned_driver_id (
+            first_name,
+            last_name,
+            phone
+          )
+        `)
+        .eq('customer_id', currentUser.id);
+
+      // Apply active filter for trip_requests
+      if (orderTypeFilter === 'active') {
+        tripQuery = tripQuery.in('status', ['matched', 'in_transit', 'picked_up']);
       }
 
-      // Transform trip requests to TripOrder format
-      return data.map(trip => ({
-        id: trip.id,
-        orderNumber: `TR-${trip.id.slice(0, 8)}`,
-        status: trip.status || 'pending',
-        items: [{
-          materialName: trip.material_type || 'Building Material',
-          quantity: trip.estimated_weight_tons || 1,
-          unit: trip.estimated_weight_tons ? 'tons' : 'units',
-          pricePerUnit: trip.quoted_price || 0,
-          totalPrice: trip.quoted_price || 0
-        }],
-        deliveryAddress: {
-          street: trip.delivery_address?.street || 'Unknown',
-          city: trip.delivery_address?.city || 'Unknown',
-          state: trip.delivery_address?.state || 'Unknown',
-          zipCode: trip.delivery_address?.postal_code || 'Unknown'
-        },
-        finalAmount: trip.quoted_price || 0,
-        orderDate: trip.created_at,
-        estimatedDelivery: trip.scheduled_pickup_time,
-        driverName: trip.assigned_driver_id ? 'Driver Assigned' : undefined
-      }));
+      const { data: tripRequests, error: tripError } = await tripQuery
+        .order('created_at', { ascending: false });
+
+      if (tripError) {
+        console.error('Error fetching trip requests:', tripError);
+      } else if (tripRequests) {
+        // Add source marker and transform trip requests
+        allTrips = allTrips.concat(
+          tripRequests.map(trip => ({ ...trip, source: 'trip_requests' }))
+        );
+      }
+
+      // Fetch from orders table (internal orders with order_type)
+      let ordersQuery = supabase
+        .from('orders')
+        .select(`
+          *,
+          driver_profiles:driver_id (
+            first_name,
+            last_name,
+            phone
+          )
+        `)
+        .eq('customer_id', currentUser.id);
+
+      // Apply order type filter if specified
+      if (orderTypeFilter && orderTypeFilter !== 'active') {
+        ordersQuery = ordersQuery.eq('order_type', orderTypeFilter);
+      } else if (orderTypeFilter === 'active') {
+        // Show active orders
+        ordersQuery = ordersQuery.in('status', ['matched', 'in_transit', 'picked_up']);
+      }
+
+      const { data: orders, error: ordersError } = await ordersQuery
+        .order('created_at', { ascending: false });
+
+      if (ordersError) {
+        console.error('Error fetching orders:', ordersError);
+      } else if (orders) {
+        // Add source marker and transform orders
+        allTrips = allTrips.concat(
+          orders.map(order => ({ ...order, source: 'orders' }))
+        );
+      }
+
+      // Sort all trips by created_at
+      allTrips.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      // Transform to TripOrder format
+      return allTrips.map(trip => {
+        // Debug logging for troubleshooting
+        console.log('🔍 Trip data:', {
+          id: trip.id.slice(0, 8),
+          status: trip.status,
+          order_type: trip.order_type,
+          pickup_address: trip.pickup_address,
+          delivery_address: trip.delivery_address,
+          material_type: trip.material_type,
+          assigned_driver_id: trip.assigned_driver_id,
+          driver_id: trip.driver_id
+        });
+
+        // Better address parsing with fallbacks
+        const parseAddress = (addressData: any, addressType: string = 'delivery') => {
+          console.log(`🏠 Parsing ${addressType} address:`, addressData);
+          
+          if (!addressData) {
+            return {
+              street: `${addressType.charAt(0).toUpperCase() + addressType.slice(1)} address not available`,
+              city: 'Unknown',
+              state: 'Unknown',
+              zipCode: 'Unknown'
+            };
+          }
+
+          // Handle both direct JSONB object and string cases
+          let address = addressData;
+          if (typeof addressData === 'string') {
+            try {
+              address = JSON.parse(addressData);
+            } catch {
+              // If it's just a string, treat it as the full address
+              return {
+                street: addressData,
+                city: 'Unknown',
+                state: 'Unknown', 
+                zipCode: 'Unknown'
+              };
+            }
+          }
+
+          // Extract city and state from formatted_address if individual fields are empty
+          let city = address?.city || 'Unknown';
+          let state = address?.state || 'Unknown';
+          
+          if ((city === 'Unknown' || city === '') && address?.formatted_address) {
+            // Try to extract city from formatted address like "Street, City, State"
+            const parts = address.formatted_address.split(',').map((s: string) => s.trim());
+            if (parts.length >= 2) {
+              city = parts[parts.length - 2] || 'Unknown';
+              state = parts[parts.length - 1] || 'Unknown';
+            } else if (parts.length === 1) {
+              city = parts[0];
+            }
+          }
+
+          return {
+            street: address?.street || address?.formatted_address || `Unknown ${addressType} street`,
+            city: city,
+            state: state,
+            zipCode: address?.postal_code || address?.zipCode || 'Unknown'
+          };
+        };
+
+        // Get driver name from joined data or fallback
+        const getDriverName = (trip: any) => {
+          const driverProfile = trip.driver_profiles;
+          if (driverProfile) {
+            return `${driverProfile.first_name} ${driverProfile.last_name}`;
+          }
+          
+          if (trip.assigned_driver_id || trip.driver_id) {
+            return 'Driver Assigned';
+          }
+          
+          return undefined;
+        };
+
+        return {
+          id: trip.id,
+          orderNumber: trip.source === 'orders' ? `OR-${trip.id.slice(0, 8)}` : `TR-${trip.id.slice(0, 8)}`,
+          status: trip.status || 'pending',
+          orderType: trip.order_type || 'delivery', // Add order type for filtering
+          items: [{
+            materialName: trip.material_type || 'Building Material',
+            quantity: trip.estimated_weight_tons || trip.total_weight || 1,
+            unit: (trip.estimated_weight_tons || trip.total_weight) ? 'tons' : 'units',
+            pricePerUnit: trip.quoted_price || trip.delivery_fee || 0,
+            totalPrice: trip.quoted_price || trip.delivery_fee || 0
+          }],
+          deliveryAddress: parseAddress(trip.delivery_address, 'delivery'),
+          pickupAddress: parseAddress(trip.pickup_address, 'pickup'),
+          finalAmount: trip.quoted_price || trip.delivery_fee || 0,
+          orderDate: trip.created_at,
+          estimatedDelivery: trip.scheduled_pickup_time || trip.scheduled_delivery_time,
+          driverName: getDriverName(trip)
+        };
+      });
     } catch (error) {
       console.error('Error getting trip history:', error);
       throw error;

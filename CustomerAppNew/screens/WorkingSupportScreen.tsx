@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { authService } from '../AuthServiceSupabase';
 import { createClient } from '@supabase/supabase-js';
+import { Theme } from '../theme';
 
 // Supabase configuration
 const SUPABASE_URL = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
@@ -29,19 +30,19 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Updated black and white theme matching the app
+// YouMats Blue theme
 const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
-  white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
+  primary: Theme.colors.primary,
+  secondary: Theme.colors.secondary,
+  accent: Theme.colors.text.secondary,
+  background: Theme.colors.background.primary,
+  white: Theme.colors.background.primary,
+  text: Theme.colors.text.primary,
+  lightText: Theme.colors.text.secondary,
+  success: Theme.colors.success,
+  warning: Theme.colors.warning,
+  error: Theme.colors.error,
+  border: Theme.colors.border.light,
 };
 
 interface SupportTicket {

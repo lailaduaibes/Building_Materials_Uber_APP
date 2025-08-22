@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { authService } from './AuthServiceSupabase';
+import { Theme } from './theme';
 
 interface PasswordResetScreenProps {
   onBack: () => void;
@@ -147,7 +148,7 @@ export const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <MaterialIcons name="arrow-back" size={24} color="#000" />
+            <MaterialIcons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
             {mode === 'forgot' ? 'Reset Password' : 'Change Password'}
@@ -180,7 +181,7 @@ export const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({
                   value={email}
                   onChangeText={setEmail}
                   placeholder="Enter your email"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="rgba(255,255,255,0.6)"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -276,7 +277,7 @@ export const PasswordResetScreen: React.FC<PasswordResetScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   keyboardContainer: {
     flex: 1,
@@ -287,17 +288,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: '#FFFFFF',
   },
   backButton: {
     padding: 8,
     marginLeft: -8,
+    backgroundColor: Theme.colors.primary,
+    borderRadius: 20,
   },
   headerTitle: {
     flex: 1,
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Theme.colors.primary,
     textAlign: 'center',
     marginHorizontal: 16,
   },
@@ -311,20 +315,42 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     marginBottom: 32,
+    backgroundColor: Theme.colors.primary,
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: Theme.colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: 'rgba(255,255,255,0.9)',
     lineHeight: 22,
   },
   form: {
     flex: 1,
+    backgroundColor: Theme.colors.primary,
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: Theme.colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   inputGroup: {
     marginBottom: 24,
@@ -332,68 +358,73 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: 'rgba(255,255,255,0.3)',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#000',
-    backgroundColor: '#fff',
+    color: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: 'rgba(255,255,255,0.3)',
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   passwordInput: {
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#000',
+    color: '#FFFFFF',
   },
   eyeButton: {
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   requirements: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     padding: 16,
     borderRadius: 8,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   requirementsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   requirement: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.8)',
     marginBottom: 4,
   },
   submitButton: {
-    backgroundColor: '#000',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   submitButtonDisabled: {
-    backgroundColor: '#999',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   submitButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

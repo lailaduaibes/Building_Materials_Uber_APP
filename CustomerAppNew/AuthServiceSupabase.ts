@@ -51,6 +51,15 @@ class AuthService {
       console.log('Auth state changed:', event, session?.user?.email);
       
       if (session?.user) {
+        // Validate user type before setting session
+        const isValidUser = await this.validateUserAccountType(session.user.id);
+        
+        if (!isValidUser) {
+          console.log('🚫 Invalid user type detected, signing out');
+          await this.supabase.auth.signOut();
+          return;
+        }
+        
         this.currentSession = session;
         this.currentUser = this.mapSupabaseUserToUser(session.user);
         await this.storeUserData(this.currentUser);
@@ -72,6 +81,15 @@ class AuthService {
       const { data: { session }, error } = await this.supabase.auth.getSession();
       
       if (!error && session?.user) {
+        // Validate user account type before initializing
+        const isValidUser = await this.validateUserAccountType(session.user.id);
+        
+        if (!isValidUser) {
+          console.log('🚫 Invalid user type detected during initialization, signing out');
+          await this.supabase.auth.signOut();
+          return;
+        }
+        
         this.currentSession = session;
         this.currentUser = this.mapSupabaseUserToUser(session.user);
         await this.storeUserData(this.currentUser);
@@ -167,7 +185,7 @@ class AuthService {
         success: true,
         message: 'Registration successful!',
         data: {
-          user: this.mapSupabaseUserToUser(data.user),
+          user: this.mapSupabaseUserToUser(data.user!),
           session: data.session || undefined,
           requiresVerification: false,
         },
@@ -222,6 +240,42 @@ class AuthService {
 
       // Ensure user exists in custom users table
       await this.ensureUserInCustomTable(data.user);
+
+      // Get user from custom users table to check user type
+      const { data: userData, error: userError } = await this.supabase
+        .from('users')
+        .select('user_type, role, id, email')
+        .eq('id', data.user.id)
+        .single();
+
+      if (userError) {
+        console.error('❌ Error fetching user data:', userError);
+        return {
+          success: false,
+          message: 'Error validating user account',
+          error: userError.message,
+        };
+      }
+
+      // Validate user role - ONLY block drivers from customer app
+      if (userData && userData.user_type === 'driver') {
+        console.log('🚫 Driver account attempting to login to customer app');
+        
+        // Sign out the user immediately
+        await this.supabase.auth.signOut();
+        
+        return {
+          success: false,
+          message: 'Driver accounts cannot access the customer app. Please use the driver app instead.',
+          error: 'Invalid account type for customer app',
+        };
+      }
+
+      console.log('✅ Account type validation passed:', {
+        user_type: userData?.user_type || 'null/undefined',
+        role: userData?.role || 'null/undefined',
+        allowing_access: true
+      });
 
       return {
         success: true,
@@ -458,6 +512,49 @@ class AuthService {
       await AsyncStorage.multiRemove(['customer_user_data', 'customer_session']);
     } catch (error) {
       console.error('Error clearing stored data:', error);
+    }
+  }
+
+  // Validate user account type - only customers allowed in customer app
+  private async validateUserAccountType(userId: string): Promise<boolean> {
+    try {
+      console.log('🔍 Validating user type for user:', userId);
+      
+      const { data: userData, error } = await this.supabase
+        .from('users')
+        .select('user_type, role, id, email')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('❌ Error checking user type:', error);
+        // If we can't check the user type, allow access (fail open for now)
+        console.log('✅ Allowing access due to database error (fail open)');
+        return true;
+      }
+
+      console.log('👤 User data found:', { 
+        id: userData.id, 
+        email: userData.email, 
+        user_type: userData.user_type,
+        role: userData.role
+      });
+
+      // ONLY block if explicitly marked as 'driver' in user_type
+      if (userData.user_type === 'driver') {
+        console.log('🚫 Blocking driver account');
+        return false;
+      }
+
+      // Allow everything else (customer, null, undefined, etc.)
+      console.log('✅ Allowing access - user type:', userData.user_type || 'null/undefined');
+      return true;
+      
+    } catch (error) {
+      console.error('💥 Error validating user type:', error);
+      // If validation fails, allow access (fail open)
+      console.log('✅ Allowing access due to validation error (fail open)');
+      return true;
     }
   }
 

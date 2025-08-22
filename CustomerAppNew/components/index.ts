@@ -7,6 +7,12 @@ export { default as Button } from './Button';
 export { default as Input } from './Input';
 export { default as Card } from './Card';
 export { default as Screen } from './Screen';
+export { YouMatsLogo } from './YouMatsLogo';
+
+// New Uber-style components
+export { default as UberStyleMainDashboard } from './UberStyleMainDashboard';
+export { default as UberStyleLocationPicker } from './UberStyleLocationPicker';
+export { default as UberStyleMapPicker } from './UberStyleMapPicker';
 
 // Keep existing production components
 export { ErrorBoundary } from './ErrorBoundary';

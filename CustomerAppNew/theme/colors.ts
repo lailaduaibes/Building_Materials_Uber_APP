@@ -4,51 +4,51 @@
  */
 
 export const Colors = {
-  // Primary Brand Colors
-  primary: '#1B365D',        // Deep Professional Blue
-  secondary: '#FF6B35',      // Construction Orange
-  success: '#27AE60',        // Green for confirmations
-  warning: '#F39C12',        // Amber for alerts
-  error: '#E74C3C',          // Red for errors
+  // Primary Brand Colors - Updated to YouMats Blue Theme
+  primary: '#1E3A8A',        // YouMats Professional Blue (from logo)
+  secondary: '#3B82F6',      // Bright Blue for accents
+  success: '#10B981',        // Green for confirmations
+  warning: '#F59E0B',        // Amber for alerts
+  error: '#EF4444',          // Red for errors
 
   // Background Colors
   background: {
     primary: '#FFFFFF',       // White
-    secondary: '#F8F9FA',     // Light Gray
+    secondary: '#F8FAFC',     // Very Light Blue-Gray
     card: '#FFFFFF',          // Card background with shadow
-    section: '#ECF0F1',       // Very Light Gray
+    section: '#EFF6FF',       // Very Light Blue
   },
 
   // Text Colors
   text: {
-    primary: '#2C3E50',       // Dark Blue-Gray
-    secondary: '#6C757D',     // Medium Gray
-    light: '#ADB5BD',         // Light Gray
+    primary: '#1E3A8A',       // YouMats Blue for primary text
+    secondary: '#64748B',     // Blue-Gray for secondary text
+    light: '#94A3B8',         // Light Blue-Gray
     white: '#FFFFFF',         // On dark backgrounds
     onPrimary: '#FFFFFF',     // Text on primary color
     onSecondary: '#FFFFFF',   // Text on secondary color
   },
 
-  // Gradients
+  // Gradients - Updated to Blue theme
   gradients: {
-    primary: ['#1B365D', '#2C5282'],      // Blue gradient
-    accent: ['#FF6B35', '#FF8C42'],       // Orange gradient
+    primary: ['#1E3A8A', '#3B82F6'],      // YouMats Blue gradient
+    accent: ['#3B82F6', '#60A5FA'],       // Light Blue gradient
   },
 
   // Interactive States
   states: {
-    pressed: '#0F2A47',       // Darker blue for pressed state
-    disabled: '#E9ECEF',      // Light gray for disabled
+    pressed: '#1E40AF',       // Darker blue for pressed state
+    disabled: '#E2E8F0',      // Light gray for disabled
     focus: '#3B82F6',         // Focus blue
     hover: '#2563EB',         // Hover blue
   },
 
   // Border Colors
   border: {
-    light: '#E9ECEF',         // Light border
-    medium: '#DEE2E6',        // Medium border
+    light: '#E2E8F0',         // Light blue-gray border
+    medium: '#CBD5E1',        // Medium blue-gray border
     focus: '#3B82F6',         // Focus border
-    error: '#E74C3C',         // Error border
+    error: '#EF4444',         // Error border
   },
 
   // Shadows
@@ -57,12 +57,12 @@ export const Colors = {
     opacity: 0.1,
   },
 
-  // Status Colors
+  // Status Colors - Updated for Blue theme
   status: {
-    pending: '#F39C12',       // Orange for pending
-    inProgress: '#3498DB',    // Blue for in progress
-    completed: '#27AE60',     // Green for completed
-    cancelled: '#E74C3C',     // Red for cancelled
+    pending: '#F59E0B',       // Amber for pending
+    inProgress: '#3B82F6',    // YouMats Blue for in progress
+    completed: '#10B981',     // Green for completed
+    cancelled: '#EF4444',     // Red for cancelled
   },
 } as const;
 

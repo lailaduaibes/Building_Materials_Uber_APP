@@ -21,6 +21,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { authService, User } from './AuthServiceSupabase'; // Import the Supabase auth service
+import { Theme } from './theme'; // Import theme for consistent colors
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -516,7 +517,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess 
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <LinearGradient colors={['#000000', '#1a1a1a', '#000000']} style={styles.gradient}>
+      <LinearGradient colors={Theme.colors.gradients.primary} style={styles.gradient}>
         <ScrollView 
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
@@ -621,10 +622,10 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   inputError: {
-    borderColor: '#ff4444',
+    borderColor: Theme.colors.error,
   },
   errorText: {
-    color: '#ff4444',
+    color: Theme.colors.error,
     fontSize: 12,
     marginTop: 5,
     marginLeft: 5,
@@ -642,7 +643,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   buttonText: {
-    color: '#000000',
+    color: Theme.colors.primary,
     fontSize: isTablet ? 20 : 18,
     fontWeight: 'bold',
   },
