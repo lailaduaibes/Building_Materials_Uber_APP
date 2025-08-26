@@ -106,138 +106,185 @@ export const SmartTruckSelector: React.FC<SmartTruckSelectorProps> = ({
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <MaterialIcons name="psychology" size={24} color={Theme.colors.primary} />
-          <Text style={styles.title}>Smart Recommendations</Text>
+      <View style={styles.modernHeader}>
+        <View style={styles.headerContent}>
+          <View style={styles.aiIndicator}>
+            <MaterialIcons name="auto-awesome" size={20} color={Theme.colors.primary} />
+            <Text style={styles.aiText}>AI Recommendations</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.tipsButton}
+            onPress={() => setShowAdvice(!showAdvice)}
+          >
+            <MaterialIcons name="lightbulb" size={18} color={Theme.colors.primary} />
+            <Text style={styles.tipsText}>Tips</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={styles.adviceButton}
-          onPress={() => setShowAdvice(!showAdvice)}
-        >
-          <MaterialIcons 
-            name={showAdvice ? 'expand-less' : 'expand-more'} 
-            size={20} 
-            color={Theme.colors.primary} 
-          />
-          <Text style={styles.adviceButtonText}>Tips</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Material-specific advice */}
       {showAdvice && (
-        <View style={styles.adviceContainer}>
-          <Text style={styles.adviceTitle}>💡 Tips for {materialType}</Text>
-          {materialAdvice.map((tip, index) => (
-            <Text key={index} style={styles.adviceTip}>
-              • {tip}
-            </Text>
-          ))}
+        <View style={styles.modernAdviceContainer}>
+          <View style={styles.adviceHeader}>
+            <MaterialIcons name="tips-and-updates" size={20} color={Theme.colors.primary} />
+            <Text style={styles.adviceHeaderText}>Tips for {materialType}</Text>
+          </View>
+          <View style={styles.adviceContent}>
+            {materialAdvice.map((tip, index) => (
+              <View key={index} style={styles.tipRow}>
+                <View style={styles.tipBullet} />
+                <Text style={styles.modernAdviceTip}>{tip}</Text>
+              </View>
+            ))}
+          </View>
         </View>
       )}
 
-      {/* Top Recommendations */}
-      <Text style={styles.sectionTitle}>
-        Recommended for {estimatedWeight}t {materialType}
-      </Text>
-
-      {topRecommendations.map((rec, index) => (
-        <TouchableOpacity
-          key={rec.truckType.id}
-          style={[
-            styles.recommendationCard,
-            {
-              borderColor: selectedTruckId === rec.truckType.id 
-                ? Theme.colors.primary 
-                : getScoreColor(rec.score),
-              backgroundColor: selectedTruckId === rec.truckType.id 
-                ? Theme.colors.primary + '10' 
-                : 'white'
-            }
-          ]}
-          onPress={() => onTruckSelect(rec.truckType.id)}
-        >
-          {/* Header with truck name and score */}
-          <View style={styles.cardHeader}>
-            <View style={styles.truckInfo}>
-              <Text style={styles.truckName}>{rec.truckType.name}</Text>
-              <Text style={styles.truckCapacity}>
-                {rec.truckType.payload_capacity}t • {rec.truckType.volume_capacity}m³
-              </Text>
-            </View>
-            <View style={styles.scoreContainer}>
-              <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(rec.score) }]}>
-                <Text style={styles.scoreText}>{rec.score}</Text>
-              </View>
-              <Text style={[styles.scoreLabel, { color: getScoreColor(rec.score) }]}>
-                {getScoreLabel(rec.score)}
-              </Text>
-            </View>
-            {index === 0 && rec.isRecommended && (
-              <View style={styles.bestChoiceBadge}>
-                <MaterialIcons name="star" size={16} color="white" />
-                <Text style={styles.bestChoiceText}>Best</Text>
-              </View>
-            )}
+      {/* Load Summary */}
+      <View style={styles.loadSummary}>
+        <Text style={styles.loadSummaryTitle}>Your Load</Text>
+        <View style={styles.loadDetails}>
+          <View style={styles.loadDetailItem}>
+            <Text style={styles.loadDetailValue}>{estimatedWeight}t</Text>
+            <Text style={styles.loadDetailLabel}>Weight</Text>
           </View>
-
-          {/* Capacity Utilization */}
-          <View style={styles.utilizationContainer}>
-            <View style={styles.utilizationItem}>
-              <Text style={styles.utilizationLabel}>Weight</Text>
-              <View style={styles.progressBar}>
-                <View 
-                  style={[
-                    styles.progressFill, 
-                    { 
-                      width: `${Math.min(100, rec.capacityUtilization.weight)}%`,
-                      backgroundColor: rec.capacityUtilization.weight > 80 ? '#666666' : Theme.colors.primary
-                    }
-                  ]} 
-                />
-              </View>
-              <Text style={styles.utilizationValue}>
-                {rec.capacityUtilization.weight.toFixed(0)}%
-              </Text>
-            </View>
-            <View style={styles.utilizationItem}>
-              <Text style={styles.utilizationLabel}>Volume</Text>
-              <View style={styles.progressBar}>
-                <View 
-                  style={[
-                    styles.progressFill, 
-                    { 
-                      width: `${Math.min(100, rec.capacityUtilization.volume)}%`,
-                      backgroundColor: rec.capacityUtilization.volume > 80 ? '#666666' : Theme.colors.primary
-                    }
-                  ]} 
-                />
-              </View>
-              <Text style={styles.utilizationValue}>
-                {rec.capacityUtilization.volume.toFixed(0)}%
-              </Text>
-            </View>
-          </View>
-
-          {/* Reasons */}
-          <View style={styles.reasonsContainer}>
-            {rec.reasons.slice(0, 2).map((reason, idx) => (
-              <Text key={idx} style={styles.reason}>{reason}</Text>
-            ))}
-            {rec.warnings && rec.warnings.length > 0 && (
-              <Text style={styles.warning}>{rec.warnings[0]}</Text>
-            )}
-          </View>
-
-          {/* Quick Action */}
-          {selectedTruckId === rec.truckType.id && (
-            <View style={styles.selectedIndicator}>
-              <MaterialIcons name="check-circle" size={20} color={Theme.colors.primary} />
-              <Text style={styles.selectedText}>Selected</Text>
+          {estimatedVolume && (
+            <View style={styles.loadDetailItem}>
+              <Text style={styles.loadDetailValue}>{estimatedVolume}m³</Text>
+              <Text style={styles.loadDetailLabel}>Volume</Text>
             </View>
           )}
-        </TouchableOpacity>
-      ))}
+          <View style={styles.loadDetailItem}>
+            <Text style={styles.loadDetailValue}>{materialType}</Text>
+            <Text style={styles.loadDetailLabel}>Material</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.recommendationsContainer}>
+        {topRecommendations.map((rec, index) => (
+          <TouchableOpacity
+            key={rec.truckType.id}
+            style={[
+              styles.modernRecommendationCard,
+              {
+                borderColor: selectedTruckId === rec.truckType.id 
+                  ? Theme.colors.primary 
+                  : Theme.colors.border.light,
+                backgroundColor: selectedTruckId === rec.truckType.id 
+                  ? Theme.colors.background.section
+                  : Theme.colors.background.card,
+                borderWidth: selectedTruckId === rec.truckType.id ? 2 : 1,
+              }
+            ]}
+            onPress={() => onTruckSelect(rec.truckType.id)}
+          >
+            {/* Best Match Badge */}
+            {index === 0 && rec.isRecommended && (
+              <View style={styles.bestMatchBadge}>
+                <MaterialIcons name="auto-awesome" size={16} color="white" />
+                <Text style={styles.bestMatchText}>BEST MATCH</Text>
+              </View>
+            )}
+
+            {/* Card Header */}
+            <View style={styles.modernCardHeader}>
+              <View style={styles.truckIconWrapper}>
+                <MaterialIcons name="local-shipping" size={28} color={Theme.colors.primary} />
+              </View>
+              <View style={styles.truckNameSection}>
+                <Text style={styles.modernTruckName}>{rec.truckType.name}</Text>
+                <Text style={styles.modernTruckCapacity}>
+                  {rec.truckType.payload_capacity}t • {rec.truckType.volume_capacity}m³
+                </Text>
+              </View>
+              <View style={styles.modernScoreContainer}>
+                <View style={[styles.modernScoreBadge, { backgroundColor: getScoreColor(rec.score) }]}>
+                  <Text style={styles.modernScoreText}>{rec.score}</Text>
+                </View>
+                <Text style={[styles.modernScoreLabel, { color: getScoreColor(rec.score) }]}>
+                  {getScoreLabel(rec.score)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Utilization Bars */}
+            <View style={styles.modernUtilizationContainer}>
+              <View style={styles.modernUtilizationItem}>
+                <View style={styles.utilizationHeader}>
+                  <Text style={styles.modernUtilizationLabel}>Weight Usage</Text>
+                  <Text style={styles.modernUtilizationValue}>
+                    {rec.capacityUtilization.weight.toFixed(0)}%
+                  </Text>
+                </View>
+                <View style={styles.modernProgressBar}>
+                  <View 
+                    style={[
+                      styles.modernProgressFill, 
+                      { 
+                        width: `${Math.min(100, rec.capacityUtilization.weight)}%`,
+                        backgroundColor: rec.capacityUtilization.weight > 90 
+                          ? Theme.colors.warning
+                          : rec.capacityUtilization.weight > 70 
+                          ? Theme.colors.secondary
+                          : Theme.colors.success
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+              
+              <View style={styles.modernUtilizationItem}>
+                <View style={styles.utilizationHeader}>
+                  <Text style={styles.modernUtilizationLabel}>Volume Usage</Text>
+                  <Text style={styles.modernUtilizationValue}>
+                    {rec.capacityUtilization.volume.toFixed(0)}%
+                  </Text>
+                </View>
+                <View style={styles.modernProgressBar}>
+                  <View 
+                    style={[
+                      styles.modernProgressFill, 
+                      { 
+                        width: `${Math.min(100, rec.capacityUtilization.volume)}%`,
+                        backgroundColor: rec.capacityUtilization.volume > 90 
+                          ? Theme.colors.warning
+                          : rec.capacityUtilization.volume > 70 
+                          ? Theme.colors.secondary
+                          : Theme.colors.success
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Key Reasons */}
+            <View style={styles.modernReasonsContainer}>
+              {rec.reasons.slice(0, 2).map((reason, idx) => (
+                <View key={idx} style={styles.reasonRow}>
+                  <MaterialIcons name="check-circle" size={14} color={Theme.colors.success} />
+                  <Text style={styles.modernReason}>{reason}</Text>
+                </View>
+              ))}
+              {rec.warnings && rec.warnings.length > 0 && (
+                <View style={styles.warningRow}>
+                  <MaterialIcons name="warning" size={14} color={Theme.colors.warning} />
+                  <Text style={styles.modernWarning}>{rec.warnings[0]}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Selection Status */}
+            {selectedTruckId === rec.truckType.id && (
+              <View style={styles.modernSelectedIndicator}>
+                <MaterialIcons name="check-circle" size={18} color={Theme.colors.success} />
+                <Text style={styles.modernSelectedText}>Selected</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* Show All Trucks Button */}
       <TouchableOpacity style={styles.showAllButton} onPress={onShowAllTrucks}>
@@ -639,6 +686,270 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
     lineHeight: 16,
+  },
+  // Modern styles
+  modernHeader: {
+    backgroundColor: Theme.colors.background.section,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  aiIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  aiText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Theme.colors.text.primary,
+    marginLeft: 8,
+  },
+  tipsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Theme.colors.background.card,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Theme.colors.border.light,
+  },
+  tipsText: {
+    fontSize: 14,
+    color: Theme.colors.primary,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  modernAdviceContainer: {
+    backgroundColor: Theme.colors.background.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: Theme.colors.primary,
+  },
+  adviceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  adviceHeaderText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Theme.colors.text.primary,
+    marginLeft: 8,
+  },
+  adviceContent: {
+    paddingLeft: 8,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  tipBullet: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Theme.colors.primary,
+    marginTop: 8,
+    marginRight: 12,
+  },
+  modernAdviceTip: {
+    fontSize: 14,
+    color: Theme.colors.text.secondary,
+    lineHeight: 20,
+    flex: 1,
+  },
+  loadSummary: {
+    backgroundColor: Theme.colors.background.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  loadSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Theme.colors.text.primary,
+    marginBottom: 12,
+  },
+  loadDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  loadDetailItem: {
+    alignItems: 'center',
+  },
+  loadDetailValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Theme.colors.primary,
+  },
+  loadDetailLabel: {
+    fontSize: 12,
+    color: Theme.colors.text.secondary,
+    marginTop: 4,
+  },
+  // Modern recommendation card styles
+  recommendationsContainer: {
+    marginBottom: 16,
+  },
+  modernRecommendationCard: {
+    backgroundColor: Theme.colors.background.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 3,
+  },
+  bestMatchBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: Theme.colors.success,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  bestMatchText: {
+    fontSize: 10,
+    color: 'white',
+    fontWeight: '700',
+    marginLeft: 2,
+  },
+  modernCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  truckIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Theme.colors.background.section,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  truckNameSection: {
+    flex: 1,
+  },
+  modernTruckName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Theme.colors.text.primary,
+  },
+  modernTruckCapacity: {
+    fontSize: 14,
+    color: Theme.colors.text.secondary,
+    marginTop: 2,
+  },
+  modernScoreContainer: {
+    alignItems: 'center',
+  },
+  modernScoreBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  modernScoreText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'white',
+  },
+  modernScoreLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  modernUtilizationContainer: {
+    marginBottom: 16,
+  },
+  modernUtilizationItem: {
+    marginBottom: 12,
+  },
+  utilizationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  modernUtilizationLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Theme.colors.text.primary,
+  },
+  modernUtilizationValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Theme.colors.text.secondary,
+  },
+  modernProgressBar: {
+    height: 8,
+    backgroundColor: Theme.colors.background.section,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  modernProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  modernReasonsContainer: {
+    marginBottom: 8,
+  },
+  reasonRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  modernReason: {
+    fontSize: 14,
+    color: Theme.colors.text.secondary,
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 18,
+  },
+  warningRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  modernWarning: {
+    fontSize: 14,
+    color: Theme.colors.warning,
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 18,
+  },
+  modernSelectedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Theme.colors.border.light,
+  },
+  modernSelectedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Theme.colors.success,
+    marginLeft: 6,
   },
 });
 

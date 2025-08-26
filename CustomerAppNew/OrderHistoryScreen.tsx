@@ -301,11 +301,13 @@ const styles = StyleSheet.create({
     color: Theme.colors.primary,
   },
   summaryContainer: {
-    backgroundColor: Theme.colors.primary,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: Theme.colors.primary,
     margin: 20,
     padding: 20,
     borderRadius: 12,
-    shadowColor: Theme.colors.primary,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -317,24 +319,24 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: Theme.colors.primary,
     marginBottom: 4,
   },
   summarySubtitle: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
+    color: Theme.colors.text.secondary,
   },
   listContainer: {
     paddingHorizontal: 20,
   },
   orderCard: {
-    backgroundColor: Theme.colors.primary,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: Theme.colors.primary,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: Theme.colors.primary,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -352,18 +354,18 @@ const styles = StyleSheet.create({
   orderNumber: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: Theme.colors.text.primary,
     marginBottom: 4,
   },
   orderDate: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: Theme.colors.text.secondary,
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: Theme.colors.primary,
   },
   statusText: {
     fontSize: 12,
@@ -378,12 +380,12 @@ const styles = StyleSheet.create({
   },
   itemCount: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: Theme.colors.text.secondary,
   },
   orderAmount: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: Theme.colors.primary,
   },
   orderSummary: {
     marginBottom: 12,

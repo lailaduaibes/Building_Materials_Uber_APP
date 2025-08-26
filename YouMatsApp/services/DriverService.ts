@@ -6,6 +6,7 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { driverLocationService, LocationCoordinates } from './DriverLocationService';
+import { enhancedNotificationService } from './EnhancedNotificationService';
 
 const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
@@ -1003,15 +1004,17 @@ class DriverService {
 
   // NEW: Get driver's full truck details from the fleet
   async getDriverTruckDetails(): Promise<any[]> {
-    if (!this.currentDriver) {
-      console.log('❌ No current driver');
-      return [];
-    }
-
     try {
-      console.log('🚛 Fetching driver\'s full truck details from fleet...');
+      // Use currentDriver instead of auth.getUser() since auth context has issues
+      if (!this.currentDriver) {
+        console.log('❌ [FLEET DEBUG] No current driver in service');
+        return [];
+      }
+
+      const userId = this.currentDriver.user_id;
+      console.log('🚛 [FLEET DEBUG] Fetching truck details for user:', userId);
       
-      // Get detailed truck information assigned to this driver
+      // First try to get truck information from the trucks table (fleet assignments)
       const { data: driverTrucks, error } = await supabase
         .from('trucks')
         .select(`
@@ -1033,21 +1036,77 @@ class DriverService {
             volume_capacity
           )
         `)
-        .eq('current_driver_id', this.currentDriver.user_id)
+        .eq('current_driver_id', userId)
         .eq('is_active', true);
 
       if (error) {
-        console.error('❌ Error fetching driver truck details:', error);
+        console.error('❌ [FLEET DEBUG] Error fetching driver truck details:', error);
         return [];
       }
 
-      if (!driverTrucks || driverTrucks.length === 0) {
-        console.log('⚠️ No trucks assigned to driver in fleet');
+      // If truck is assigned in fleet, return that data
+      if (driverTrucks && driverTrucks.length > 0) {
+        console.log('✅ [FLEET DEBUG] Driver has assigned fleet truck:', driverTrucks);
+        return driverTrucks;
+      }
+
+      // If no fleet truck assigned, fallback to driver profile vehicle info
+      console.log('⚠️ [FLEET DEBUG] No fleet truck assigned, checking driver profile vehicle info...');
+      
+      const { data: driverProfile, error: profileError } = await supabase
+        .from('driver_profiles')
+        .select(`
+          user_id,
+          vehicle_plate,
+          vehicle_model,
+          vehicle_year,
+          vehicle_max_payload,
+          vehicle_max_volume,
+          selected_truck_type_id,
+          custom_truck_type_name,
+          truck_added_to_fleet
+        `)
+        .eq('user_id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('❌ [FLEET DEBUG] Error fetching driver profile vehicle info:', profileError);
         return [];
       }
 
-      console.log('✅ Driver\'s truck details:', driverTrucks);
-      return driverTrucks;
+      console.log('🔍 [FLEET DEBUG] Driver profile data:', driverProfile);
+
+      if (!driverProfile || !driverProfile.vehicle_plate) {
+        console.log('⚠️ [FLEET DEBUG] No vehicle information found for driver - profile:', !!driverProfile, 'plate:', driverProfile?.vehicle_plate);
+        return [];
+      }
+
+      // Transform driver profile vehicle info to match trucks table format
+      const profileVehicle = {
+        id: `profile_${userId}`, // Temporary ID to indicate this is from profile
+        license_plate: driverProfile.vehicle_plate,
+        make: driverProfile.vehicle_model?.split(' ')[0] || 'Unknown',
+        model: driverProfile.vehicle_model || 'Unknown',
+        year: driverProfile.vehicle_year || null,
+        max_payload: driverProfile.vehicle_max_payload || 5.0,
+        max_volume: driverProfile.vehicle_max_volume || 10.0,
+        is_available: true,
+        is_active: true,
+        truck_type_id: driverProfile.selected_truck_type_id,
+        truck_types: driverProfile.custom_truck_type_name ? {
+          id: 'custom',
+          name: driverProfile.custom_truck_type_name,
+          description: 'Custom truck type',
+          payload_capacity: driverProfile.vehicle_max_payload || 5.0,
+          volume_capacity: driverProfile.vehicle_max_volume || 10.0
+        } : null,
+        source: 'driver_profile', // Flag to indicate source
+        truck_added_to_fleet: driverProfile.truck_added_to_fleet
+      };
+
+      console.log('✅ [FLEET DEBUG] Using driver profile vehicle info:', profileVehicle);
+      return [profileVehicle];
+      
     } catch (error) {
       console.error('❌ Exception fetching driver truck details:', error);
       return [];
@@ -1444,12 +1503,156 @@ class DriverService {
 
       console.log('✅ Trip status updated to:', data.status);
       
+      // Send notification to customer using enhanced notification service
+      try {
+        const driverName = `${this.currentDriver.firstName} ${this.currentDriver.lastName}`;
+        await enhancedNotificationService.sendTripStatusNotification(
+          data.customer_id,
+          tripId,
+          status,
+          driverName
+        );
+        console.log('📱 Customer notification sent for status:', status);
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send customer notification:', notificationError);
+        // Don't fail the trip update if notification fails
+      }
+      
       // Store current active trip in AsyncStorage for persistence
       await AsyncStorage.setItem('activeTrip', JSON.stringify(data));
       
       return true;
     } catch (error) {
       console.error('💥 Exception updating trip status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Send arrival notification to customer
+   */
+  async sendArrivalNotification(
+    tripId: string,
+    location: 'pickup' | 'delivery'
+  ): Promise<boolean> {
+    if (!this.currentDriver) return false;
+
+    try {
+      // Get trip data to find customer
+      const { data: tripData, error } = await supabase
+        .from('trip_requests')
+        .select('customer_id')
+        .eq('id', tripId)
+        .single();
+
+      if (error || !tripData) {
+        console.error('❌ Failed to get trip data for arrival notification:', error);
+        return false;
+      }
+
+      const driverName = `${this.currentDriver.firstName} ${this.currentDriver.lastName}`;
+      const result = await enhancedNotificationService.sendDriverArrivalNotification(
+        tripData.customer_id,
+        tripId,
+        location,
+        driverName
+      );
+
+      if (result.success) {
+        console.log('📍 Arrival notification sent successfully');
+        return true;
+      } else {
+        console.error('❌ Failed to send arrival notification:', result.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('💥 Exception sending arrival notification:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Send ETA update to customer
+   */
+  async sendETAUpdate(
+    tripId: string,
+    newETA: number,
+    reason?: string
+  ): Promise<boolean> {
+    if (!this.currentDriver) return false;
+
+    try {
+      // Get trip data to find customer
+      const { data: tripData, error } = await supabase
+        .from('trip_requests')
+        .select('customer_id')
+        .eq('id', tripId)
+        .single();
+
+      if (error || !tripData) {
+        console.error('❌ Failed to get trip data for ETA update:', error);
+        return false;
+      }
+
+      const result = await enhancedNotificationService.sendETAUpdateNotification(
+        tripData.customer_id,
+        tripId,
+        newETA,
+        reason
+      );
+
+      if (result.success) {
+        console.log('⏱️ ETA update notification sent successfully');
+        return true;
+      } else {
+        console.error('❌ Failed to send ETA update:', result.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('💥 Exception sending ETA update:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Send custom message to customer
+   */
+  async sendMessageToCustomer(
+    tripId: string,
+    message: string
+  ): Promise<boolean> {
+    if (!this.currentDriver) return false;
+
+    try {
+      // Get trip data to find customer
+      const { data: tripData, error } = await supabase
+        .from('trip_requests')
+        .select('customer_id')
+        .eq('id', tripId)
+        .single();
+
+      if (error || !tripData) {
+        console.error('❌ Failed to get trip data for message:', error);
+        return false;
+      }
+
+      const driverName = `${this.currentDriver.firstName} ${this.currentDriver.lastName}`;
+      const result = await enhancedNotificationService.sendDriverMessage(
+        tripData.customer_id,
+        tripId,
+        message,
+        driverName
+      );
+
+      if (result.success) {
+        console.log('💬 Message sent to customer successfully');
+        return true;
+      } else {
+        console.error('❌ Failed to send message to customer:', result.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('💥 Exception sending message to customer:', error);
       return false;
     }
   }
@@ -1604,13 +1807,10 @@ class DriverService {
           make,
           model,
           year,
-          color,
-          truck_type,
+          truck_type_id,
+          truck_types(name, description),
           is_available,
           is_active,
-          verification_status,
-          insurance_expiry_date,
-          registration_expiry_date,
           current_driver_id
         `)
         .eq('current_driver_id', this.currentDriver.user_id);
@@ -1620,8 +1820,18 @@ class DriverService {
         return [];
       }
 
-      console.log('✅ Found vehicles:', vehicles?.length || 0);
-      return vehicles || [];
+      // Map vehicles with proper status from driver profile
+      const mappedVehicles = (vehicles || []).map(vehicle => ({
+        ...vehicle,
+        truck_type: (vehicle as any).truck_types?.name || 'Unknown',
+        color: 'Not specified', // Default color since not in trucks table
+        verification_status: this.currentDriver?.approval_status === 'approved' 
+          ? (vehicle.is_available ? 'approved' : 'in_use')
+          : 'pending'
+      }));
+
+      console.log('✅ Found vehicles with status:', mappedVehicles?.length || 0);
+      return mappedVehicles;
     } catch (error) {
       console.error('❌ Exception fetching vehicles:', error);
       return [];

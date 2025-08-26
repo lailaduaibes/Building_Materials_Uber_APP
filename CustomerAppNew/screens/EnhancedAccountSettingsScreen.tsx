@@ -17,10 +17,13 @@ import {
   SafeAreaView,
   Modal,
   Dimensions,
+  Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { authService } from '../AuthServiceSupabase';
 import PasswordResetScreen from '../PasswordResetScreen';
 import paymentService, { PaymentMethod } from '../services/PaymentService';
@@ -43,16 +46,19 @@ interface User {
   isActive: boolean;
   emailVerified: boolean;
   createdAt: string;
+  profilePhoto?: string; // Add profile photo URL
 }
 
 interface AccountSettingsScreenProps {
   onBack: () => void;
   onLogout?: () => void;
+  onNavigate?: (screen: string) => void;
 }
 
 const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
   onBack,
   onLogout,
+  onNavigate,
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,6 +72,10 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
     lastName: '',
     phone: '',
   });
+  
+  // Profile photo state
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
   // Settings state - now using proper preferences service
   const [notifications, setNotifications] = useState<NotificationPreferences>({
@@ -87,6 +97,7 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
     loadUserProfile();
     loadPaymentMethods();
     loadNotificationPreferences();
+    loadProfilePhoto(); // Load saved profile photo
   }, []);
 
   const loadNotificationPreferences = async () => {
@@ -181,7 +192,8 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
         role: currentUser.role || 'customer',
         isActive: true,
         emailVerified: currentUser.emailConfirmed || false,
-        createdAt: currentUser.createdAt || new Date().toISOString()
+        createdAt: currentUser.createdAt || new Date().toISOString(),
+        profilePhoto: (currentUser as any).profilePhoto || null, // Add profile photo support
       };
 
       setUser(userData);
@@ -190,6 +202,9 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
         lastName: userData.lastName,
         phone: userData.phone,
       });
+
+      // Load profile photo if available
+      setProfilePhoto(userData.profilePhoto || null);
       
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -199,12 +214,37 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
     }
   };
 
+  // Load profile photo from AsyncStorage
+  const loadProfilePhoto = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (user?.id) {
+        const savedPhoto = await AsyncStorage.getItem(`profile_photo_${user.id}`);
+        if (savedPhoto) {
+          setProfilePhoto(savedPhoto);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading profile photo:', error);
+    }
+  };
+
   const updateProfile = async () => {
     try {
       setSaving(true);
       
-      // For now, just update local state since Supabase profile updates 
-      // would require additional setup
+      // Update profile in Supabase database
+      const response = await authService.updateProfile({
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phone: formData.phone.trim(),
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to update profile');
+      }
+
+      // Update local state after successful database update
       const updatedUser = {
         ...user!,
         firstName: formData.firstName.trim(),
@@ -214,14 +254,143 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
       
       setUser(updatedUser);
       setEditMode(false);
-      Alert.alert('Success', 'Profile updated successfully');
+      Alert.alert('Success', 'Profile updated successfully in database');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile');
+      Alert.alert('Error', error.message || 'Failed to update profile. Please try again.');
     } finally {
       setSaving(false);
     }
+  };
+
+  // Profile photo functions
+  const handleSelectPhoto = () => {
+    Alert.alert(
+      'Select Profile Photo',
+      'Choose an option',
+      [
+        { text: 'Camera', onPress: takePicture },
+        { text: 'Photo Library', onPress: pickImage },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const takePicture = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Camera permission is needed to take photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadProfilePhoto(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error taking picture:', error);
+      Alert.alert('Error', 'Failed to take picture');
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Photo library permission is needed to select photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadProfilePhoto(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to select image');
+    }
+  };
+
+  const uploadProfilePhoto = async (imageUri: string) => {
+    try {
+      setUploadingPhoto(true);
+      
+      // Read the image file
+      const fileInfo = await FileSystem.getInfoAsync(imageUri);
+      if (!fileInfo.exists) {
+        throw new Error('File does not exist');
+      }
+
+      // Save the photo URI to AsyncStorage for persistence
+      const user = await authService.getCurrentUser();
+      if (user?.id) {
+        await AsyncStorage.setItem(`profile_photo_${user.id}`, imageUri);
+      }
+
+      // Update local state
+      setProfilePhoto(imageUri);
+      
+      Alert.alert('Success', 'Profile photo updated successfully');
+      
+      // TODO: In production, upload to Supabase Storage for cloud backup
+      // const { data, error } = await supabase.storage
+      //   .from('profile-photos')
+      //   .upload(`${user?.id}/profile.jpg`, {
+      //     uri: imageUri,
+      //     type: 'image/jpeg',
+      //     name: 'profile.jpg'
+      //   });
+      
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      Alert.alert('Error', 'Failed to upload photo');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removeProfilePhoto = async () => {
+    Alert.alert(
+      'Remove Photo',
+      'Are you sure you want to remove your profile photo?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Remove from AsyncStorage
+              const user = await authService.getCurrentUser();
+              if (user?.id) {
+                await AsyncStorage.removeItem(`profile_photo_${user.id}`);
+              }
+              
+              // Update local state
+              setProfilePhoto(null);
+              Alert.alert('Success', 'Profile photo removed');
+            } catch (error) {
+              console.error('Error removing profile photo:', error);
+              Alert.alert('Error', 'Failed to remove profile photo');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const changePassword = () => {
@@ -311,6 +480,38 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
         {/* Profile Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile Information</Text>
+          
+          {/* Profile Photo Section */}
+          <View style={styles.profilePhotoSection}>
+            <TouchableOpacity style={styles.profilePhotoContainer} onPress={handleSelectPhoto}>
+              {profilePhoto ? (
+                <Image source={{ uri: profilePhoto }} style={styles.profilePhoto} />
+              ) : (
+                <View style={styles.profilePhotoPlaceholder}>
+                  <MaterialIcons name="person" size={60} color="#999" />
+                </View>
+              )}
+              {uploadingPhoto && (
+                <View style={styles.photoUploadOverlay}>
+                  <ActivityIndicator size="small" color="#fff" />
+                </View>
+              )}
+              <View style={styles.profilePhotoEditIcon}>
+                <MaterialIcons name="camera-alt" size={20} color="#fff" />
+              </View>
+            </TouchableOpacity>
+            
+            <View style={styles.profilePhotoActions}>
+              <TouchableOpacity style={styles.photoActionButton} onPress={handleSelectPhoto}>
+                <Text style={styles.photoActionText}>Change Photo</Text>
+              </TouchableOpacity>
+              {profilePhoto && (
+                <TouchableOpacity style={styles.photoActionButton} onPress={removeProfilePhoto}>
+                  <Text style={[styles.photoActionText, styles.removePhotoText]}>Remove</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
           
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>First Name</Text>
@@ -458,6 +659,22 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
               </View>
             ))
           )}
+          
+          {/* Payment History Button */}
+          <TouchableOpacity 
+            style={styles.paymentHistoryButton}
+            onPress={() => {
+              if (onNavigate) {
+                onNavigate('paymentHistory');
+              } else {
+                Alert.alert('Payment History', 'Payment history screen would open here. This shows all past payment transactions and receipts.');
+              }
+            }}
+          >
+            <MaterialIcons name="history" size={24} color={Theme.colors.secondary} />
+            <Text style={styles.paymentHistoryText}>View Payment History</Text>
+            <MaterialIcons name="chevron-right" size={24} color="#999" />
+          </TouchableOpacity>
         </View>
 
         {/* Notification Settings */}
@@ -666,13 +883,13 @@ const styles = StyleSheet.create({
     alignSelf: isTablet ? 'center' : 'stretch',
   },
   section: {
-    backgroundColor: Theme.colors.primary,
+    backgroundColor: '#FFFFFF',
     borderRadius: responsive.spacing(12, 16),
     padding: responsive.padding(20, 30),
     marginTop: responsive.spacing(20, 25),
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: Theme.colors.primary,
+    borderColor: Theme.colors.primary,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -684,7 +901,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: responsive.fontSize(18, 22),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: Theme.colors.primary,
     marginBottom: responsive.spacing(16, 20),
   },
   dangerTitle: {
@@ -696,27 +913,27 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: responsive.fontSize(14, 16),
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
+    color: Theme.colors.text.secondary,
     marginBottom: responsive.spacing(8, 10),
   },
   input: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: Theme.colors.border.light,
     borderRadius: responsive.spacing(8, 10),
     padding: responsive.padding(12, 16),
     fontSize: responsive.fontSize(16, 18),
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    color: '#FFFFFF',
+    backgroundColor: '#FFFFFF',
+    color: Theme.colors.text.primary,
     minHeight: deviceTypes.isAndroid ? 48 : 40,
   },
   inputDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    color: 'rgba(255,255,255,0.7)',
-    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: '#F5F5F5',
+    color: Theme.colors.text.secondary,
+    borderColor: Theme.colors.border.light,
   },
   inputNote: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
+    color: Theme.colors.text.secondary,
     marginTop: 4,
     fontStyle: 'italic',
   },
@@ -726,16 +943,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.2)',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   statusLabel: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
+    color: Theme.colors.text.secondary,
     fontWeight: '500',
   },
   statusValue: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: Theme.colors.text.primary,
   },
   verified: {
     color: '#4CAF50',
@@ -751,7 +968,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.2)',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   notificationInfo: {
     flex: 1,
@@ -760,12 +977,12 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Theme.colors.text.primary,
     marginBottom: 4,
   },
   notificationSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: Theme.colors.text.secondary,
   },
   actionButton: {
     flexDirection: 'row',
@@ -773,28 +990,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: Theme.colors.border.light,
   },
   dangerButton: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: '#FF4444',
   },
   actionButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Theme.colors.text.primary,
   },
   dangerButtonText: {
-    color: '#FFFFFF',
+    color: '#FF4444',
   },
   actionArrow: {
     fontSize: 18,
-    color: '#FFFFFF',
+    color: Theme.colors.text.secondary,
     fontWeight: 'bold',
   },
   bottomSpacing: {
@@ -807,21 +1024,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  sectionActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
+    borderColor: Theme.colors.border.light,
   },
   addButtonText: {
     marginLeft: 4,
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Theme.colors.primary,
   },
   emptyPaymentMethods: {
     alignItems: 'center',
@@ -831,23 +1052,23 @@ const styles = StyleSheet.create({
   emptyPaymentMethodsText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Theme.colors.text.primary,
     marginTop: 16,
     textAlign: 'center',
   },
   emptyPaymentMethodsSubtext: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: Theme.colors.text.secondary,
     marginTop: 8,
     textAlign: 'center',
   },
   paymentMethodCard: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: Theme.colors.border.light,
   },
   paymentMethodInfo: {
     flexDirection: 'row',
@@ -861,18 +1082,18 @@ const styles = StyleSheet.create({
   paymentMethodTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Theme.colors.text.primary,
     marginBottom: 4,
   },
   paymentMethodSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: Theme.colors.text.secondary,
   },
   defaultBadge: {
     fontSize: 12,
     fontWeight: '600',
     color: '#FFFFFF',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: Theme.colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
@@ -889,32 +1110,124 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
+    borderColor: Theme.colors.border.light,
     borderRadius: 6,
     marginRight: 8,
   },
   setDefaultButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Theme.colors.primary,
   },
   deletePaymentButton: {
     padding: 8,
     borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
+  paymentHistoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Theme.colors.border.light,
+  },
+  paymentHistoryText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    color: Theme.colors.text.primary,
+  },
+
+  // Profile Photo Styles
+  profilePhotoSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingVertical: 16,
+  },
+  profilePhotoContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  profilePhoto: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f0f0f0',
+  },
+  profilePhotoPlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    borderStyle: 'dashed',
+  },
+  profilePhotoEditIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  photoUploadOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profilePhotoActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  photoActionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Theme.colors.background.secondary,
+    borderWidth: 1,
+    borderColor: Theme.colors.border.light,
+  },
+  photoActionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Theme.colors.primary,
+  },
+  removePhotoText: {
+    color: '#ef4444',
+  },
+
   // Logout Button Styles
   logoutButton: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: Theme.colors.border.light,
   },
   logoutButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   logoutButtonText: {
-    color: '#FFFFFF',
+    color: Theme.colors.text.primary,
     marginLeft: 8,
   },
 });

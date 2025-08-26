@@ -1,35 +1,98 @@
+/**
+ * NotificationService - Enhanced Push Notification System
+ * Handles push notifications, local notifications, and in-app notification management
+ * Integrated with Supabase for real-time trip tracking notifications
+ */
+
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient } from '@supabase/supabase-js';
 
-// Configure notification behavior
+// Supabase client
+const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Configure notification behavior with enhanced settings
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const notificationData = notification.request.content.data;
+    const priority = notificationData?.priority || 'normal';
+    
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: priority === 'high' || notificationData?.type === 'arrival',
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      priority: priority === 'high' ? 
+        Notifications.AndroidNotificationPriority.HIGH : 
+        Notifications.AndroidNotificationPriority.DEFAULT,
+    };
+  },
 });
 
-export interface NotificationData extends Record<string, unknown> {
-  orderId?: string;
-  status?: string;
-  message?: string;
-  type?: 'order_update' | 'general' | 'promotion';
+export interface NotificationData {
+  id: string;
+  user_id: string;
+  trip_id?: string;
+  order_id?: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error' | 'status_update' | 'eta_update' | 'arrival' | 'order_update' | 'general' | 'promotion';
+  data: any;
+  push_sent: boolean;
+  push_sent_at?: string;
+  read_at?: string;
+  created_at: string;
+}
+
+export interface NotificationServiceConfig {
+  enablePushNotifications: boolean;
+  enableSound: boolean;
+  enableVibration: boolean;
+  enableBadge: boolean;
 }
 
 class NotificationService {
+  private static instance: NotificationService;
   private expoPushToken: string | null = null;
+  private isInitialized: boolean = false;
+  private config: NotificationServiceConfig;
+  private subscriptions: Map<string, any> = new Map();
 
-  async initialize(): Promise<string | null> {
+  constructor() {
+    this.config = {
+      enablePushNotifications: true,
+      enableSound: true,
+      enableVibration: true,
+      enableBadge: true,
+    };
+  }
+
+  static getInstance(): NotificationService {
+    if (!NotificationService.instance) {
+      NotificationService.instance = new NotificationService();
+    }
+    return NotificationService.instance;
+  }
+
+  /**
+   * Initialize the enhanced notification system
+   */
+  async initialize(): Promise<{ success: boolean; token?: string; error?: string }> {
     try {
+      console.log('🔔 Initializing Enhanced NotificationService...');
+
+      // Load saved configuration
+      await this.loadConfiguration();
+
       // Check if we're on a physical device
       if (!Device.isDevice) {
-        console.log('Push notifications only work on physical devices');
-        return null;
+        console.log('⚠️ Push notifications only work on physical devices');
+        return { success: false, error: 'Not a physical device' };
       }
 
       // Check for existing permissions
@@ -38,13 +101,25 @@ class NotificationService {
 
       // Request permissions if not already granted
       if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
+        console.log('📱 Requesting notification permissions...');
+        const { status } = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+            allowDisplayInCarPlay: true,
+            allowCriticalAlerts: false,
+            provideAppNotificationSettings: true,
+            allowProvisional: false,
+            allowAnnouncements: false,
+          },
+        });
         finalStatus = status;
       }
 
       if (finalStatus !== 'granted') {
-        console.log('Notification permissions denied');
-        return null;
+        console.log('❌ Notification permissions denied');
+        return { success: false, error: 'Notification permissions denied' };
       }
 
       // Get the push token
@@ -54,21 +129,20 @@ class NotificationService {
       // Store token locally for backend registration
       await AsyncStorage.setItem('pushToken', this.expoPushToken);
 
-      // Configure notification channel for Android
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('orders', {
-          name: 'Order Updates',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#667eea',
-        });
-      }
+      // Configure notification channels for Android
+      await this.createNotificationChannels();
 
-      console.log('Push token:', this.expoPushToken);
-      return this.expoPushToken;
+      // Setup notification listeners
+      this.setupNotificationListeners();
+
+      this.isInitialized = true;
+      console.log('✅ NotificationService initialized successfully');
+      console.log('🔑 Push token:', this.expoPushToken);
+      
+      return { success: true, token: this.expoPushToken };
     } catch (error) {
-      console.error('Failed to initialize notifications:', error);
-      return null;
+      console.error('❌ Failed to initialize notifications:', error);
+      return { success: false, error: error.message };
     }
   }
 

@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { driverService, Driver, OrderAssignment } from '../services/DriverService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
+import { DriverChatScreen } from '../components/DriverChatScreen';
 
 const { width, height } = Dimensions.get('window');
 const isTablet = width >= 768;
@@ -67,6 +68,10 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
   const [locationPermission, setLocationPermission] = useState<boolean>(false);
   const [showOrdersList, setShowOrdersList] = useState(false);
   const [mapZoomLevel, setMapZoomLevel] = useState(0.0922);
+  
+  // Communication modal state
+  const [showChatScreen, setShowChatScreen] = useState(false);
+  const [selectedTripForChat, setSelectedTripForChat] = useState<OrderAssignment | null>(null);
   
   // Bottom sheet animation
   const bottomSheetHeight = useRef(new Animated.Value(140)).current; // Increased default height
@@ -717,27 +722,40 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
           
           <ScrollView style={styles.ordersList} showsVerticalScrollIndicator={false}>
             {acceptedTrips.map((trip, index) => (
-              <TouchableOpacity
-                key={trip.id || index}
-                style={[styles.orderListItem, { backgroundColor: theme.success + '10' }]}
-                onPress={() => {
-                  onNavigateToOrder(trip);
-                }}
-              >
-                <View style={styles.orderListHeader}>
-                  <Text style={styles.orderListPrice}>AED {trip.estimated_fare}</Text>
-                  <Text style={[styles.orderListDistance, { color: theme.success }]}>ACCEPTED</Text>
-                </View>
-                <Text style={styles.orderListAddress} numberOfLines={1}>
-                  📍 {trip.pickup_address || 'Pickup Location'}
-                </Text>
-                <Text style={styles.orderListMaterial}>
-                  🚛 {trip.material_type || 'General Materials'}
-                </Text>
-                <Text style={styles.orderListMaterial}>
-                  📦 {trip.materials?.[0]?.description || 'Materials delivery'}
-                </Text>
-              </TouchableOpacity>
+              <View key={trip.id || index} style={[styles.orderListItem, { backgroundColor: theme.success + '10' }]}>
+                <TouchableOpacity
+                  style={styles.tripMainContent}
+                  onPress={() => {
+                    onNavigateToOrder(trip);
+                  }}
+                >
+                  <View style={styles.orderListHeader}>
+                    <Text style={styles.orderListPrice}>AED {trip.estimated_fare}</Text>
+                    <Text style={[styles.orderListDistance, { color: theme.success }]}>ACCEPTED</Text>
+                  </View>
+                  <Text style={styles.orderListAddress} numberOfLines={1}>
+                    📍 {trip.pickup_address || 'Pickup Location'}
+                  </Text>
+                  <Text style={styles.orderListMaterial}>
+                    🚛 {trip.material_type || 'General Materials'}
+                  </Text>
+                  <Text style={styles.orderListMaterial}>
+                    📦 {trip.materials?.[0]?.description || 'Materials delivery'}
+                  </Text>
+                </TouchableOpacity>
+                
+                {/* Chat Button */}
+                <TouchableOpacity
+                  style={styles.chatButton}
+                  onPress={() => {
+                    setSelectedTripForChat(trip);
+                    setShowChatScreen(true);
+                  }}
+                >
+                  <Ionicons name="chatbubble-outline" size={20} color={theme.accent} />
+                  <Text style={styles.chatButtonText}>Chat with Customer</Text>
+                </TouchableOpacity>
+              </View>
             ))}
             {acceptedTrips.length === 0 && (
               <View style={styles.emptyState}>
@@ -952,6 +970,18 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
       )}
       
       {renderBottomSheet()}
+      
+      {/* Customer Chat Screen */}
+      {selectedTripForChat && (
+        <DriverChatScreen
+          trip={selectedTripForChat}
+          isVisible={showChatScreen}
+          onClose={() => {
+            setShowChatScreen(false);
+            setSelectedTripForChat(null);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -1372,6 +1402,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.lightText,
     marginTop: 4,
+  },
+  tripMainContent: {
+    flex: 1,
+  },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.accent + '10',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 10,
+    gap: 5,
+  },
+  chatButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.accent,
   },
 });
 

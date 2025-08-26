@@ -16,6 +16,12 @@ import { driverService } from '../services/DriverService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 import VehicleManagementScreen from './VehicleManagementScreen';
 import SpecializationsManagementScreen from './SpecializationsManagementScreen';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28'
+);
 
 const { width } = Dimensions.get('window');
 const isTablet = width >= 768;
@@ -77,8 +83,15 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
 
   useEffect(() => {
     loadDriverProfile();
-    loadDriverTrucks(); // NEW: Load actual truck data
   }, []);
+
+  // NEW: Load trucks when driver profile is available
+  useEffect(() => {
+    if (driverProfile) {
+      console.log('🔄 [PROFILE DEBUG] Driver profile available, loading trucks...');
+      loadDriverTrucks();
+    }
+  }, [driverProfile]);
 
   const loadDriverProfile = async () => {
     try {
@@ -170,15 +183,29 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
   // NEW: Load driver's actual trucks from the fleet
   const loadDriverTrucks = async () => {
     try {
-      console.log('🚛 Loading driver trucks from fleet...');
+      console.log('🚛 [PROFILE DEBUG] Loading driver trucks from fleet...');
+      
+      // Check if we have a driver profile
+      if (!driverProfile?.id) {
+        console.log('❌ [PROFILE DEBUG] No driver profile available');
+        setDriverTrucks([]);
+        return;
+      }
+      
+      console.log('🔍 [PROFILE DEBUG] Using driver profile id:', driverProfile.id);
       
       // Get detailed truck information from the fleet
+      console.log('🔍 [PROFILE DEBUG] Calling driverService.getDriverTruckDetails()...');
       const truckDetails = await driverService.getDriverTruckDetails();
-      console.log('✅ Driver truck details:', truckDetails);
+      console.log('✅ [PROFILE DEBUG] Driver truck details returned:', truckDetails);
+      
+      if (truckDetails.length === 0) {
+        console.log('⚠️ [PROFILE DEBUG] No trucks found for driver:', driverProfile.id);
+      }
       
       setDriverTrucks(truckDetails);
     } catch (error) {
-      console.error('❌ Error loading driver trucks:', error);
+      console.error('❌ [PROFILE DEBUG] Error loading driver trucks:', error);
       setDriverTrucks([]);
     }
   };
@@ -269,20 +296,34 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
 
         {/* NEW: Actual Fleet Trucks */}
         <View style={styles.vehicleCard}>
-          <Text style={styles.vehicleSubtitle}>Fleet Assignment</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.vehicleSubtitle}>Fleet Assignment</Text>
+            {driverTrucks && driverTrucks.length > 0 && driverTrucks[0]?.source === 'driver_profile' && (
+              <View style={styles.profileSourceBadge}>
+                <Text style={styles.profileSourceText}>From Registration</Text>
+              </View>
+            )}
+          </View>
           {driverTrucks && driverTrucks.length > 0 ? (
             driverTrucks.map((truck, index) => (
               <View key={truck.id || index} style={styles.truckCard}>
                 <View style={styles.truckHeader}>
-                  <Ionicons name="car-sport" size={20} color={theme.primary} />
+                  <Ionicons 
+                    name={truck.source === 'driver_profile' ? "clipboard-outline" : "car-sport"} 
+                    size={20} 
+                    color={theme.primary} 
+                  />
                   <Text style={styles.truckTitle}>
-                    {(truck.truck_types as any)?.name || 'Unknown Type'}
+                    {(truck.truck_types as any)?.name || truck.model || 'Unknown Type'}
                   </Text>
                   <View style={[styles.statusBadge, { 
                     backgroundColor: truck.is_available ? theme.success : theme.warning 
                   }]}>
                     <Text style={styles.statusText}>
-                      {truck.is_available ? 'Available' : 'In Use'}
+                      {truck.source === 'driver_profile' 
+                        ? (truck.truck_added_to_fleet ? 'Pending Fleet' : 'Registered') 
+                        : (truck.is_available ? 'Available' : 'In Use')
+                      }
                     </Text>
                   </View>
                 </View>
@@ -291,7 +332,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                   <View style={styles.vehicleRow}>
                     <Text style={styles.vehicleLabel}>Vehicle:</Text>
                     <Text style={styles.vehicleValue}>
-                      {truck.make} {truck.model} ({truck.year})
+                      {truck.make} {truck.model} {truck.year && `(${truck.year})`}
                     </Text>
                   </View>
                   <View style={styles.vehicleRow}>
@@ -312,15 +353,26 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                       <Text style={styles.vehicleValue}>{(truck.truck_types as any).description}</Text>
                     </View>
                   )}
+                  {truck.source === 'driver_profile' && (
+                    <View style={styles.profileNoteContainer}>
+                      <Ionicons name="information-circle" size={16} color={theme.primary} />
+                      <Text style={styles.profileNoteText}>
+                        {truck.truck_added_to_fleet 
+                          ? "Vehicle pending fleet assignment by admin"
+                          : "Contact admin to add this vehicle to fleet"
+                        }
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
             ))
           ) : (
             <View style={styles.noTrucksContainer}>
               <Ionicons name="car-outline" size={40} color={theme.lightText} />
-              <Text style={styles.noTrucksText}>No trucks assigned yet</Text>
+              <Text style={styles.noTrucksText}>No vehicles found</Text>
               <Text style={styles.noTrucksSubtext}>
-                Once approved, your vehicle will appear here
+                Complete your registration to add vehicle information
               </Text>
             </View>
           )}
@@ -773,5 +825,33 @@ const styles = StyleSheet.create({
     color: theme.lightText,
     marginTop: 4,
     textAlign: 'center',
+  },
+  profileSourceBadge: {
+    backgroundColor: theme.secondary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  profileSourceText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.white,
+  },
+  profileNoteContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.primary,
+  },
+  profileNoteText: {
+    fontSize: 12,
+    color: theme.primary,
+    marginLeft: 6,
+    flex: 1,
   },
 });

@@ -3,7 +3,7 @@
  * Matches Uber's home screen design with search and suggestions
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,11 @@ import {
   TextInput,
   ScrollView,
   Dimensions,
+  Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authService } from '../AuthServiceSupabase';
 import { Theme } from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -37,6 +40,25 @@ const UberStyleMainDashboard: React.FC<UberMainDashboardProps> = ({
   userName = "User"
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadProfilePhoto();
+  }, []);
+
+  const loadProfilePhoto = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (user?.id) {
+        const savedPhoto = await AsyncStorage.getItem(`profile_photo_${user.id}`);
+        if (savedPhoto) {
+          setProfilePhoto(savedPhoto);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading profile photo:', error);
+    }
+  };
 
   const handleNavigateToLocation = () => {
     console.log('🔄 Main search touched - navigating to location');
@@ -88,8 +110,12 @@ const UberStyleMainDashboard: React.FC<UberMainDashboardProps> = ({
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.appTitle}>YouMats</Text>
-          <TouchableOpacity onPress={handleNavigateToProfile}>
-            <MaterialIcons name="account-circle" size={32} color={Theme.colors.primary} />
+          <TouchableOpacity onPress={handleNavigateToProfile} style={styles.profileButton}>
+            {profilePhoto ? (
+              <Image source={{ uri: profilePhoto }} style={styles.profilePhoto} />
+            ) : (
+              <MaterialIcons name="account-circle" size={32} color={Theme.colors.primary} />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -186,6 +212,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  profileButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  profilePhoto: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   appTitle: {
     fontSize: 28,

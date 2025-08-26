@@ -1,0 +1,591 @@
+# Database Tables & Relations Reference Guide
+*Building Material Delivery App - Complete Schema Documentation*
+
+## Table of Contents
+- [User Management](#user-management)
+- [Driver System](#driver-system)
+- [Fleet & Vehicle Management](#fleet--vehicle-management)
+- [Order & Trip Management](#order--trip-management)
+- [Location & Address System](#location--address-system)
+- [Real-time Tracking](#real-time-tracking)
+- [Payment System](#payment-system)
+- [Support System](#support-system)
+- [System Tables](#system-tables)
+- [Key Relationships](#key-relationships)
+
+---
+
+## User Management
+
+### `users` (Primary user table)
+**Purpose**: Central user registry for customers, drivers, and admins
+```sql
+- id: uuid (PK)
+- email: varchar (UNIQUE)
+- password_hash: varchar
+- first_name: varchar
+- last_name: varchar
+- phone: varchar (UNIQUE)
+- role: varchar (customer/driver/admin)
+- user_type: text (default: 'customer')
+- is_active: boolean (default: true)
+- is_online: boolean (default: false)
+- current_latitude: numeric
+- current_longitude: numeric
+- last_location_update: timestamp
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+**Key Relationships**:
+- → `driver_profiles.user_id` (1:1)
+- → `trip_requests.customer_id` (1:many)
+- → `orders.customer_id` (1:many)
+- → `support_tickets.user_id` (1:many)
+
+---
+
+## Driver System
+
+### `driver_profiles` (Extended driver information)
+**Purpose**: Driver-specific data, vehicle info, and approval status
+```sql
+- id: uuid (PK)
+- user_id: uuid (FK → users.id, UNIQUE)
+- first_name: text
+- last_name: text
+- phone: text
+- years_experience: integer (default: 0)
+- specializations: jsonb
+- rating: numeric (default: 0.00)
+- total_trips: integer (default: 0)
+- total_earnings: numeric (default: 0.00)
+- is_available: boolean (default: false)
+- status: text (default: 'offline')
+-
+- # Vehicle Information
+- profile_image_url: text
+- vehicle_plate: text
+- vehicle_model: text
+- vehicle_year: integer
+- vehicle_max_payload: numeric (default: 5.0)
+- vehicle_max_volume: numeric (default: 10.0)
+- 
+- # Truck Type Management
+- current_truck_id: uuid (FK → trucks.id)
+- selected_truck_type_id: uuid (FK → truck_types.id)
+- custom_truck_type_name: text
+- custom_truck_description: text
+- has_custom_truck_type: boolean (default: false)
+- truck_added_to_fleet: boolean (default: false)
+- preferred_truck_types: jsonb
+- 
+- # Approval Workflow
+- is_approved: boolean (default: false)
+- approval_status: text (default: 'pending')
+- application_submitted_at: timestamp
+- approved_at: timestamp
+- approved_by: uuid
+- rejection_reason: text
+- admin_notes: text
+- 
+- # Location & Preferences
+- max_distance_km: integer (default: 50)
+- last_seen: timestamp
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+### `driver_documents` (Document verification system)
+**Purpose**: Store and track driver document uploads for verification
+```sql
+- id: uuid (PK)
+- driver_id: uuid (FK → driver_profiles.id)
+- document_type: varchar (FK → document_types_reference.id)
+- file_name: varchar
+- file_size: integer (default: 0)
+- file_url: text
+- status: varchar (default: 'pending')
+- review_notes: text
+- reviewed_by: uuid
+- reviewed_at: timestamp
+- uploaded_at: timestamp
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+### `document_types_reference` (Document type definitions)
+**Purpose**: Define required document types for driver verification
+```sql
+- id: varchar (PK)
+- title: varchar
+- description: text
+- required: boolean (default: false)
+- accepted_formats: array
+- max_file_size: integer (default: 5242880)
+- sort_order: integer (default: 0)
+```
+
+### `approval_history` (Audit trail for status changes)
+**Purpose**: Track all driver approval status changes
+```sql
+- id: uuid (PK)
+- driver_id: uuid (FK → driver_profiles.id)
+- previous_status: varchar
+- new_status: varchar
+- changed_by: uuid
+- reason: text
+- notes: text
+- created_at: timestamp
+```
+
+### `driver_locations` (Real-time driver positioning)
+**Purpose**: Track driver locations and current trip assignments
+```sql
+- id: uuid (PK)
+- driver_id: uuid (FK → driver_profiles.id, UNIQUE)
+- latitude: numeric
+- longitude: numeric
+- accuracy: numeric
+- speed: numeric
+- heading: numeric
+- status: text (default: 'online')
+- current_trip_id: uuid (FK → trip_requests.id)
+- current_order_id: uuid (FK → orders.id)
+- updated_at: timestamp
+- created_at: timestamp
+```
+
+---
+
+## Fleet & Vehicle Management
+
+### `truck_types` (Vehicle category definitions)
+**Purpose**: Define standard truck categories with specifications
+```sql
+- id: uuid (PK)
+- name: text
+- description: text
+- payload_capacity: numeric
+- volume_capacity: numeric
+- suitable_materials: jsonb
+- base_rate_per_km: numeric (default: 3.00)
+- base_rate_per_hour: numeric (default: 50.00)
+- icon_url: text
+- is_active: boolean (default: true)
+- created_at: timestamp
+```
+
+### `trucks` (Individual vehicle inventory)
+**Purpose**: Specific truck instances with current status
+```sql
+- id: uuid (PK)
+- truck_type_id: uuid (FK → truck_types.id)
+- license_plate: text (UNIQUE)
+- make: text
+- model: text
+- year: integer
+- color: text
+- max_payload: numeric
+- max_volume: numeric
+- current_latitude: numeric
+- current_longitude: numeric
+- current_address: text
+- is_available: boolean (default: true)
+- is_active: boolean (default: true)
+- current_driver_id: uuid (FK → users.id)
+- rate_per_km: numeric
+- rate_per_hour: numeric
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+---
+
+## Order & Trip Management
+
+### `trip_requests` (Uber-style delivery requests)
+**Purpose**: Customer requests for material transport (marketplace model)
+```sql
+- id: uuid (PK)
+- customer_id: uuid (FK → users.id)
+-
+- # Pickup Location
+- pickup_latitude: numeric
+- pickup_longitude: numeric
+- pickup_address: jsonb
+- 
+- # Delivery Location
+- delivery_latitude: numeric
+- delivery_longitude: numeric
+- delivery_address: jsonb
+- 
+- # Load Information
+- material_type: text
+- estimated_weight_tons: numeric
+- estimated_volume_m3: numeric
+- load_description: text
+- special_requirements: jsonb
+- 
+- # Vehicle Requirements
+- required_truck_type_id: uuid (FK → truck_types.id)
+- requires_crane: boolean (default: false)
+- requires_hydraulic_lift: boolean (default: false)
+- 
+- # Scheduling
+- pickup_time_preference: text (default: 'asap')
+- scheduled_pickup_time: timestamp
+- estimated_duration_minutes: integer
+- estimated_distance_km: numeric
+- 
+- # Pricing
+- quoted_price: numeric
+- final_price: numeric
+- 
+- # Trip Lifecycle
+- status: text (default: 'pending')
+- assigned_driver_id: uuid (FK → users.id)
+- assigned_truck_id: uuid (FK → trucks.id)
+- created_at: timestamp
+- matched_at: timestamp
+- pickup_started_at: timestamp
+- pickup_completed_at: timestamp
+- delivery_started_at: timestamp
+- delivered_at: timestamp
+- 
+- # Ratings & Feedback
+- customer_rating: integer
+- customer_feedback: text
+- driver_rating: integer
+- driver_feedback: text
+```
+
+### `orders` (E-commerce style material orders)
+**Purpose**: Traditional orders with inventory management
+```sql
+- id: uuid (PK)
+- order_type: varchar
+- customer_id: uuid (FK → users.id)
+- status: varchar (default: 'pending')
+- total_weight: numeric
+- total_volume: numeric
+- pickup_address: jsonb
+- delivery_address: jsonb
+- scheduled_pickup_time: timestamp
+- scheduled_delivery_time: timestamp
+- actual_pickup_time: timestamp
+- actual_delivery_time: timestamp
+- driver_id: uuid (FK → users.id)
+- vehicle_id: uuid
+- special_requirements: jsonb
+- estimated_distance: numeric
+- estimated_duration: integer
+- delivery_fee: numeric
+- notes: text
+- sales_order_id: varchar
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+### `order_items` (Individual materials in orders)
+**Purpose**: Line items for material orders
+```sql
+- id: uuid (PK)
+- order_id: uuid (FK → orders.id)
+- material_type: varchar
+- description: text
+- quantity: numeric
+- unit: varchar
+- weight: numeric
+- volume: numeric
+- special_handling: jsonb
+- price_per_unit: numeric
+- total_price: numeric
+- created_at: timestamp
+```
+
+### `materials` (Product catalog)
+**Purpose**: Available building materials with pricing
+```sql
+- id: uuid (PK)
+- name: varchar
+- description: text
+- category: varchar
+- unit: varchar
+- price_per_unit: numeric
+- stock_quantity: integer (default: 0)
+- image_url: text
+- is_available: boolean (default: true)
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+---
+
+## Location & Address System
+
+### `addresses` (Reusable address database)
+**Purpose**: Smart address system with accessibility features
+```sql
+- id: uuid (PK)
+- name: text
+- formatted_address: text
+- latitude: numeric
+- longitude: numeric
+- city: text
+- area_type: text
+- business_type: text
+- 
+- # Accessibility Features
+- truck_accessible: boolean (default: true)
+- loading_dock: boolean (default: false)
+- crane_available: boolean (default: false)
+- max_vehicle_size: text
+- operating_hours: jsonb
+- contact_info: jsonb
+- 
+- # Analytics & Search
+- search_tags: array
+- usage_count: integer (default: 0)
+- is_verified: boolean (default: false)
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+---
+
+## Real-time Tracking
+
+### `trip_tracking` (Comprehensive trip monitoring)
+**Purpose**: Real-time tracking data during active trips
+```sql
+- id: uuid (PK)
+- trip_id: uuid (FK → trip_requests.id)
+- driver_id: uuid (FK → users.id)
+- truck_id: uuid (FK → trucks.id)
+- 
+- # Location Data
+- driver_latitude: numeric
+- driver_longitude: numeric
+- customer_latitude: numeric
+- customer_longitude: numeric
+- heading: numeric
+- speed_kmh: numeric
+- current_speed_kmh: numeric
+- 
+- # Trip Progress
+- distance_to_destination_km: numeric
+- distance_remaining_km: numeric
+- estimated_arrival: timestamp
+- eta_minutes: integer
+- traffic_conditions: text
+- status_update: text
+- milestone: text
+- status: text
+- 
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+### `delivery_updates` (Status notifications)
+**Purpose**: Status changes and customer notifications
+```sql
+- id: uuid (PK)
+- trip_id: uuid (FK → trip_requests.id)
+- order_id: uuid (FK → orders.id)
+- driver_id: uuid (FK → driver_profiles.id)
+- status: text
+- estimated_arrival: timestamp
+- location: jsonb
+- message: text
+- created_at: timestamp
+```
+
+### `live_delivery_status` (Real-time view)
+**Purpose**: Comprehensive live delivery status (appears to be a view)
+```sql
+- delivery_type: text
+- delivery_id: uuid
+- customer_id: uuid
+- pickup_latitude/longitude: numeric
+- pickup_address: jsonb
+- delivery_latitude/longitude: numeric
+- delivery_address: jsonb
+- status: text
+- assigned_driver_id: uuid
+- total_amount: numeric
+- description: text
+- driver_latitude/longitude: numeric
+- eta_minutes: integer
+- distance_remaining_km: numeric
+- current_speed_kmh: numeric
+- driver_first_name/last_name: text
+- driver_phone: text
+- vehicle_plate: text
+- vehicle_model: text
+- driver_rating: numeric
+```
+
+---
+
+## Payment System
+
+### `payment_methods` (Stored payment options)
+**Purpose**: User payment method storage
+```sql
+- id: uuid (PK)
+- user_id: uuid (FK → users.id)
+- type: varchar
+- last4: varchar
+- brand: varchar
+- expiry_month: integer
+- expiry_year: integer
+- email: varchar
+- stripe_payment_method_id: varchar
+- is_default: boolean (default: false)
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+### `payments` (Transaction records)
+**Purpose**: Payment processing and history
+```sql
+- id: uuid (PK)
+- user_id: uuid (FK → users.id)
+- order_id: varchar
+- payment_method_id: uuid (FK → payment_methods.id)
+- stripe_payment_intent_id: varchar
+- amount: numeric
+- currency: varchar (default: 'USD')
+- status: varchar
+- failure_reason: text
+- refund_amount: numeric (default: 0)
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+---
+
+## Support System
+
+### `support_tickets` (Customer support cases)
+**Purpose**: Support case management
+```sql
+- id: uuid (PK)
+- user_id: uuid (FK → users.id)
+- subject: varchar
+- description: text
+- category: varchar
+- priority: varchar (default: 'medium')
+- status: varchar (default: 'open')
+- assigned_to: uuid (FK → users.id)
+- resolved_at: timestamp
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+### `support_messages` (Support conversation)
+**Purpose**: Messages within support tickets
+```sql
+- id: uuid (PK)
+- ticket_id: uuid (FK → support_tickets.id)
+- user_id: uuid (FK → users.id)
+- message: text
+- is_staff_reply: boolean (default: false)
+- created_at: timestamp
+```
+
+---
+
+## System Tables
+
+### `email_logs` (Email delivery tracking)
+```sql
+- id: uuid (PK)
+- driver_id: uuid (FK → driver_profiles.id)
+- email_type: varchar
+- email_address: varchar
+- subject: varchar
+- sent_at: timestamp
+- status: varchar (default: 'pending')
+- error_message: text
+- created_at: timestamp
+```
+
+### Authentication Tables (auth schema)
+- `users`: Supabase auth users
+- `sessions`, `refresh_tokens`: Session management
+- `identities`: Social login identities
+- `mfa_*`: Multi-factor authentication
+- `sso_*`: Single sign-on configuration
+
+### Realtime Tables (realtime schema)
+- `messages`: Real-time messaging
+- `messages_YYYY_MM_DD`: Date-partitioned message storage
+- `subscription`: Real-time subscriptions
+
+### Storage Tables (storage schema)
+- `buckets`: File storage buckets
+- `objects`: Stored files
+- `s3_*`: S3 multipart upload management
+
+---
+
+## Key Relationships
+
+### User Hierarchy
+```
+users (1) ←→ (1) driver_profiles
+users (1) → (many) trip_requests [as customer]
+users (1) → (many) trip_requests [as assigned_driver]
+users (1) → (many) orders [as customer]
+users (1) → (many) support_tickets
+```
+
+### Driver Workflow
+```
+driver_profiles (1) → (many) driver_documents
+driver_profiles (1) → (many) approval_history
+driver_profiles (1) ←→ (1) driver_locations
+driver_profiles (1) → (many) email_logs
+```
+
+### Trip Flow
+```
+trip_requests (1) → (many) trip_tracking
+trip_requests (1) → (many) delivery_updates
+trip_requests ←→ truck_types [via required_truck_type_id]
+trip_requests ←→ trucks [via assigned_truck_id]
+```
+
+### Order Management
+```
+orders (1) → (many) order_items
+orders (1) → (many) delivery_updates
+materials → order_items [via material_type]
+```
+
+### Fleet Management
+```
+truck_types (1) → (many) trucks
+truck_types (1) → (many) trip_requests [via required_truck_type_id]
+trucks (1) → (many) trip_tracking
+trucks ←→ users [via current_driver_id]
+```
+
+### Payment Flow
+```
+users (1) → (many) payment_methods
+payment_methods (1) → (many) payments
+```
+
+---
+
+## Important Notes
+
+1. **Dual Business Models**: The system supports both marketplace (trip_requests) and e-commerce (orders/materials) models
+2. **Real-time Capability**: Comprehensive location tracking and status updates
+3. **Approval Workflow**: Multi-step driver verification with document management
+4. **Flexible Address System**: Addresses include construction site accessibility features
+5. **Audit Trails**: Most operations are logged with timestamps and status changes
+6. **Extensible Design**: JSONB fields allow for flexible data storage without schema changes

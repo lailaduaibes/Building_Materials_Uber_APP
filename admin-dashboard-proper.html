@@ -494,14 +494,35 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
         
         // Approve driver (proper implementation)
         async function approveDriver(driverId, driverName) {
-            if (!confirm(`Approve ${driverName} as a professional driver?`)) {
+            if (!confirm(`Approve ${driverName} as a professional driver and add their vehicle to the fleet?`)) {
                 return;
             }
             
             try {
-                showMessage(`Approving ${driverName}...`, 'info');
+                showMessage(`Approving ${driverName} and adding vehicle to fleet...`, 'info');
                 
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${driverId}`, {
+                // First, get the driver's complete profile including vehicle info
+                const driverResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${driverId}&select=*`, {
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!driverResponse.ok) {
+                    throw new Error('Failed to fetch driver profile');
+                }
+                
+                const driverData = await driverResponse.json();
+                const driver = driverData[0];
+                
+                if (!driver) {
+                    throw new Error('Driver not found');
+                }
+                
+                // Step 1: Approve the driver
+                const approvalResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${driverId}`, {
                     method: 'PATCH',
                     headers: {
                         'apikey': SUPABASE_SERVICE_KEY,
@@ -513,16 +534,63 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
                         is_approved: true,
                         approval_status: 'approved',
                         approved_at: new Date().toISOString(),
+                        truck_added_to_fleet: true,
                         updated_at: new Date().toISOString()
                     })
                 });
                 
-                if (!response.ok) {
-                    const error = await response.json();
+                if (!approvalResponse.ok) {
+                    const error = await approvalResponse.json();
                     throw new Error(error.message || 'Failed to approve driver');
                 }
                 
-                showMessage(`✅ ${driverName} has been approved successfully!`, 'success');
+                // Step 2: Add driver's vehicle to the trucks fleet (if they have vehicle info)
+                if (driver.vehicle_plate && driver.vehicle_model) {
+                    console.log('Adding vehicle to fleet:', {
+                        plate: driver.vehicle_plate,
+                        model: driver.vehicle_model,
+                        userId: driver.user_id
+                    });
+                    
+                    const truckData = {
+                        license_plate: driver.vehicle_plate,
+                        make: driver.vehicle_model?.split(' ')[0] || 'Unknown',
+                        model: driver.vehicle_model || 'Unknown',
+                        year: driver.vehicle_year || new Date().getFullYear(),
+                        max_payload: driver.vehicle_max_payload || 5.0,
+                        max_volume: driver.vehicle_max_volume || 10.0,
+                        current_driver_id: driver.user_id,
+                        is_available: true,  // ✅ Ensure truck is available for trips
+                        is_active: true,
+                        truck_type_id: '69949f18-3e1b-4db2-96fc-5dea17fc658f', // Default to Small Truck type
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    };
+                    
+                    const truckResponse = await fetch(`${SUPABASE_URL}/rest/v1/trucks`, {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_SERVICE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify(truckData)
+                    });
+                    
+                    if (!truckResponse.ok) {
+                        const truckError = await truckResponse.json();
+                        console.warn('Failed to add vehicle to fleet:', truckError);
+                        showMessage(`✅ ${driverName} approved, but vehicle could not be added to fleet: ${truckError.message}`, 'warning');
+                    } else {
+                        const truckResult = await truckResponse.json();
+                        console.log('Vehicle added to fleet successfully:', truckResult);
+                        showMessage(`✅ ${driverName} approved and vehicle (${driver.vehicle_plate}) added to fleet!`, 'success');
+                    }
+                } else {
+                    showMessage(`✅ ${driverName} approved! (No vehicle information to add to fleet)`, 'success');
+                }
+                
                 setTimeout(() => {
                     loadDashboard();
                 }, 2000);

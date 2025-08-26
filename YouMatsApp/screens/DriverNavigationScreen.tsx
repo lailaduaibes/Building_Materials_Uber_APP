@@ -154,6 +154,14 @@ const DriverNavigationScreen: React.FC<Props> = ({
   const handleArrivedAtPickup = async () => {
     setCurrentStep('arrived_at_pickup');
     
+    // Send arrival notification to customer
+    try {
+      await driverService.sendArrivalNotification(order.id, 'pickup');
+      console.log('📍 Pickup arrival notification sent to customer');
+    } catch (error) {
+      console.error('⚠️ Failed to send pickup arrival notification:', error);
+    }
+    
     // First, update database to "in_transit" status when starting the trip
     try {
       const success = await driverService.updateTripStatus(order.id, 'start_trip');
@@ -198,6 +206,12 @@ const DriverNavigationScreen: React.FC<Props> = ({
 
   const handleArrivedAtDelivery = () => {
     setCurrentStep('arrived_at_delivery');
+    
+    // Send arrival notification to customer
+    driverService.sendArrivalNotification(order.id, 'delivery')
+      .then(() => console.log('📍 Delivery arrival notification sent to customer'))
+      .catch(error => console.error('⚠️ Failed to send delivery arrival notification:', error));
+    
     Alert.alert(
       'Delivery Confirmation',
       'Have you completed the delivery?',

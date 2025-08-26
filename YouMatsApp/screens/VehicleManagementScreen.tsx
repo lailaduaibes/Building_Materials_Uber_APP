@@ -110,6 +110,7 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved': return theme.success;
+      case 'in_use': return theme.primary;
       case 'pending': return theme.warning;
       case 'rejected': return theme.error;
       default: return theme.accent;
@@ -119,9 +120,20 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'approved': return 'checkmark-circle';
+      case 'in_use': return 'car';
       case 'pending': return 'time-outline';
       case 'rejected': return 'close-circle';
       default: return 'help-circle';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'approved': return 'Available';
+      case 'in_use': return 'In Use';
+      case 'pending': return 'Pending';
+      case 'rejected': return 'Rejected';
+      default: return 'Unknown';
     }
   };
 
@@ -148,7 +160,7 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
               color={theme.white} 
             />
             <Text style={styles.statusText}>
-              {vehicle.verification_status || 'Pending'}
+              {getStatusLabel(vehicle.verification_status || 'pending')}
             </Text>
           </View>
         </View>

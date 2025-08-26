@@ -480,6 +480,63 @@ class AuthService {
     }
   }
 
+  // Update user profile information
+  async updateProfile(profileData: { firstName: string; lastName: string; phone?: string }): Promise<AuthResponse> {
+    try {
+      if (!this.currentSession?.user) {
+        return {
+          success: false,
+          message: 'User not authenticated',
+          error: 'No active session',
+        };
+      }
+
+      // Update user profile in the users table
+      const { error } = await this.supabase
+        .from('users')
+        .update({
+          first_name: profileData.firstName,
+          last_name: profileData.lastName,
+          phone: profileData.phone || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', this.currentSession.user.id);
+
+      if (error) {
+        console.error('❌ Profile update error:', error);
+        return {
+          success: false,
+          message: error.message || 'Failed to update profile',
+          error: error.message,
+        };
+      }
+
+      // Update local user data
+      if (this.currentUser) {
+        this.currentUser = {
+          ...this.currentUser,
+          firstName: profileData.firstName,
+          lastName: profileData.lastName,
+          phone: profileData.phone || '',
+        };
+        await this.storeUserData(this.currentUser);
+      }
+
+      console.log('✅ Profile updated successfully');
+      return {
+        success: true,
+        message: 'Profile updated successfully!',
+      };
+    } catch (error: any) {
+      console.error('💥 Profile update error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to update profile',
+        error: error.message,
+      };
+    }
+  }
+
   // Storage helpers
   private async storeUserData(user: User): Promise<void> {
     try {

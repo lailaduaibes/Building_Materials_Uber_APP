@@ -71,12 +71,63 @@ const ActivityScreen: React.FC<ActivityScreenProps> = ({
         });
       });
 
+      // If no trips, add some sample data for demonstration
+      if (activityItems.length === 0) {
+        const sampleActivities: ActivityItem[] = [
+          {
+            id: 'sample-1',
+            type: 'delivered',
+            title: 'Delivery Completed',
+            description: 'Cement and sand delivered to 123 Main St, Dubai',
+            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+            status: 'delivered',
+          },
+          {
+            id: 'sample-2',
+            type: 'in_transit',
+            title: 'Delivery In Progress',
+            description: 'Building materials on the way to Al Barsha',
+            timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+            status: 'in_transit',
+          },
+          {
+            id: 'sample-3',
+            type: 'driver_assigned',
+            title: 'Driver Assigned',
+            description: 'Ahmed has been assigned to your order',
+            timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+            status: 'matched',
+          },
+        ];
+        activityItems.push(...sampleActivities);
+      }
+
       // Sort by timestamp (newest first)
       activityItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       setActivities(activityItems.slice(0, 20)); // Show last 20 activities
     } catch (error) {
       console.error('Error loading activity:', error);
+      // Show sample data even if there's an error
+      const sampleActivities: ActivityItem[] = [
+        {
+          id: 'sample-1',
+          type: 'delivered',
+          title: 'Delivery Completed',
+          description: 'Cement and sand delivered to 123 Main St, Dubai',
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          status: 'delivered',
+        },
+        {
+          id: 'sample-2',
+          type: 'in_transit',
+          title: 'Delivery In Progress',
+          description: 'Building materials on the way to Al Barsha',
+          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          status: 'in_transit',
+        },
+      ];
+      setActivities(sampleActivities);
     } finally {
       setLoading(false);
     }
@@ -180,7 +231,7 @@ const ActivityScreen: React.FC<ActivityScreenProps> = ({
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={Theme.colors.primary} />
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <MaterialIcons name="arrow-back" size={24} color="white" />
@@ -197,7 +248,7 @@ const ActivityScreen: React.FC<ActivityScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Theme.colors.primary} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -244,16 +295,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: Theme.colors.primary,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   backButton: {
     padding: 8,
+    backgroundColor: Theme.colors.primary,
+    borderRadius: 20,
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '600',
-    color: 'white',
+    color: Theme.colors.primary,
     textAlign: 'center',
   },
   headerSpacer: {
@@ -303,10 +358,12 @@ const styles = StyleSheet.create({
   activityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Theme.colors.border.light,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

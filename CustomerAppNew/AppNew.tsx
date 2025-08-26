@@ -28,19 +28,18 @@ import { Screen, Button, Card } from './components';
 
 // Import our new screens (renamed for Uber-style with blue theme)
 import WelcomeScreen from './screens/WelcomeScreen';
-import UberStyleDashboard from './screens/UberStyleDashboard';
 import { AuthScreensSupabase } from './AuthScreensSupabase';
 import RequestTruckScreen from './screens/EnhancedRequestTruckScreen';
 
 // Import new Uber-style components
 import UberStyleMainDashboard from './components/UberStyleMainDashboard';
-import UberStyleLocationPicker from './components/UberStyleLocationPicker';
-import UberStyleMapPicker from './components/UberStyleMapPicker';
 
 // Import Enhanced UI Components
 import OrderHistoryScreen from './OrderHistoryScreen';
+import ActivityScreen from './screens/ActivityScreen';
 import EnhancedAccountSettingsScreen from './screens/EnhancedAccountSettingsScreen';
 import WorkingSupportScreen from './screens/WorkingSupportScreen';
+import PaymentHistoryScreen from './screens/PaymentHistoryScreen';
 import LiveTrackingScreenTrip from './LiveTrackingScreenTrip';
 
 // Import Supabase Authentication Service (CORRECT ARCHITECTURE) 
@@ -54,7 +53,7 @@ import { setupAndroidStatusBar } from './utils/AndroidFixes';
 const { width } = Dimensions.get('window');
 
 type AuthFlow = 'welcome' | 'login' | 'signup';
-type MainScreen = 'dashboard' | 'locationPicker' | 'mapPicker' | 'requestTruck' | 'trackTrip' | 'tripHistory' | 'settings' | 'support';
+type MainScreen = 'dashboard' | 'locationPicker' | 'mapPicker' | 'requestTruck' | 'trackTrip' | 'tripHistory' | 'activity' | 'settings' | 'support' | 'paymentHistory';
 
 // Use Supabase User interface (CORRECT ARCHITECTURE)
 import { User } from './AuthServiceSupabase';
@@ -237,6 +236,12 @@ export default function App() {
         case 'CustomerSupport':
           setNavigationState({ screen: 'support' });
           break;
+        case 'activity':
+          setNavigationState({ screen: 'activity' });
+          break;
+        case 'paymentHistory':
+          setNavigationState({ screen: 'paymentHistory' });
+          break;
         default:
           console.log(`Navigation to ${screen} - feature coming soon!`);
       }
@@ -305,16 +310,30 @@ export default function App() {
           orderTypeFilter={navigationState.orderType}
         />
       );
+    case 'activity':
+      return (
+        <ActivityScreen
+          onBack={handleBackToDashboard}
+          onNavigateToOrder={(orderId: string) => setNavigationState({ screen: 'trackTrip', tripId: orderId })}
+        />
+      );
     case 'settings':
       return (
         <EnhancedAccountSettingsScreen
           onBack={handleBackToDashboard}
           onLogout={handleLogout}
+          onNavigate={handleNavigate}
         />
       );
     case 'support':
       return (
         <WorkingSupportScreen
+          onBack={handleBackToDashboard}
+        />
+      );
+    case 'paymentHistory':
+      return (
+        <PaymentHistoryScreen
           onBack={handleBackToDashboard}
         />
       );
@@ -324,7 +343,7 @@ export default function App() {
         <UberStyleMainDashboard
           onNavigateToLocation={() => handleNavigate('requestTruck')}
           onNavigateToProfile={() => handleNavigate('settings')}
-          onNavigateToActivity={() => handleNavigate('tripHistory')}
+          onNavigateToActivity={() => handleNavigate('activity')}
           onNavigateToServices={() => handleNavigate('requestTruck')}
           onNavigateToServiceType={handleNavigateToServiceType}
           userName={currentUser?.firstName || 'User'}

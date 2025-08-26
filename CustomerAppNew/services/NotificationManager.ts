@@ -1,4 +1,4 @@
-import notificationService from './NotificationService';
+import { enhancedNotificationService } from './EnhancedNotificationService';
 import userPreferencesService from './UserPreferencesService';
 import { authService } from '../AuthServiceSupabase';
 
@@ -25,18 +25,12 @@ class NotificationManager {
       this.currentUserId = user?.id || null;
 
       // Initialize notification service (request permissions, get token)
-      const token = await notificationService.initialize();
+      const result = await enhancedNotificationService.initialize();
       
-      if (token && this.currentUserId) {
-        // Register push token with backend (when implemented)
-        await notificationService.registerWithBackend(this.currentUserId);
+      if (result.success && this.currentUserId) {
+        console.log('✅ Enhanced notification service initialized successfully');
+        // The enhanced service handles token registration automatically
       }
-
-      // Set up notification listeners
-      notificationService.setupNotificationListeners(
-        this.handleNotificationReceived.bind(this),
-        this.handleNotificationResponse.bind(this)
-      );
 
       this.isInitialized = true;
       console.log('NotificationManager initialized successfully');
@@ -81,7 +75,7 @@ class NotificationManager {
       const message = this.getOrderStatusMessage(data);
       
       // Send the notification
-      await notificationService.showOrderUpdate(
+      await enhancedNotificationService.showOrderUpdate(
         data.orderId,
         data.status,
         message
@@ -110,6 +104,10 @@ class NotificationManager {
         type: 'promotion',
         message,
       });
+        await enhancedNotificationService.scheduleLocalNotification(title, message, {
+          type: 'promotion',
+          message,
+        });
 
       console.log('Promotional notification sent:', title);
     } catch (error) {
@@ -130,7 +128,7 @@ class NotificationManager {
         return;
       }
 
-      await notificationService.showGeneralNotification(title, message);
+  await enhancedNotificationService.showGeneralNotification(title, message);
       console.log('General notification sent:', title);
     } catch (error) {
       console.error('Failed to send general notification:', error);
@@ -177,7 +175,7 @@ class NotificationManager {
   async reset(): Promise<void> {
     this.isInitialized = false;
     this.currentUserId = null;
-    await notificationService.cancelAllNotifications();
+  await enhancedNotificationService.cancelAllNotifications();
   }
 }
 

@@ -32,21 +32,65 @@ import DateTimePicker from '../components/DateTimePicker';
 import { GOOGLE_PLACES_CONFIG, useExpoGeocoding } from '../config/GooglePlacesConfig';
 import SmartTruckSelector from '../components/SmartTruckSelector';
 import FleetStatusIndicator from '../components/FleetStatusIndicator';
+import PaymentSelectionScreen from './PaymentSelectionScreen';
+import paymentService from '../services/PaymentService';
 
 const { width, height } = Dimensions.get('window');
 
-// Material Types for truck delivery
-const MATERIAL_TYPES = [
-  { value: 'steel', label: 'Steel & Metal', icon: '⚙️' },
-  { value: 'concrete', label: 'Concrete & Cement', icon: '🏗️' },
-  { value: 'sand', label: 'Sand & Gravel', icon: '🏖️' },
-  { value: 'lumber', label: 'Lumber & Wood', icon: '🪵' },
-  { value: 'bricks', label: 'Bricks & Blocks', icon: '🧱' },
-  { value: 'pipes', label: 'Pipes & Fittings', icon: '🔧' },
-  { value: 'hardware', label: 'Hardware & Tools', icon: '🔨' },
-  { value: 'heavy_machinery', label: 'Heavy Machinery', icon: '🏗️' },
-  { value: 'other', label: 'Other Materials', icon: '📦' },
-];
+// Enhanced Material Categories with subcategories and images
+const MATERIAL_CATEGORIES = {
+  construction: {
+    name: 'Construction Materials',
+    icon: '🏗️',
+    color: '#f59e0b',
+    materials: [
+      { value: 'steel', label: 'Steel & Metal Beams', icon: '⚙️', description: 'Steel beams, rebar, metal sheets', weight: 'heavy' },
+      { value: 'concrete', label: 'Concrete & Cement', icon: '🏗️', description: 'Ready mix concrete, cement bags', weight: 'heavy' },
+      { value: 'bricks', label: 'Bricks & Blocks', icon: '🧱', description: 'Clay bricks, concrete blocks', weight: 'medium' },
+      { value: 'lumber', label: 'Lumber & Wood', icon: '🪵', description: 'Timber, plywood, wooden beams', weight: 'medium' },
+    ]
+  },
+  aggregates: {
+    name: 'Aggregates & Fill',
+    icon: '🏖️',
+    color: '#8b5cf6',
+    materials: [
+      { value: 'sand', label: 'Sand & Gravel', icon: '🏖️', description: 'Construction sand, gravel, crushed stone', weight: 'heavy' },
+      { value: 'soil', label: 'Soil & Fill Dirt', icon: '🌱', description: 'Topsoil, fill dirt, clay', weight: 'heavy' },
+      { value: 'stone', label: 'Decorative Stone', icon: '🪨', description: 'River rock, landscape stones', weight: 'medium' },
+    ]
+  },
+  plumbing: {
+    name: 'Plumbing & Electrical',
+    icon: '🔧',
+    color: '#06b6d4',
+    materials: [
+      { value: 'pipes', label: 'Pipes & Fittings', icon: '🔧', description: 'PVC pipes, copper pipes, fittings', weight: 'light' },
+      { value: 'electrical', label: 'Electrical Supplies', icon: '⚡', description: 'Cables, conduits, electrical panels', weight: 'light' },
+      { value: 'fixtures', label: 'Fixtures & Hardware', icon: '🚿', description: 'Bathroom fixtures, lighting', weight: 'medium' },
+    ]
+  },
+  tools: {
+    name: 'Tools & Equipment',
+    icon: '🔨',
+    color: '#ef4444',
+    materials: [
+      { value: 'hardware', label: 'Hardware & Tools', icon: '🔨', description: 'Hand tools, fasteners, hardware', weight: 'light' },
+      { value: 'heavy_machinery', label: 'Heavy Equipment', icon: '🚜', description: 'Construction equipment, generators', weight: 'heavy' },
+      { value: 'safety', label: 'Safety Equipment', icon: '🦺', description: 'Safety gear, protective equipment', weight: 'light' },
+    ]
+  },
+  specialty: {
+    name: 'Specialty Items',
+    icon: '📦',
+    color: '#10b981',
+    materials: [
+      { value: 'insulation', label: 'Insulation Materials', icon: '🧊', description: 'Foam insulation, fiberglass', weight: 'light' },
+      { value: 'roofing', label: 'Roofing Materials', icon: '�', description: 'Shingles, roofing sheets, gutters', weight: 'medium' },
+      { value: 'other', label: 'Other Materials', icon: '📦', description: 'Custom or unlisted materials', weight: 'medium' },
+    ]
+  }
+};
 
 interface LocationData {
   latitude: number;
@@ -69,7 +113,7 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
 }) => {
   // Step Management
   const [currentStep, setCurrentStep] = useState(1);
-  const [totalSteps] = useState(4);
+  const [totalSteps] = useState(5); // Added payment step
 
   // Location State
   const [pickupLocation, setPickupLocation] = useState<LocationData | null>(null);
@@ -147,6 +191,23 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
 
   // Material Details
   const [materialType, setMaterialType] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [materialSearchText, setMaterialSearchText] = useState('');
+
+  // Helper function to get all materials
+  const getAllMaterials = () => {
+    const allMaterials: any[] = [];
+    Object.values(MATERIAL_CATEGORIES).forEach(category => {
+      allMaterials.push(...category.materials);
+    });
+    return allMaterials;
+  };
+
+  // Helper function to get material label
+  const getMaterialLabel = (materialValue: string) => {
+    const allMaterials = getAllMaterials();
+    return allMaterials.find(m => m.value === materialValue)?.label || 'Select material type';
+  };
   const [loadDescription, setLoadDescription] = useState('');
   const [estimatedWeight, setEstimatedWeight] = useState('');
   const [estimatedVolume, setEstimatedVolume] = useState('');
@@ -169,6 +230,12 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [showTruckModal, setShowTruckModal] = useState(false);
   const [showDateTimePicker, setShowDateTimePicker] = useState(false);
+
+  // Payment State
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('');
+  const [showPaymentSelection, setShowPaymentSelection] = useState(false);
+  const [createdTripId, setCreatedTripId] = useState<string>('');
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   useEffect(() => {
     initializeLocation();
@@ -495,6 +562,8 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         return selectedTruckType;
       case 4:
         return pickupTimePreference === 'asap' || scheduledTime;
+      case 5:
+        return selectedPaymentMethodId; // Payment method selected
       default:
         return false;
     }
@@ -558,17 +627,56 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         quoted_price: estimatedPrice,
       };
 
+      // Create trip request first (without payment)
       const result = await TripService.createTripRequest(tripRequest);
-      Alert.alert(
-        'Order Created!',
-        'Your delivery request has been submitted successfully.',
-        [{ text: 'OK', onPress: () => onOrderCreated(result.tripId || 'new') }]
-      );
+      setCreatedTripId(result.tripId || 'new');
+      
+      // Move to payment step
+      setCurrentStep(5);
     } catch (error) {
       console.error('Error creating trip:', error);
       Alert.alert('Error', 'Failed to create order. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle payment method selection and process payment
+  const handlePaymentMethodSelected = async (paymentMethodId: string, amount: number) => {
+    try {
+      setPaymentProcessing(true);
+      
+      // Process payment
+      const paymentResult = await paymentService.processPayment(createdTripId, amount, paymentMethodId);
+      
+      if (paymentResult.success) {
+        Alert.alert(
+          'Payment Successful! 🎉',
+          'Your delivery request has been submitted and paid for successfully. Finding available drivers...',
+          [{ text: 'OK', onPress: () => onOrderCreated(createdTripId) }]
+        );
+      } else {
+        Alert.alert(
+          'Payment Failed',
+          paymentResult.message || 'Payment could not be processed. Please try again.',
+          [
+            {
+              text: 'Try Again',
+              onPress: () => setShowPaymentSelection(true)
+            },
+            {
+              text: 'Cancel',
+              onPress: () => onBack(),
+              style: 'cancel'
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      Alert.alert('Error', 'Payment processing failed. Please try again.');
+    } finally {
+      setPaymentProcessing(false);
     }
   };
 
@@ -938,7 +1046,7 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         <Text style={styles.inputLabel}>Material Type</Text>
         <View style={styles.selectButton}>
           <Text style={materialType ? styles.selectButtonText : styles.selectButtonPlaceholder}>
-            {materialType ? MATERIAL_TYPES.find(m => m.value === materialType)?.label : 'Select material type'}
+            {materialType ? getMaterialLabel(materialType) : 'Select material type'}
           </Text>
           <MaterialIcons name="arrow-drop-down" size={24} color={Theme.colors.text.secondary} />
         </View>
@@ -1047,41 +1155,77 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
             onShowAllTrucks={() => setShowTruckModal(true)}
           />
         ) : (
-          // Fallback: Traditional truck list
-          <View style={styles.fallbackContainer}>
-            <View style={styles.infoBox}>
-              <MaterialIcons name="info" size={20} color={Theme.colors.primary} />
-              <Text style={styles.infoText}>
-                Complete material type and weight in step 2 for smart recommendations
-              </Text>
+          // Improved: Modern truck list
+          <ScrollView style={styles.fallbackContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.modernInfoBox}>
+              <MaterialIcons name="lightbulb" size={22} color={Theme.colors.primary} />
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoTitle}>Pro Tip</Text>
+                <Text style={styles.infoText}>
+                  Complete material type and weight in step 2 for AI-powered truck recommendations
+                </Text>
+              </View>
             </View>
             
-            <FlatList
-              data={truckTypes}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+            <View style={styles.trucksGrid}>
+              {truckTypes.map((item) => (
                 <TouchableOpacity
+                  key={item.id}
                   style={[
-                    styles.truckOption,
-                    { borderColor: selectedTruckType === item.id ? Theme.colors.primary : Theme.colors.border.light }
+                    styles.modernTruckCard,
+                    { 
+                      borderColor: selectedTruckType === item.id ? Theme.colors.primary : Theme.colors.border.light,
+                      backgroundColor: selectedTruckType === item.id ? Theme.colors.background.section : Theme.colors.background.card,
+                      borderWidth: selectedTruckType === item.id ? 2 : 1
+                    }
                   ]}
                   onPress={() => setSelectedTruckType(item.id)}
                 >
-                  <View style={styles.truckInfo}>
-                    <Text style={styles.truckName}>{item.name}</Text>
-                    <Text style={styles.truckDescription}>{item.description}</Text>
-                    <Text style={styles.truckCapacity}>
-                      Capacity: {item.payload_capacity}kg | Volume: {item.volume_capacity}m³
-                    </Text>
+                  <View style={styles.truckCardContent}>
+                    <View style={styles.truckHeader}>
+                      <View style={[
+                        styles.truckIconContainer,
+                        { backgroundColor: selectedTruckType === item.id ? Theme.colors.primary + '20' : Theme.colors.background.secondary }
+                      ]}>
+                        <MaterialIcons 
+                          name="local-shipping" 
+                          size={32} 
+                          color={selectedTruckType === item.id ? Theme.colors.primary : Theme.colors.text.secondary} 
+                        />
+                      </View>
+                      {selectedTruckType === item.id && (
+                        <View style={styles.selectedBadge}>
+                          <MaterialIcons name="check-circle" size={24} color={Theme.colors.success} />
+                        </View>
+                      )}
+                    </View>
+                    
+                    <View style={styles.truckMainInfo}>
+                      <Text style={[
+                        styles.modernTruckName, 
+                        { color: selectedTruckType === item.id ? Theme.colors.primary : Theme.colors.text.primary }
+                      ]}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.modernTruckDescription}>{item.description}</Text>
+                    </View>
+                    
+                    <View style={styles.truckSpecs}>
+                      <View style={styles.specItem}>
+                        <MaterialIcons name="fitness-center" size={16} color={Theme.colors.text.secondary} />
+                        <Text style={styles.specText}>{item.payload_capacity}kg</Text>
+                      </View>
+                      <View style={styles.specDivider} />
+                      <View style={styles.specItem}>
+                        <MaterialIcons name="inventory" size={16} color={Theme.colors.text.secondary} />
+                        <Text style={styles.specText}>{item.volume_capacity}m³</Text>
+                      </View>
+                    </View>
                   </View>
-                  {selectedTruckType === item.id && (
-                    <MaterialIcons name="check-circle" size={24} color={Theme.colors.primary} />
-                  )}
                 </TouchableOpacity>
-              )}
-              scrollEnabled={false}
-            />
-          </View>
+              ))}
+            </View>
+          </ScrollView>
         )}
       </View>
     );
@@ -1171,10 +1315,26 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         return renderTruckStep();
       case 4:
         return renderTimeStep();
+      case 5:
+        return renderPaymentStep();
       default:
         return null;
     }
   };
+
+  // Render payment step
+  const renderPaymentStep = () => (
+    <PaymentSelectionScreen
+      onBack={() => setCurrentStep(4)}
+      onPaymentMethodSelected={handlePaymentMethodSelected}
+      tripAmount={estimatedPrice}
+      tripDetails={{
+        pickupAddress: pickupLocation?.formatted_address || pickupLocation?.address || '',
+        deliveryAddress: deliveryLocation?.formatted_address || deliveryLocation?.address || '',
+        truckType: truckTypes.find(t => t.id === selectedTruckType)?.name || 'Standard Truck'
+      }}
+    />
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1200,31 +1360,33 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         {renderStepContent()}
       </KeyboardAvoidingView>
 
-      {/* Navigation Buttons */}
-      <View style={styles.navigationButtons}>
-        {currentStep > 1 && (
-          <TouchableOpacity style={styles.backStepButton} onPress={prevStep}>
-            <Text style={styles.backStepText}>Back</Text>
-          </TouchableOpacity>
-        )}
-        
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            { opacity: canProceedToNextStep() ? 1 : 0.5 }
-          ]}
-          onPress={currentStep === totalSteps ? submitOrder : nextStep}
-          disabled={!canProceedToNextStep() || loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.nextButtonText}>
-              {currentStep === totalSteps ? 'Create Order' : 'Next'}
-            </Text>
+      {/* Navigation Buttons - Hide on payment step */}
+      {currentStep !== 5 && (
+        <View style={styles.navigationButtons}>
+          {currentStep > 1 && (
+            <TouchableOpacity style={styles.backStepButton} onPress={prevStep}>
+              <Text style={styles.backStepText}>Back</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
-      </View>
+          
+          <TouchableOpacity
+            style={[
+              styles.nextButton,
+              { opacity: canProceedToNextStep() ? 1 : 0.5 }
+            ]}
+            onPress={currentStep === 4 ? submitOrder : nextStep}
+            disabled={!canProceedToNextStep() || loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.nextButtonText}>
+                {currentStep === 4 ? 'Continue to Payment' : 'Next'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Location Picker Modal - Uber Style */}
       <Modal
@@ -1345,7 +1507,7 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
           <View style={styles.materialModal}>
             <Text style={styles.modalTitle}>Select Material Type</Text>
             <FlatList
-              data={MATERIAL_TYPES}
+              data={getAllMaterials()}
               keyExtractor={(item) => item.value}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -2275,6 +2437,103 @@ const styles = StyleSheet.create({
     color: Theme.colors.text.secondary,
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  // Modern truck selection styles
+  modernInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Theme.colors.background.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: Theme.colors.primary,
+  },
+  infoTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Theme.colors.text.primary,
+    marginBottom: 4,
+  },
+  trucksGrid: {
+    gap: 12,
+  },
+  modernTruckCard: {
+    backgroundColor: Theme.colors.background.card,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 2,
+    marginBottom: 12,
+  },
+  truckCardContent: {
+    flex: 1,
+  },
+  truckHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  truckIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  selectedBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: Theme.colors.background.card,
+    borderRadius: 16,
+    padding: 4,
+  },
+  truckMainInfo: {
+    flex: 1,
+  },
+  modernTruckName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Theme.colors.text.primary,
+    marginBottom: 4,
+  },
+  modernTruckDescription: {
+    fontSize: 14,
+    color: Theme.colors.text.secondary,
+    lineHeight: 18,
+  },
+  truckSpecs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  specItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  specText: {
+    fontSize: 12,
+    color: Theme.colors.text.secondary,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  specDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: Theme.colors.border.light,
+    marginHorizontal: 12,
   },
 });
 

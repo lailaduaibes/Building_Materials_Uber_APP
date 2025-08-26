@@ -3,13 +3,12 @@
  * Handles credit cards, payment methods, and transactions
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../config/supabaseClient';
 import { authService } from '../AuthServiceSupabase';
 
+// Constants for API calls
 const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface PaymentMethod {
   id: string;
@@ -19,8 +18,12 @@ export interface PaymentMethod {
   expiryMonth?: number;
   expiryYear?: number;
   isDefault: boolean;
+  isActive: boolean;
   email?: string;
   stripePaymentMethodId?: string;
+  stripeCustomerId?: string;
+  nickname?: string;
+  billingAddress?: any;
   createdAt: string;
   updatedAt: string;
 }
@@ -141,8 +144,12 @@ class PaymentService {
         expiryMonth: method.expiry_month,
         expiryYear: method.expiry_year,
         isDefault: method.is_default,
+        isActive: method.is_active,
         email: method.email,
         stripePaymentMethodId: method.stripe_payment_method_id,
+        stripeCustomerId: method.stripe_customer_id,
+        nickname: method.nickname,
+        billingAddress: method.billing_address,
         createdAt: method.created_at,
         updatedAt: method.updated_at
       }));
@@ -165,7 +172,7 @@ class PaymentService {
         };
       }
 
-      // Call Supabase Edge Function with correct endpoint URL
+      // Call Supabase Edge Function with correct function name: rapid-function
       const response = await fetch(`${supabaseUrl}/functions/v1/rapid-function`, {
         method: 'POST',
         headers: {
@@ -175,13 +182,44 @@ class PaymentService {
         },
         body: JSON.stringify({
           action: 'add-card',
-          cardDetails,
-          userId: this.currentUserId
+          cardDetails: {
+            number: cardDetails.number,
+            expiryMonth: cardDetails.expiryMonth,
+            expiryYear: cardDetails.expiryYear,
+            cvc: cardDetails.cvc,
+            holderName: cardDetails.holderName
+          }
         })
       });
 
       const result = await response.json();
-      return result;
+      
+      // Transform the response to match our expected format
+      if (result.success && result.paymentMethod) {
+        return {
+          success: true,
+          message: result.message || 'Payment method added successfully',
+          paymentMethod: {
+            id: result.paymentMethod.id,
+            type: result.paymentMethod.type,
+            last4: result.paymentMethod.last4,
+            brand: result.paymentMethod.brand,
+            expiryMonth: result.paymentMethod.expiry_month,
+            expiryYear: result.paymentMethod.expiry_year,
+            isDefault: result.paymentMethod.is_default,
+            isActive: result.paymentMethod.is_active,
+            stripePaymentMethodId: result.paymentMethod.stripe_payment_method_id,
+            createdAt: result.paymentMethod.created_at,
+            updatedAt: result.paymentMethod.updated_at
+          }
+        };
+      } else {
+        return {
+          success: false,
+          message: result.message || 'Failed to add payment method',
+          error: result.error || 'UNKNOWN_ERROR'
+        };
+      }
     } catch (error: any) {
       console.error('Error adding card:', error);
       return {
@@ -228,6 +266,15 @@ class PaymentService {
           type: 'paypal',
           email: data.email,
           isDefault: data.is_default,
+          isActive: data.is_active || true,
+          last4: undefined,
+          brand: undefined,
+          expiryMonth: undefined,
+          expiryYear: undefined,
+          stripePaymentMethodId: undefined,
+          stripeCustomerId: data.stripe_customer_id,
+          nickname: data.nickname,
+          billingAddress: data.billing_address,
           createdAt: data.created_at,
           updatedAt: data.updated_at
         }
@@ -242,70 +289,7 @@ class PaymentService {
     }
   }
 
-  // Process payment for orders via Supabase Edge Function
-  async processPayment(amount: number, paymentMethodId: string, orderId: string): Promise<PaymentResponse> {
-    try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/rapid-function`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await this.getAuthToken()}`,
-          'apikey': supabaseKey
-        },
-        body: JSON.stringify({
-          action: 'process-payment',
-          amount,
-          paymentMethodId,
-          orderId
-        })
-      });
 
-      return await response.json();
-    } catch (error: any) {
-      return {
-        success: false,
-        message: 'Payment processing failed',
-        error: error.code || 'NETWORK_ERROR'
-      };
-    }
-  }
-
-  // Remove payment method from Supabase
-  async removePaymentMethod(paymentMethodId: string): Promise<PaymentResponse> {
-    try {
-      await this.initializeUser();
-      
-      if (!this.currentUserId) {
-        return {
-          success: false,
-          message: 'User not authenticated',
-          error: 'AUTHENTICATION_REQUIRED'
-        };
-      }
-
-      const { error } = await supabase
-        .from('payment_methods')
-        .delete()
-        .eq('id', paymentMethodId)
-        .eq('user_id', this.currentUserId);
-
-      if (error) {
-        throw error;
-      }
-
-      return {
-        success: true,
-        message: 'Payment method removed successfully'
-      };
-    } catch (error: any) {
-      console.error('Error removing payment method:', error);
-      return {
-        success: false,
-        message: error.message || 'Failed to remove payment method',
-        error: error.code || 'UNKNOWN_ERROR'
-      };
-    }
-  }
 
   // Set default payment method
   async setDefaultPaymentMethod(paymentMethodId: string): Promise<PaymentResponse> {
@@ -350,6 +334,100 @@ class PaymentService {
       return {
         success: false,
         message: error.message || 'Failed to set default payment method',
+        error: error.code || 'UNKNOWN_ERROR'
+      };
+    }
+  }
+
+  // Process payment for a trip or order
+  async processPayment(tripId: string, amount: number, paymentMethodId?: string): Promise<PaymentResponse> {
+    try {
+      await this.initializeUser();
+      
+      if (!this.currentUserId) {
+        return {
+          success: false,
+          message: 'User not authenticated',
+          error: 'AUTHENTICATION_REQUIRED'
+        };
+      }
+
+      // If no payment method specified, get default
+      let selectedPaymentMethodId = paymentMethodId;
+      if (!selectedPaymentMethodId) {
+        const methods = await this.getPaymentMethods();
+        const defaultMethod = methods.find(m => m.isDefault);
+        if (!defaultMethod) {
+          return {
+            success: false,
+            message: 'No payment method available. Please add a payment method first.',
+            error: 'NO_PAYMENT_METHOD'
+          };
+        }
+        selectedPaymentMethodId = defaultMethod.id;
+      }
+
+      // Call payment processor edge function - using correct function name: rapid-function
+      const response = await fetch(`${supabaseUrl}/functions/v1/rapid-function`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await this.getAuthToken()}`,
+          'apikey': supabaseKey
+        },
+        body: JSON.stringify({
+          action: 'process-payment',
+          tripId,
+          amount,
+          paymentMethodId: selectedPaymentMethodId,
+          userId: this.currentUserId
+        })
+      });
+
+      const result = await response.json();
+      return result;
+    } catch (error: any) {
+      console.error('Error processing payment:', error);
+      return {
+        success: false,
+        message: error.message || 'Payment processing failed',
+        error: error.code || 'NETWORK_ERROR'
+      };
+    }
+  }
+
+  // Remove payment method
+  async removePaymentMethod(paymentMethodId: string): Promise<PaymentResponse> {
+    try {
+      await this.initializeUser();
+      
+      if (!this.currentUserId) {
+        return {
+          success: false,
+          message: 'User not authenticated',
+          error: 'AUTHENTICATION_REQUIRED'
+        };
+      }
+
+      const { error } = await supabase
+        .from('payment_methods')
+        .delete()
+        .eq('id', paymentMethodId)
+        .eq('user_id', this.currentUserId);
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        success: true,
+        message: 'Payment method removed successfully'
+      };
+    } catch (error: any) {
+      console.error('Error removing payment method:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to remove payment method',
         error: error.code || 'UNKNOWN_ERROR'
       };
     }

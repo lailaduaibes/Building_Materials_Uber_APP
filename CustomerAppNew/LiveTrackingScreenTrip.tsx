@@ -29,6 +29,9 @@ import {
 import tripService, { TripRequest } from './services/TripService';
 import { createClient } from '@supabase/supabase-js';
 import { Theme } from './theme';
+import { enhancedNotificationService } from './services/EnhancedNotificationService';
+import NotificationTestPanel from './components/NotificationTestPanel';
+import TripCommunicationPanel from './components/TripCommunicationPanel';
 
 const { width, height } = Dimensions.get('window');
 
@@ -89,6 +92,9 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
   const [customerLocation, setCustomerLocation] = useState<LocationCoordinates | null>(null);
   const [loading, setLoading] = useState(true);
   const [eta, setEta] = useState<ETACalculation | null>(null);
+  const [showNotificationTest, setShowNotificationTest] = useState(false);
+  const [showCommunication, setShowCommunication] = useState(false);
+  const [communicationModalVisible, setCommunicationModalVisible] = useState(false);
   
   const mapRef = useRef<MapView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -108,6 +114,9 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
       if (trackingSubscription.current) {
         trackingSubscription.current.unsubscribe();
       }
+      
+      // Cleanup notification subscriptions
+      enhancedNotificationService.unsubscribe(`trip_${tripId}`);
     };
   }, [tripId]);
 
@@ -188,6 +197,9 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
       console.log('🔄 Setting up real-time subscriptions...');
       subscribeToTrackingUpdates();
       
+      // Initialize and subscribe to enhanced notifications
+      await initializeNotifications();
+      
       // Start pulse animation
       startPulseAnimation();
       
@@ -245,6 +257,60 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
         }
       )
       .subscribe();
+  };
+
+  const initializeNotifications = async () => {
+    try {
+      console.log('🔔 Initializing notifications for trip:', tripId);
+      
+      // Initialize the notification service
+      const initResult = await enhancedNotificationService.initialize();
+      if (initResult.success) {
+        console.log('✅ Notification service initialized');
+        
+        // Subscribe to trip-specific notifications
+        enhancedNotificationService.subscribeToTripNotifications(
+          tripId,
+          (notification) => {
+            console.log('📨 Trip notification received:', notification);
+            
+            // Handle different notification types
+            switch (notification.type) {
+              case 'status_update':
+                // Refresh trip data when status changes
+                refreshTripData();
+                break;
+              case 'eta_update':
+                // Update ETA display
+                if (notification.data?.new_eta) {
+                  console.log('⏰ ETA updated to:', notification.data.new_eta);
+                }
+                break;
+              case 'arrival':
+                // Handle driver arrival
+                console.log('🚛 Driver arrived at:', notification.data?.location);
+                break;
+            }
+          }
+        );
+      } else {
+        console.warn('⚠️ Failed to initialize notifications:', initResult.error);
+      }
+    } catch (error) {
+      console.error('❌ Error initializing notifications:', error);
+    }
+  };
+
+  const refreshTripData = async () => {
+    try {
+      const tripData = await tripService.getTripById(tripId);
+      if (tripData) {
+        setTrip(tripData);
+        console.log('🔄 Trip data refreshed');
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing trip data:', error);
+    }
   };
 
   const calculateETA = async (trackingData: TripTracking) => {
@@ -406,9 +472,14 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
           <MaterialIcons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Live Tracking</Text>
-        <TouchableOpacity onPress={fitMapToMarkers} style={styles.centerButton}>
-          <MaterialIcons name="my-location" size={24} color="#333" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => setShowNotificationTest(true)} style={styles.testButton}>
+            <MaterialIcons name="notifications" size={20} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={fitMapToMarkers} style={styles.centerButton}>
+            <MaterialIcons name="my-location" size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Map */}
@@ -504,9 +575,17 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
                   </View>
                 )}
               </View>
-              <TouchableOpacity onPress={callDriver} style={styles.callButton}>
-                <MaterialIcons name="phone" size={24} color="#fff" />
-              </TouchableOpacity>
+              <View style={styles.actionButtonsContainer}>
+                <TouchableOpacity onPress={callDriver} style={styles.callButton}>
+                  <MaterialIcons name="phone" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => setCommunicationModalVisible(true)} 
+                  style={styles.communicationButton}
+                >
+                  <MaterialIcons name="chat" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -549,6 +628,26 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
           )}
         </View>
       </View>
+
+      {/* Notification Test Panel (Development Only) */}
+      {showNotificationTest && trip && (
+        <NotificationTestPanel
+          tripId={tripId}
+          userId={trip.customer_id || 'test-user'}
+          driverName={driverInfo ? `${driverInfo.first_name} ${driverInfo.last_name}` : undefined}
+          onClose={() => setShowNotificationTest(false)}
+        />
+      )}
+
+      {/* Trip Communication Panel */}
+      {trip && communicationModalVisible && (
+        <TripCommunicationPanel
+          tripId={tripId}
+          driverId={trip.assigned_driver_id}
+          isVisible={communicationModalVisible}
+          onClose={() => setCommunicationModalVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -599,6 +698,16 @@ const styles = StyleSheet.create({
   centerButton: {
     padding: 8,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  testButton: {
+    padding: 8,
+    marginRight: 8,
+    backgroundColor: 'rgba(0,122,255,0.1)',
+    borderRadius: 20,
+  },
   mapContainer: {
     flex: 1,
   },
@@ -628,10 +737,12 @@ const styles = StyleSheet.create({
   },
   gradientPanel: {
     padding: 20,
-    backgroundColor: theme.primary,
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    shadowColor: theme.primary,
+    borderWidth: 1,
+    borderColor: theme.primary,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: -2,
@@ -655,7 +766,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: theme.primary,
     flex: 1,
   },
   driverInfoContainer: {
@@ -664,13 +775,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   driverAvatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -681,12 +792,12 @@ const styles = StyleSheet.create({
   driverName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.text,
     marginBottom: 4,
   },
   vehicleInfo: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: theme.lightText,
     marginBottom: 4,
   },
   ratingContainer: {
@@ -695,7 +806,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: theme.lightText,
     marginLeft: 4,
   },
   callButton: {
@@ -739,6 +850,18 @@ const styles = StyleSheet.create({
   tripDetailValue: {
     fontSize: 14,
     color: '#333',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  communicationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#2196F3',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
