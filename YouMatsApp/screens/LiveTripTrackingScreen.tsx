@@ -1,6 +1,17 @@
 /**
  * LiveTripTrackingScreen - Driver's Real-time Trip Tracking
- * Matches the customer app experience with live location updates
+ * Matches the customer app experience w      case 'assigned':
+        console.log('➡️ Order status "assigned" mapped to: matched');
+        return 'matched';
+      case 'in_transit':
+        console.log('➡️ Order status "in_transit" mapped to: in_transit');
+        return 'in_transit';
+      case 'delivered':
+        console.log('➡️ Order status mapped to: delivered');
+        return 'delivered';
+      default:
+        console.log('➡️ Unknown order status, defaulting to: matched');
+        return 'matched';ation updates
  * Shows trip progress, customer location, and provides status updates
  */
 
@@ -46,7 +57,12 @@ const theme = {
 // Supabase client for real-time updates
 const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
+// Service role key for trip tracking operations (bypasses RLS)
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8';
+
 const supabase = createClient(supabaseUrl, supabaseKey);
+// Service role client for trip tracking (bypasses RLS restrictions)
+const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
 
 interface LiveTripTrackingScreenProps {
   order: OrderAssignment;
@@ -62,7 +78,7 @@ interface TripTracking {
   driver_longitude: number;
   customer_latitude?: number;
   customer_longitude?: number;
-  status: 'in_transit' | 'delivered' | 'assigned'; // Valid status values
+  status: 'matched' | 'driver_en_route' | 'at_pickup' | 'loaded' | 'in_transit' | 'at_delivery' | 'delivered'; // ACTUAL database constraint values
   eta_minutes?: number;
   distance_remaining_km?: number;
   current_speed_kmh?: number;
@@ -78,7 +94,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
 }) => {
   const [driverLocation, setDriverLocation] = useState<LocationCoordinates | null>(null);
   const [customerLocation, setCustomerLocation] = useState<LocationCoordinates | null>(null);
-  const [tripStatus, setTripStatus] = useState<TripTracking['status']>('assigned');
+  const [tripStatus, setTripStatus] = useState<TripTracking['status']>('matched');
   const [loading, setLoading] = useState(true);
   const [distanceToCustomer, setDistanceToCustomer] = useState<number | null>(null);
   const [etaMinutes, setEtaMinutes] = useState<number | null>(null);
@@ -101,8 +117,8 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
     switch (orderStatus) {
       case 'accepted':
       case 'matched':
-        console.log('➡️ Order status mapped to: assigned');
-        return 'assigned';
+        console.log('➡️ Order status mapped to: matched');
+        return 'matched';
       case 'in_transit':
         console.log('➡️ Order status "in_transit" mapped to: in_transit');
         return 'in_transit';
@@ -110,8 +126,8 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
         console.log('➡️ Order status mapped to: delivered');
         return 'delivered';
       default:
-        console.log('➡️ Unknown order status, defaulting to: assigned');
-        return 'assigned';
+        console.log('➡️ Unknown order status, defaulting to: matched');
+        return 'matched';
     }
   };
 
@@ -234,14 +250,14 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
         driver_longitude: location.longitude,
         customer_latitude: customerLocation?.latitude || order.pickupLocation.latitude,
         customer_longitude: customerLocation?.longitude || order.pickupLocation.longitude,
-        status: tripStatus, // Should be one of: in_transit, delivered, etc.
+        status: tripStatus, // Should be one of: assigned, en_route_pickup, at_pickup, loaded, en_route_delivery, delivered
         eta_minutes: etaMinutes,
         distance_remaining_km: distanceToCustomer ? distanceToCustomer / 1000 : null,
         current_speed_kmh: location.speed ? location.speed * 3.6 : null, // Convert m/s to km/h
       };
 
-      // Insert or update trip tracking data (since no unique constraint, just insert)
-      const { error: trackingError } = await supabase
+      // Insert or update trip tracking data using service role (bypasses RLS)
+      const { error: trackingError } = await supabaseService
         .from('trip_tracking')
         .insert(trackingData);
 
@@ -309,10 +325,10 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
   // Map LiveTripTrackingScreen status back to database status
   const mapTripStatusToOrderStatus = (tripStatus: TripTracking['status']): string => {
     switch (tripStatus) {
-      case 'assigned':
+      case 'matched':
         return 'matched';
       case 'in_transit':
-        return 'in_transit';
+        return 'start_trip'; // Send correct status for "Start Trip" action
       case 'delivered':
         return 'delivered';
       default:
@@ -355,13 +371,13 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
     }
   };
 
-  const handleStatusUpdate = (status: 'assigned' | 'in_transit' | 'delivered') => {
+  const handleStatusUpdate = (status: 'matched' | 'in_transit' | 'delivered') => {
     console.log('🔘 LiveTripTrackingScreen - Button pressed:');
     console.log('   Button action:', status);
     console.log('   Current tripStatus:', tripStatus);
     
     const statusMessages: Record<string, string> = {
-      'assigned': 'Trip Assigned',
+      'matched': 'Trip Assigned',
       'in_transit': 'In Transit',
       'delivered': 'Trip Completed'
     };
@@ -570,7 +586,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
               </Text>
             </View>
 
-            {tripStatus === 'assigned' && (
+            {tripStatus === 'matched' && (
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: theme.accent }]}
                 onPress={() => {

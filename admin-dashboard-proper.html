@@ -492,6 +492,52 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
             }).join('');
         }
         
+        // ✅ NEW: Map driver's truck type selection to database truck_type_id
+        function getTruckTypeId(preferredTruckTypes) {
+            // Parse the JSON array if it's a string
+            let truckTypes = [];
+            try {
+                truckTypes = typeof preferredTruckTypes === 'string' 
+                    ? JSON.parse(preferredTruckTypes) 
+                    : preferredTruckTypes || [];
+            } catch (e) {
+                console.warn('Could not parse preferred_truck_types:', preferredTruckTypes);
+                truckTypes = [];
+            }
+
+            // Mapping from app truck type names to database IDs
+            const truckTypeMapping = {
+                'Small Truck (up to 3.5t)': '69949f18-3e1b-4db2-96fc-5dea17fc658f',
+                'Small Truck': '69949f18-3e1b-4db2-96fc-5dea17fc658f',
+                'Medium Truck (3.5-7.5t)': 'medium-truck-id-here', // Add actual ID
+                'Medium Truck': 'medium-truck-id-here',
+                'Large Truck (7.5-18t)': 'large-truck-id-here',
+                'Large Truck': 'large-truck-id-here', 
+                'Heavy Truck (18t+)': 'heavy-truck-id-here',
+                'Heavy Truck': 'heavy-truck-id-here',
+                'Flatbed Truck': 'c14a47b8-f4b8-4986-8031-fac2153f21e0', // ✅ FIXED: Use correct Flatbed ID
+                'Dump Truck': 'dump-truck-id-here',
+                'Concrete Mixer': 'concrete-mixer-id-here',
+                'Crane Truck': 'crane-truck-id-here',
+                'Box Truck': 'box-truck-id-here',
+                'Refrigerated Truck': 'refrigerated-truck-id-here'
+            };
+
+            // Get the first preferred truck type and map it
+            const firstTruckType = truckTypes[0];
+            const mappedId = truckTypeMapping[firstTruckType];
+            
+            console.log('🚛 TRUCK TYPE MAPPING DEBUG:');
+            console.log('- Raw preferred_truck_types:', preferredTruckTypes);
+            console.log('- Parsed truck types array:', truckTypes);
+            console.log('- First truck type selected:', firstTruckType);
+            console.log('- Mapped truck type ID:', mappedId);
+            console.log('- Will use truck type ID:', mappedId || '69949f18-3e1b-4db2-96fc-5dea17fc658f');
+            
+            // Default to Small Truck if no mapping found
+            return mappedId || '69949f18-3e1b-4db2-96fc-5dea17fc658f';
+        }
+        
         // Approve driver (proper implementation)
         async function approveDriver(driverId, driverName) {
             if (!confirm(`Approve ${driverName} as a professional driver and add their vehicle to the fleet?`)) {
@@ -549,8 +595,12 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
                     console.log('Adding vehicle to fleet:', {
                         plate: driver.vehicle_plate,
                         model: driver.vehicle_model,
-                        userId: driver.user_id
+                        userId: driver.user_id,
+                        preferredTruckTypes: driver.preferred_truck_types
                     });
+                    
+                    // ✅ FIXED: Use driver's actual truck type selection
+                    const correctTruckTypeId = getTruckTypeId(driver.preferred_truck_types);
                     
                     const truckData = {
                         license_plate: driver.vehicle_plate,
@@ -562,7 +612,7 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
                         current_driver_id: driver.user_id,
                         is_available: true,  // ✅ Ensure truck is available for trips
                         is_active: true,
-                        truck_type_id: '69949f18-3e1b-4db2-96fc-5dea17fc658f', // Default to Small Truck type
+                        truck_type_id: correctTruckTypeId, // ✅ FIXED: Use driver's selected type
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString()
                     };

@@ -1784,6 +1784,40 @@ class DriverService {
     return this.currentDriver;
   }
 
+  // ✅ NEW: Refresh current driver data from database
+  async refreshDriverProfile(): Promise<void> {
+    try {
+      if (!this.currentDriver) return;
+
+      const { data: freshDriverData, error } = await supabase
+        .from('driver_profiles')
+        .select('*')
+        .eq('user_id', this.currentDriver.user_id)
+        .single();
+
+      if (error) {
+        console.error('❌ Error refreshing driver profile:', error);
+        return;
+      }
+
+      if (freshDriverData) {
+        // Update current driver with fresh data
+        this.currentDriver = {
+          ...this.currentDriver,
+          approval_status: freshDriverData.approval_status,
+          is_approved: freshDriverData.is_approved,
+          // Update other fields that might have changed
+          firstName: freshDriverData.first_name,
+          lastName: freshDriverData.last_name,
+          phone: freshDriverData.phone_number
+        };
+        console.log('✅ Driver profile refreshed with latest approval status:', freshDriverData.approval_status);
+      }
+    } catch (error) {
+      console.error('❌ Exception refreshing driver profile:', error);
+    }
+  }
+
   // Get active order
   getActiveOrder(): OrderAssignment | null {
     return this.activeOrder;
@@ -1798,6 +1832,17 @@ class DriverService {
       }
 
       console.log('🚛 Fetching vehicles for driver:', this.currentDriver.user_id);
+
+      // ✅ FIXED: Get fresh driver profile data to ensure latest approval status
+      const { data: freshDriverData, error: driverError } = await supabase
+        .from('driver_profiles')
+        .select('approval_status, is_approved')
+        .eq('user_id', this.currentDriver.user_id)
+        .single();
+
+      if (driverError) {
+        console.error('❌ Error fetching fresh driver data:', driverError);
+      }
 
       const { data: vehicles, error } = await supabase
         .from('trucks')
@@ -1820,17 +1865,21 @@ class DriverService {
         return [];
       }
 
-      // Map vehicles with proper status from driver profile
+      // Map vehicles with proper status using FRESH driver data
+      const currentApprovalStatus = freshDriverData?.approval_status || this.currentDriver?.approval_status;
+      const isApproved = freshDriverData?.is_approved ?? this.currentDriver?.is_approved;
+      
       const mappedVehicles = (vehicles || []).map(vehicle => ({
         ...vehicle,
         truck_type: (vehicle as any).truck_types?.name || 'Unknown',
         color: 'Not specified', // Default color since not in trucks table
-        verification_status: this.currentDriver?.approval_status === 'approved' 
+        verification_status: currentApprovalStatus === 'approved' && isApproved
           ? (vehicle.is_available ? 'approved' : 'in_use')
           : 'pending'
       }));
 
-      console.log('✅ Found vehicles with status:', mappedVehicles?.length || 0);
+      console.log('✅ Found vehicles with fresh status:', mappedVehicles?.length || 0);
+      console.log('📋 Driver approval status:', { currentApprovalStatus, isApproved });
       return mappedVehicles;
     } catch (error) {
       console.error('❌ Exception fetching vehicles:', error);

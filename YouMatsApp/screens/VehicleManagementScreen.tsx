@@ -66,7 +66,10 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
       setLoading(true);
       console.log('🚛 Loading driver vehicles...');
       
-      // Get current driver's vehicles
+      // ✅ FIXED: Refresh driver profile first to get latest approval status
+      await driverService.refreshDriverProfile();
+      
+      // Get current driver's vehicles with fresh status
       const driverVehicles = await driverService.getDriverVehicles();
       
       if (driverVehicles) {

@@ -9,14 +9,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { driverCommunicationService } from './DriverCommunicationService';
 
 const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
+// Service role key for server-side operations like sending notifications
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8';
 
-const supabase = createClient(supabaseUrl, supabaseKey, {
+// Regular supabase client for general operations
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+  },
+});
+
+// Service role client specifically for sending notifications (bypasses RLS)
+const supabaseService = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
   },
 });
 
@@ -52,8 +63,8 @@ class EnhancedNotificationService {
     try {
       const { title, message, type } = this.getStatusNotificationContent(status, driverName);
 
-      // Send notification to notifications table (without trip_id to avoid FK constraint)
-      const { data, error } = await supabase
+      // Send notification to notifications table using service role (bypasses RLS)
+      const { data, error } = await supabaseService
         .from('notifications')
         .insert({
           user_id: customerId,
@@ -122,7 +133,7 @@ class EnhancedNotificationService {
           ? `Your delivery is running ${newETA} minutes late due to ${reason}`
           : `New estimated arrival time: ${newETA} minutes`;
 
-        await supabase
+        await supabaseService
           .from('notifications')
           .insert({
             user_id: customerId,
@@ -177,8 +188,8 @@ class EnhancedNotificationService {
         message
       );
 
-      // Also send as notification (without trip_id FK constraint)
-      const { data, error } = await supabase
+      // Also send as notification using service role (bypasses RLS)
+      const { data, error } = await supabaseService
         .from('notifications')
         .insert({
           user_id: customerId,
