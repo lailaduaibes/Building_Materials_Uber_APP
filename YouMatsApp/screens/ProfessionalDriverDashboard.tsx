@@ -15,32 +15,19 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { ProfessionalMapMarker } from '../components/ProfessionalMapMarker';
+import { DriverLocationMarker } from '../components/DriverLocationMarker';
+import { PickupTimeDisplay } from '../components/PickupTimeDisplay';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { driverService, Driver, OrderAssignment } from '../services/DriverService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 import { DriverChatScreen } from '../components/DriverChatScreen';
+import { ASAPTripModal } from '../components/ASAPTripModal';
+import { Colors, Typography, Spacing, ComponentSizes } from '../theme/colors';
 
 const { width, height } = Dimensions.get('window');
 const isTablet = width >= 768;
-
-// Professional Theme - Similar to Uber Driver
-const theme = {
-  primary: '#000000',
-  secondary: '#FFFFFF',
-  background: '#F8F8F8',
-  text: '#000000',
-  textSecondary: '#6B6B6B',
-  success: '#00BF63', // Uber green
-  warning: '#FFB800',
-  error: '#FF3B30',
-  accent: '#1455FE', // Uber blue
-  border: '#E5E5EA',
-  cardBackground: '#FFFFFF',
-  shadow: '#000000',
-  lightText: '#8E8E93',
-  mapOverlay: 'rgba(0, 0, 0, 0.1)',
-};
 
 interface ProfessionalDriverDashboardProps {
   onNavigateToProfile: () => void;
@@ -72,6 +59,10 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
   // Communication modal state
   const [showChatScreen, setShowChatScreen] = useState(false);
   const [selectedTripForChat, setSelectedTripForChat] = useState<OrderAssignment | null>(null);
+  
+  // ASAP Trip System
+  const [showASAPModal, setShowASAPModal] = useState(false);
+  const [currentASAPTrip, setCurrentASAPTrip] = useState<OrderAssignment | null>(null);
   
   // Bottom sheet animation
   const bottomSheetHeight = useRef(new Animated.Value(140)).current; // Increased default height
@@ -109,6 +100,51 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
 
     return () => clearInterval(interval);
   }, [isOnline, locationPermission]);
+
+  // ✅ ASAP System Integration 
+  useEffect(() => {
+    const initASAPSystem = async () => {
+      console.log('⚡ [ASAP] Initializing ASAP monitoring system');
+      console.log('⚡ [ASAP] Driver:', driver?.id, '| Online:', isOnline);
+      
+      if (driver?.id && isOnline) {
+        console.log('⚡ [ASAP] Starting monitoring for driver:', driver.id.substring(0, 8));
+        
+        try {
+          await driverService.startASAPMonitoring(
+            (trip) => {
+              console.log('⚡ [ASAP] New trip available:', trip.id.substring(0, 8));
+              
+              // Prevent duplicate modal for same trip
+              if (currentASAPTrip?.id === trip.id || showASAPModal) {
+                console.log('⚡ [ASAP] Modal already showing for this trip, skipping');
+                return;
+              }
+              
+              Alert.alert('⚡ ASAP Delivery Request', `${trip.customerName} • ${trip.distanceKm.toFixed(1)}km away`);
+              setCurrentASAPTrip(trip);
+              setShowASAPModal(true);
+            },
+            (trip) => {
+              console.log('🚨🚨🚨 [PROFESSIONAL ASAP] TRIP UPDATE!', trip.id);
+            }
+          );
+          console.log('✅ [ASAP] Monitoring system started successfully');
+        } catch (error) {
+          console.error('❌ [ASAP] Failed to initialize ASAP system:', error);
+        }
+      } else {
+        console.log('⚠️ [ASAP] System not started - requirements not met');
+      }
+    };
+
+    initASAPSystem();
+
+    return () => {
+      // Cleanup ASAP system
+      driverService.stopASAPMonitoring();
+    };
+  }, [driver?.id, isOnline]);
 
   const requestLocationPermission = async () => {
     try {
@@ -590,12 +626,12 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
           style={styles.menuButton}
           onPress={onNavigateToProfile}
         >
-          <Ionicons name="menu" size={24} color={theme.text} />
+          <Ionicons name="menu" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         
         <View style={styles.statusContainer}>
           <View style={[styles.statusDot, { 
-            backgroundColor: isOnline ? theme.success : theme.lightText 
+            backgroundColor: isOnline ? Colors.driver.online : Colors.text.secondary 
           }]} />
           <Text style={styles.statusText}>
             {isOnline ? 'You\'re online' : 'You\'re offline'}
@@ -603,9 +639,9 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         </View>
       </View>
       
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.onlineButton, { 
-          backgroundColor: isToggling ? theme.lightText : (isOnline ? theme.success : theme.lightText),
+          backgroundColor: isToggling ? Colors.text.secondary : (isOnline ? Colors.driver.online : Colors.text.secondary),
           opacity: isToggling ? 0.7 : 1.0
         }]}
         onPress={toggleOnlineStatus}
@@ -616,9 +652,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         </Text>
       </TouchableOpacity>
     </View>
-  );
-
-  const renderEarningsCard = () => (
+  );  const renderEarningsCard = () => (
     <View style={styles.earningsCard}>
       <View style={styles.earningsItem}>
         <Text style={styles.earningsLabel}>Today</Text>
@@ -641,7 +675,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
               style={styles.closeButton}
               onPress={collapseBottomSheet}
             >
-              <Ionicons name="close" size={24} color={theme.text} />
+              <Ionicons name="close" size={24} color={Colors.text.primary} />
             </TouchableOpacity>
             <Text style={styles.orderTitle}>Trip Request</Text>
             <Text style={styles.orderPrice}>AED {selectedOrder.estimated_fare}</Text>
@@ -651,14 +685,14 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
             <View style={styles.orderInfo}>
               <View style={styles.orderRoute}>
                 <View style={styles.routePoint}>
-                  <View style={[styles.routeDot, { backgroundColor: theme.success }]} />
+                  <View style={[styles.routeDot, { backgroundColor: Colors.status.completed }]} />
                   <Text style={styles.routeText} numberOfLines={2}>
                     {selectedOrder.pickup_address || 'Pickup Location'}
                   </Text>
                 </View>
                 <View style={styles.routeLine} />
                 <View style={styles.routePoint}>
-                  <View style={[styles.routeDot, { backgroundColor: theme.error }]} />
+                  <View style={[styles.routeDot, { backgroundColor: Colors.status.cancelled }]} />
                   <Text style={styles.routeText} numberOfLines={2}>
                     {selectedOrder.delivery_address || 'Delivery Location'}
                   </Text>
@@ -667,11 +701,11 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
               
               <View style={styles.orderMeta}>
                 <View style={styles.metaItem}>
-                  <Ionicons name="time" size={16} color={theme.lightText} />
+                  <Ionicons name="time" size={16} color={Colors.text.secondary} />
                   <Text style={styles.metaText}>{selectedOrder.estimated_duration || '30'} min</Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <Ionicons name="car" size={16} color={theme.lightText} />
+                  <Ionicons name="car" size={16} color={Colors.text.secondary} />
                   <Text style={styles.metaText}>{selectedOrder.material_type || 'General'}</Text>
                 </View>
               </View>
@@ -685,8 +719,8 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
             return (
               <View>
                 {isIncompatible && (
-                  <View style={{ backgroundColor: theme.error + '20', marginBottom: 10, padding: 12, borderRadius: 8 }}>
-                    <Text style={{ color: theme.error, fontSize: 14 }}>
+                  <View style={{ backgroundColor: Colors.status.cancelled + '20', marginBottom: 10, padding: 12, borderRadius: 8 }}>
+                    <Text style={{ color: Colors.status.cancelled, fontSize: 14 }}>
                       ⚠️ {compatibility.reason || 'This trip requires a different vehicle type than yours'}
                     </Text>
                   </View>
@@ -695,7 +729,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                 <TouchableOpacity 
                   style={[
                     styles.acceptButton, 
-                    isIncompatible && { backgroundColor: theme.lightText, opacity: 0.5 }
+                    isIncompatible && { backgroundColor: Colors.text.secondary, opacity: 0.5 }
                   ]}
                   onPress={() => acceptOrder(selectedOrder)}
                   disabled={!!isIncompatible}
@@ -716,13 +750,13 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
               style={styles.closeButton}
               onPress={collapseBottomSheet}
             >
-              <Ionicons name="close" size={24} color={theme.text} />
+              <Ionicons name="close" size={24} color={Colors.text.primary} />
             </TouchableOpacity>
           </View>
           
           <ScrollView style={styles.ordersList} showsVerticalScrollIndicator={false}>
             {acceptedTrips.map((trip, index) => (
-              <View key={trip.id || index} style={[styles.orderListItem, { backgroundColor: theme.success + '10' }]}>
+              <View key={trip.id || index} style={[styles.orderListItem, { backgroundColor: Colors.driver.online + '10' }]}>
                 <TouchableOpacity
                   style={styles.tripMainContent}
                   onPress={() => {
@@ -731,7 +765,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                 >
                   <View style={styles.orderListHeader}>
                     <Text style={styles.orderListPrice}>AED {trip.estimated_fare}</Text>
-                    <Text style={[styles.orderListDistance, { color: theme.success }]}>ACCEPTED</Text>
+                    <Text style={[styles.orderListDistance, { color: Colors.driver.online }]}>ACCEPTED</Text>
                   </View>
                   <Text style={styles.orderListAddress} numberOfLines={1}>
                     📍 {trip.pickup_address || 'Pickup Location'}
@@ -752,14 +786,14 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                     setShowChatScreen(true);
                   }}
                 >
-                  <Ionicons name="chatbubble-outline" size={20} color={theme.accent} />
+                  <Ionicons name="chatbubble-outline" size={20} color={Colors.primary} />
                   <Text style={styles.chatButtonText}>Chat with Customer</Text>
                 </TouchableOpacity>
               </View>
             ))}
             {acceptedTrips.length === 0 && (
               <View style={styles.emptyState}>
-                <Ionicons name="checkmark-circle-outline" size={48} color={theme.lightText} />
+                <Ionicons name="checkmark-circle-outline" size={48} color={Colors.text.secondary} />
                 <Text style={styles.emptyStateText}>No accepted trips</Text>
                 <Text style={styles.emptyStateSubtext}>
                   Accept trips from the nearby list to see them here
@@ -776,7 +810,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
               style={styles.closeButton}
               onPress={collapseBottomSheet}
             >
-              <Ionicons name="close" size={24} color={theme.text} />
+              <Ionicons name="close" size={24} color={Colors.text.primary} />
             </TouchableOpacity>
           </View>
           
@@ -790,7 +824,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                 key={order.id || index}
                 style={[
                   styles.orderListItem,
-                  isIncompatible && { opacity: 0.6, borderLeftWidth: 3, borderLeftColor: theme.error }
+                  isIncompatible && { opacity: 0.6, borderLeftWidth: 3, borderLeftColor: Colors.status.cancelled }
                 ]}
                 onPress={() => {
                   handleOrderPress(order);
@@ -806,8 +840,16 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                 <Text style={styles.orderListMaterial}>
                   🚛 {order.material_type || order.materials?.[0]?.type || 'General Materials'}
                 </Text>
+                <View style={styles.orderListTimeContainer}>
+                  <PickupTimeDisplay 
+                    pickupTimePreference={order.pickupTimePreference || 'asap'}
+                    scheduledPickupTime={order.scheduledPickupTime}
+                    size="small"
+                    showIcon={true}
+                  />
+                </View>
                 {isIncompatible && (
-                  <Text style={[styles.orderListMaterial, { color: theme.error, fontSize: 12, marginTop: 4 }]}>
+                  <Text style={[styles.orderListMaterial, { color: Colors.status.cancelled, fontSize: 12, marginTop: 4 }]}>
                     ⚠️ {compatibility.reason || 'Vehicle incompatible'}
                   </Text>
                 )}
@@ -816,7 +858,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
             })}
             {nearbyOrders.length === 0 && (
               <View style={styles.emptyState}>
-                <Ionicons name="car-outline" size={48} color={theme.lightText} />
+                <Ionicons name="car-outline" size={48} color={Colors.text.secondary} />
                 <Text style={styles.emptyStateText}>No trips available</Text>
                 <Text style={styles.emptyStateSubtext}>
                   {isOnline ? 'Check back in a few minutes' : 'Go online to see available trips'}
@@ -831,21 +873,21 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
           
           <View style={styles.quickActions}>
             <TouchableOpacity style={styles.actionButton} onPress={onNavigateToEarnings}>
-              <Ionicons name="wallet" size={20} color={theme.accent} />
+              <Ionicons name="wallet" size={20} color={Colors.primary} />
               <Text style={styles.actionText}>Earnings</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={showMyTripsView}>
-              <Ionicons name="checkmark-circle" size={20} color={theme.success} />
+              <Ionicons name="checkmark-circle" size={20} color={Colors.status.completed} />
               <Text style={styles.actionText}>
                 My Trips {acceptedTrips.length > 0 && `(${acceptedTrips.length})`}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={showOrdersListView}>
-              <Ionicons name="list" size={20} color={theme.accent} />
+              <Ionicons name="list" size={20} color={Colors.primary} />
               <Text style={styles.actionText}>Available</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={onNavigateToProfile}>
-              <Ionicons name="person" size={20} color={theme.accent} />
+              <Ionicons name="person" size={20} color={Colors.primary} />
               <Text style={styles.actionText}>Profile</Text>
             </TouchableOpacity>
           </View>
@@ -856,7 +898,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={theme.secondary} />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.primary} />
       
       {renderTopBar()}
       
@@ -874,11 +916,9 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
           <Marker
             coordinate={driverLocation}
             title="Your Location"
-            pinColor={theme.accent}
+            anchor={{ x: 0.5, y: 0.5 }}
           >
-            <View style={styles.driverMarker}>
-              <Ionicons name="car" size={20} color={theme.secondary} />
-            </View>
+            <DriverLocationMarker isActive={isOnline} size="medium" />
           </Marker>
         )}
         
@@ -892,30 +932,17 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
               key={order.id || index}
               coordinate={order.coordinate}
               onPress={() => handleOrderPress(order)}
+              anchor={{ x: 0.5, y: 1 }}
             >
-              <View style={[
-                styles.orderMarker, 
-                selectedOrder?.id === order.id && styles.selectedOrderMarker,
-                isIncompatible && { opacity: 0.6 }
-              ]}>
-                <View style={[
-                  styles.orderMarkerContent,
-                  isIncompatible && { backgroundColor: theme.error + '30', borderColor: theme.error }
-                ]}>
-                  <Text style={[
-                    styles.orderMarkerPrice,
-                    isIncompatible && { color: theme.error }
-                  ]}>AED{order.estimated_fare}</Text>
-                  <Text style={[
-                    styles.orderMarkerType,
-                    isIncompatible && { color: theme.error }
-                  ]}>{isIncompatible ? '⚠️ ' : ''}{order.material_type || 'General'}</Text>
-                </View>
-                <View style={[
-                  styles.orderMarkerPointer,
-                  isIncompatible && { borderTopColor: theme.error + '30' }
-                ]} />
-              </View>
+              <ProfessionalMapMarker
+                price={order.estimated_fare || 0}
+                materialType={order.material_type || 'General'}
+                isSelected={selectedOrder?.id === order.id}
+                isIncompatible={isIncompatible}
+                isPriority={(order.estimated_fare || 0) > 100} // Consider high-value orders as priority
+                pickupTimePreference={order.pickupTimePreference || 'asap'}
+                scheduledPickupTime={order.scheduledPickupTime}
+              />
             </Marker>
           );
         })}
@@ -938,7 +965,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
               <Ionicons 
                 name={bottomSheetState === 'list' ? "map" : "list"} 
                 size={20} 
-                color={bottomSheetState === 'list' ? theme.secondary : theme.text} 
+                color={bottomSheetState === 'list' ? Colors.background.primary : Colors.text.primary} 
               />
             </TouchableOpacity>
             
@@ -949,21 +976,21 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                 loadNearbyOrders();
               }}
             >
-              <Ionicons name="refresh" size={20} color={theme.text} />
+              <Ionicons name="refresh" size={20} color={Colors.text.primary} />
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.mapControlButton}
               onPress={zoomToShowAllOrders}
             >
-              <Ionicons name="scan" size={20} color={theme.text} />
+              <Ionicons name="scan" size={20} color={Colors.text.primary} />
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.mapControlButton}
               onPress={centerOnDriver}
             >
-              <Ionicons name="locate" size={20} color={theme.text} />
+              <Ionicons name="locate" size={20} color={Colors.text.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -982,6 +1009,45 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
           }}
         />
       )}
+
+      {/* ASAP Trip Modal */}
+      {currentASAPTrip && (
+        <ASAPTripModal
+          trip={currentASAPTrip}
+          visible={showASAPModal}
+          onAccept={async (tripId: string) => {
+            console.log('✅ [ASAP] Accepting trip:', tripId.substring(0, 8));
+            try {
+              const result = await driverService.acceptASAPTrip(tripId);
+              if (result.success) {
+                Alert.alert('✅ Success', 'ASAP trip accepted!');
+                setShowASAPModal(false);
+                setCurrentASAPTrip(null);
+                // Refresh nearby orders to update the list
+                loadNearbyOrders();
+                loadAcceptedTrips();
+              } else {
+                Alert.alert('❌ Error', result.message);
+              }
+            } catch (error) {
+              console.error('❌ [ASAP] Accept error:', error);
+              Alert.alert('❌ Error', 'Failed to accept trip. Please try again.');
+            }
+          }}
+          onDecline={(tripId: string) => {
+            console.log('❌ [ASAP] Declining trip:', tripId.substring(0, 8));
+            // Remove from seen list so other drivers can get this trip
+            driverService.declineASAPTrip(tripId);
+            setShowASAPModal(false);
+            setCurrentASAPTrip(null);
+          }}
+          onClose={() => {
+            console.log('⚡ [ASAP] Modal closed');
+            setShowASAPModal(false);
+            setCurrentASAPTrip(null);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -989,7 +1055,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: Colors.background.secondary,
   },
   topBar: {
     flexDirection: 'row',
@@ -997,12 +1063,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: theme.secondary,
+    backgroundColor: Colors.background.primary,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: Colors.border.light,
     ...Platform.select({
       ios: {
-        shadowColor: theme.shadow,
+        shadowColor: Colors.shadow.color,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
@@ -1033,7 +1099,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 16,
     fontWeight: '500',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   onlineButton: {
     paddingHorizontal: 16,
@@ -1043,69 +1109,15 @@ const styles = StyleSheet.create({
   onlineButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.secondary,
+    color: Colors.background.primary,
   },
   map: {
     flex: 1,
   },
-  driverMarker: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: theme.secondary,
-  },
-  orderMarker: {
-    backgroundColor: theme.secondary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: theme.success,
-    minWidth: 80,
-    alignItems: 'center',
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 6,
-  },
-  selectedOrderMarker: {
-    backgroundColor: theme.accent,
-    borderColor: theme.warning,
-    transform: [{ scale: 1.1 }],
-  },
-  orderMarkerContent: {
-    alignItems: 'center',
-  },
-  orderMarkerPrice: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.text,
-  },
-  orderMarkerType: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: theme.lightText,
-    marginTop: 2,
-  },
-  orderMarkerPointer: {
-    position: 'absolute',
-    bottom: -6,
-    left: '50%',
-    marginLeft: -6,
-    width: 12,
-    height: 12,
-    backgroundColor: theme.success,
-    transform: [{ rotate: '45deg' }],
-  },
   orderMarkerText: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   ordersOverlay: {
     position: 'absolute',
@@ -1117,13 +1129,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ordersInfo: {
-    backgroundColor: theme.secondary,
+    backgroundColor: Colors.background.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     ...Platform.select({
       ios: {
-        shadowColor: theme.shadow,
+        shadowColor: Colors.shadow.color,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
@@ -1138,7 +1150,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   mapControlButton: {
-    backgroundColor: theme.secondary,
+    backgroundColor: Colors.background.primary,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -1146,7 +1158,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: theme.shadow,
+        shadowColor: Colors.shadow.color,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
@@ -1157,19 +1169,19 @@ const styles = StyleSheet.create({
     }),
   },
   activeControl: {
-    backgroundColor: theme.accent,
+    backgroundColor: Colors.primary,
   },
   ordersCount: {
     fontSize: 14,
     fontWeight: '500',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   bottomSheet: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: theme.secondary,
+    backgroundColor: Colors.background.primary,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
@@ -1179,7 +1191,7 @@ const styles = StyleSheet.create({
     maxHeight: height * 0.8, // Maximum 80% of screen height
     ...Platform.select({
       ios: {
-        shadowColor: theme.shadow,
+        shadowColor: Colors.shadow.color,
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
@@ -1198,13 +1210,13 @@ const styles = StyleSheet.create({
   },
   earningsCard: {
     flexDirection: 'row',
-    backgroundColor: theme.cardBackground,
+    backgroundColor: Colors.background.primary,
     borderRadius: 12,
     padding: 12, // Reduced padding
     marginBottom: 12, // Reduced margin
     ...Platform.select({
       ios: {
-        shadowColor: theme.shadow,
+        shadowColor: Colors.shadow.color,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 4,
@@ -1220,18 +1232,18 @@ const styles = StyleSheet.create({
   },
   earningsDivider: {
     width: 1,
-    backgroundColor: theme.border,
+    backgroundColor: Colors.border.light,
     marginHorizontal: 16,
   },
   earningsLabel: {
     fontSize: 14,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginBottom: 4,
   },
   earningsValue: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   quickActions: {
     flexDirection: 'row',
@@ -1243,7 +1255,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 12,
-    color: theme.accent,
+    color: Colors.primary,
     marginTop: 4,
     fontWeight: '500',
   },
@@ -1258,7 +1270,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: Colors.border.light,
   },
   closeButton: {
     padding: 4,
@@ -1266,12 +1278,12 @@ const styles = StyleSheet.create({
   orderTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   orderPrice: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.success,
+    color: Colors.status.completed,
   },
   orderInfo: {
     marginBottom: 16,
@@ -1293,13 +1305,13 @@ const styles = StyleSheet.create({
   routeLine: {
     width: 2,
     height: 20,
-    backgroundColor: theme.border,
+    backgroundColor: Colors.border.light,
     marginLeft: 5,
     marginVertical: 4,
   },
   routeText: {
     fontSize: 14,
-    color: theme.text,
+    color: Colors.text.primary,
     flex: 1,
   },
   orderMeta: {
@@ -1312,11 +1324,11 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 14,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginLeft: 4,
   },
   acceptButton: {
-    backgroundColor: theme.success,
+    backgroundColor: Colors.status.completed,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -1324,7 +1336,7 @@ const styles = StyleSheet.create({
   acceptButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.secondary,
+    color: Colors.background.primary,
   },
   // Orders List Styles
   ordersListContainer: {
@@ -1339,21 +1351,21 @@ const styles = StyleSheet.create({
   listTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   ordersList: {
     flex: 1,
   },
   orderListItem: {
-    backgroundColor: theme.cardBackground,
+    backgroundColor: Colors.background.primary,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: Colors.border.light,
     ...Platform.select({
       ios: {
-        shadowColor: theme.shadow,
+        shadowColor: Colors.shadow.color,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 4,
@@ -1372,21 +1384,25 @@ const styles = StyleSheet.create({
   orderListPrice: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.success,
+    color: Colors.status.completed,
   },
   orderListDistance: {
     fontSize: 14,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     fontWeight: '500',
   },
   orderListAddress: {
     fontSize: 14,
-    color: theme.text,
+    color: Colors.text.primary,
     marginBottom: 4,
   },
   orderListMaterial: {
     fontSize: 12,
-    color: theme.lightText,
+    color: Colors.text.secondary,
+  },
+  orderListTimeContainer: {
+    marginTop: 4,
+    marginBottom: 2,
   },
   emptyState: {
     alignItems: 'center',
@@ -1395,12 +1411,12 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     fontWeight: '500',
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginTop: 12,
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginTop: 4,
   },
   tripMainContent: {
@@ -1410,7 +1426,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.accent + '10',
+    backgroundColor: Colors.primary + '10',
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,
@@ -1420,7 +1436,7 @@ const styles = StyleSheet.create({
   chatButtonText: {
     fontSize: 12,
     fontWeight: '500',
-    color: theme.accent,
+    color: Colors.primary,
   },
 });
 

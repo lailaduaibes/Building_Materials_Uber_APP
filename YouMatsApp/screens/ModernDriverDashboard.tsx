@@ -15,25 +15,12 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { driverService, Driver, DriverStats, OrderAssignment, ApprovalStatus } from '../services/DriverService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
+import { Colors, Typography, Spacing, ComponentSizes, createShadow } from '../theme/colors';
+import { PickupTimeDisplay } from '../components/PickupTimeDisplay';
+import { ASAPTripModal } from '../components/ASAPTripModal';
 
 const { width } = Dimensions.get('window');
 const isTablet = width >= 768;
-
-const theme = {
-  primary: '#000000',
-  secondary: '#FFFFFF', 
-  background: '#F5F5F5',
-  text: '#000000',
-  textSecondary: '#6B6B6B',
-  success: '#34C759',
-  warning: '#FF9500',
-  error: '#FF3B30',
-  accent: '#007AFF',
-  border: '#E5E5EA',
-  cardBackground: '#FFFFFF',
-  shadow: '#000000',
-  lightText: '#8E8E93',
-};
 
 interface ModernDriverDashboardProps {
   onNavigateToProfile: () => void;
@@ -58,6 +45,10 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
   const [orderCompatibility, setOrderCompatibility] = useState<{ [orderId: string]: boolean }>({});
   // ✅ NEW: Add approval status state
   const [approvalStatus, setApprovalStatus] = useState<ApprovalStatus | null>(null);
+  
+  // ✅ NEW: Professional ASAP system state
+  const [currentASAPTrip, setCurrentASAPTrip] = useState<OrderAssignment | null>(null);
+  const [showASAPModal, setShowASAPModal] = useState(false);
 
   useEffect(() => {
     loadDriverData();
@@ -67,6 +58,70 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
     loadAssignedTrips();
     loadStats();
   }, []);
+
+  // ✅ NEW: Initialize ASAP system when driver is available
+  useEffect(() => {
+    let subscription: any;
+    
+    const initASAPSystem = async () => {
+      console.log('🚨🚨🚨 [ASAP DEBUG] INIT ASAP SYSTEM CALLED 🚨🚨🚨');
+      console.log('[ASAP DEBUG] initASAPSystem called with:', {
+        driverId: driver?.id,
+        approvalStatus: approvalStatus?.isApproved,
+        hasDriver: !!driver,
+        hasApprovalStatus: !!approvalStatus
+      });
+
+      // TEMPORARILY BYPASS APPROVAL CHECK FOR TESTING
+      if (driver?.id) {
+        console.log('🚨 [ASAP DEBUG] Starting Professional ASAP system for driver:', driver.id);
+        
+        try {
+          // Start monitoring for ASAP trips using DriverService
+          await driverService.startASAPMonitoring(
+            (trip: OrderAssignment) => {
+              console.log('🔔 [ASAP DEBUG] NEW ASAP TRIP FOUND - TRIGGERING MODAL:', {
+                tripId: trip.id,
+                material: trip.materials[0]?.type || 'Unknown',
+                customer: trip.customerName,
+                distance: trip.distanceKm
+              });
+              setCurrentASAPTrip(trip);
+              setShowASAPModal(true);
+              
+              // Show alert for immediate notification
+              Alert.alert(
+                '🚨 URGENT DELIVERY REQUEST',
+                `New ASAP trip: ${trip.materials[0]?.type || 'Unknown material'}\nDistance: ${trip.distanceKm.toFixed(1)}km\nCustomer: ${trip.customerName}`,
+                [
+                  { text: 'View Details', onPress: () => {}, style: 'default' }
+                ]
+              );
+            },
+            (trip: OrderAssignment) => {
+              console.log('📝 [ASAP DEBUG] ASAP TRIP UPDATED:', trip);
+              // Handle trip updates if needed
+            }
+          );
+          console.log('✅ [ASAP DEBUG] ASAP monitoring started successfully');
+        } catch (error) {
+          console.error('❌ [ASAP DEBUG] Failed to initialize ASAP system:', error);
+        }
+      } else {
+        console.log('⚠️ [ASAP DEBUG] ASAP system not started - missing requirements:', {
+          hasDriverId: !!driver?.id,
+          isApproved: approvalStatus?.isApproved
+        });
+      }
+    };
+
+    initASAPSystem();
+
+    return () => {
+      // Cleanup ASAP system
+      driverService.stopASAPMonitoring();
+    };
+  }, [driver?.id, approvalStatus?.isApproved]);
 
   const loadDriverData = async () => {
     try {
@@ -285,6 +340,48 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
     );
   };
 
+  // ✅ NEW: ASAP request handlers
+  const handleAcceptASAPTrip = async (tripId: string) => {
+    try {
+      console.log('✅ Accepting ASAP trip:', tripId);
+      
+      const result = await driverService.acceptASAPTrip(tripId);
+      
+      if (result.success) {
+        Alert.alert('Success!', result.message);
+        setShowASAPModal(false);
+        setCurrentASAPTrip(null);
+        // Refresh trips to show the new accepted trip
+        await loadAssignedTrips();
+        await loadNearbyOrders();
+      } else {
+        Alert.alert('Error', result.message);
+      }
+    } catch (error) {
+      console.error('❌ Error accepting ASAP trip:', error);
+      Alert.alert('Error', 'Failed to accept trip. Please try again.');
+    }
+  };
+
+  const handleDeclineASAPTrip = async (tripId: string) => {
+    try {
+      console.log('❌ Declining ASAP trip:', tripId);
+      
+      const result = await driverService.declineASAPTrip(tripId);
+      setShowASAPModal(false);
+      setCurrentASAPTrip(null);
+    } catch (error) {
+      console.error('❌ Error declining ASAP trip:', error);
+      setShowASAPModal(false);
+      setCurrentASAPTrip(null);
+    }
+  };
+
+  const handleCloseASAPModal = () => {
+    setShowASAPModal(false);
+    setCurrentASAPTrip(null);
+  };
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'morning';
@@ -302,7 +399,7 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
           </Text>
         </View>
         <TouchableOpacity onPress={() => onNavigateToProfile()} style={styles.profileButton}>
-          <Ionicons name="person-circle-outline" size={24} color={theme.secondary} />
+          <Ionicons name="person-circle-outline" size={24} color={Colors.background.primary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -311,7 +408,7 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
   const renderDriverStatusCard = () => (
     <View style={styles.statusCard}>
       <View style={styles.statusHeader}>
-        <Ionicons name="car" size={24} color={theme.primary} />
+        <Ionicons name="car" size={24} color={Colors.primary} />
         <Text style={styles.statusTitle}>Driver Info</Text>
       </View>
       <View style={styles.statusContent}>
@@ -338,12 +435,61 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
         </Text>
       </TouchableOpacity>
 
+      {/* Debug ASAP Test Button */}
+      <TouchableOpacity 
+        style={[styles.primaryActionButton, { backgroundColor: '#FF4444', marginTop: 10 }]}
+        onPress={async () => {
+          console.log('[ASAP DEBUG] Manual ASAP test triggered');
+          if (driver?.id) {
+            console.log('[ASAP DEBUG] Manually calling checkForNewASAPTrips');
+            await (driverService as any).checkForNewASAPTrips();
+          } else {
+            console.log('[ASAP DEBUG] No driver found for manual test');
+          }
+        }}
+      >
+        <Text style={[styles.primaryActionText, { color: '#FFFFFF' }]}>
+          🚨 Test ASAP System
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={[styles.primaryActionButton, { backgroundColor: '#e74c3c', marginTop: 10 }]}
+        onPress={async () => {
+          console.log('🚨🚨🚨 [FORCE ASAP] FORCE INITIALIZING ASAP SYSTEM 🚨🚨🚨');
+          console.log('🚨🚨🚨 [FORCE ASAP] Driver ID:', driver?.id);
+          
+          try {
+            await driverService.startASAPMonitoring(
+              (trip) => {
+                console.log('🚨🚨🚨 [FORCE ASAP] NEW TRIP CALLBACK!', trip.id);
+                Alert.alert('🚨 ASAP TRIP!', `${trip.customerName} - ${trip.distanceKm.toFixed(1)}km`);
+                setCurrentASAPTrip(trip);
+                setShowASAPModal(true);
+              },
+              (trip) => {
+                console.log('🚨🚨🚨 [FORCE ASAP] TRIP UPDATE!', trip.id);
+              }
+            );
+            console.log('🚨🚨🚨 [FORCE ASAP] MONITORING STARTED!');
+            Alert.alert('✅ Success', 'ASAP system force started!');
+          } catch (error) {
+            console.error('🚨🚨🚨 [FORCE ASAP] ERROR:', error);
+            Alert.alert('❌ Error', 'Failed to start ASAP system');
+          }
+        }}
+      >
+        <Text style={[styles.primaryActionText, { color: '#FFFFFF' }]}>
+          🚨 FORCE ASAP INIT
+        </Text>
+      </TouchableOpacity>
+
       <View style={styles.secondaryActionsRow}>
         <TouchableOpacity 
           style={styles.secondaryActionButton}
           onPress={onNavigateToTripHistory}
         >
-          <Ionicons name="time-outline" size={20} color={theme.primary} />
+          <Ionicons name="time-outline" size={20} color={Colors.primary} />
           <Text style={styles.secondaryActionText}>Trip History</Text>
         </TouchableOpacity>
         
@@ -351,7 +497,7 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
           style={styles.secondaryActionButton}
           onPress={() => Alert.alert('Location', 'Update your location settings')}
         >
-          <Ionicons name="location-outline" size={20} color={theme.primary} />
+          <Ionicons name="location-outline" size={20} color={Colors.primary} />
           <Text style={styles.secondaryActionText}>My Location</Text>
         </TouchableOpacity>
         
@@ -359,7 +505,7 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
           style={styles.secondaryActionButton}
           onPress={onNavigateToProfile}
         >
-          <Ionicons name="settings-outline" size={20} color={theme.primary} />
+          <Ionicons name="settings-outline" size={20} color={Colors.primary} />
           <Text style={styles.secondaryActionText}>Settings</Text>
         </TouchableOpacity>
       </View>
@@ -412,6 +558,11 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
                 <View style={styles.tripCardHeader}>
                   <View style={styles.tripMaterialContainer}>
                     <Text style={styles.tripMaterial}>{order.materials[0]?.type || 'Building Materials'}</Text>
+                    <PickupTimeDisplay 
+                      pickupTimePreference={order.pickupTimePreference || 'asap'}
+                      scheduledPickupTime={order.scheduledPickupTime}
+                      size="small"
+                    />
                     {!isCompatible && (
                       <View style={styles.incompatibleBadge}>
                         <Text style={styles.incompatibleBadgeText}>Wrong Truck Type</Text>
@@ -459,7 +610,14 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
               onPress={() => navigateToTrip(trip)}
             >
               <View style={styles.tripCardHeader}>
-                <Text style={styles.tripMaterial}>{trip.material_type || 'Building Materials'}</Text>
+                <View style={styles.tripMaterialContainer}>
+                  <Text style={styles.tripMaterial}>{trip.material_type || 'Building Materials'}</Text>
+                  <PickupTimeDisplay 
+                    pickupTimePreference={trip.pickup_time_preference || 'asap'}
+                    scheduledPickupTime={trip.scheduled_pickup_time}
+                    size="small"
+                  />
+                </View>
                 <View style={styles.statusBadge}>
                   <Text style={styles.statusBadgeText}>{trip.status}</Text>
                 </View>
@@ -469,7 +627,7 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
               </Text>
               <View style={styles.tripCardFooter}>
                 <TouchableOpacity style={[styles.navigationButton, styles.navigationSecondaryButton]} onPress={() => navigateToTrip(trip)}>
-                  <Ionicons name="navigate" size={16} color={theme.primary} />
+                  <Ionicons name="navigate" size={16} color={Colors.primary} />
                   <Text style={[styles.navigationButtonText, styles.navigationSecondaryButtonText]}>Navigate</Text>
                 </TouchableOpacity>
               </View>
@@ -485,65 +643,75 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
     try {
       console.log('🔍 NavigateToTrip - Processing trip:', trip.id.substring(0, 8));
       console.log('   Trip status:', trip.status);
+      console.log('   Trip customer data:', {
+        customerId: trip.customer_id,
+        users: trip.users,
+        hasUsers: !!trip.users
+      });
       
-      // Try to get fresh trip data, but don't fail if not found
-      let tripToUse = trip;
-      try {
-        console.log('🔄 Attempting to fetch fresh trip data...');
-        const freshTrip = await driverService.getCurrentActiveTrip();
-        
-        // If we found a fresh trip with the same ID, use that data instead
-        if (freshTrip && freshTrip.id === trip.id) {
-          console.log('✅ Using fresh trip data from database:');
-          console.log('   Old status:', trip.status);
-          console.log('   Fresh status:', freshTrip.status);
-          tripToUse = freshTrip;
-        } else if (freshTrip) {
-          console.log('⚠️ Found different active trip, using original trip data');
+      // Check if this trip already has customer data (from assigned trips or nearby orders)
+      let customerName = 'Customer';
+      let customerPhone = '';
+      
+      if (trip.users) {
+        const firstName = trip.users.first_name || '';
+        const lastName = trip.users.last_name || '';
+        customerName = `${firstName} ${lastName}`.trim() || 'Customer';
+        customerPhone = trip.users.phone || '';
+        console.log('✅ Using customer data from trip object:', { customerName, customerPhone });
+      } else {
+        // Try to find this trip in nearby orders (which have customer data)
+        const existingOrder = nearbyOrders.find(order => order.id === trip.id);
+        if (existingOrder) {
+          customerName = existingOrder.customerName;
+          customerPhone = existingOrder.customerPhone;
+          console.log('✅ Found customer data in nearby orders:', { customerName, customerPhone });
         } else {
-          console.log('ℹ️ No active trip found in database, using clicked trip data');
+          console.log('⚠️ No customer data found for trip, will use fallback');
         }
-      } catch (freshDataError) {
-        console.log('⚠️ Could not fetch fresh data, using original trip:', freshDataError instanceof Error ? freshDataError.message : 'Unknown error');
       }
 
-      // Convert trip to OrderAssignment format for navigation
+      // Create the order assignment with proper customer data
       const orderAssignment: OrderAssignment = {
-        id: tripToUse.id,
-        orderId: tripToUse.id,
-        customerId: tripToUse.customer_id,
-        customerName: 'Customer', // We don't have this data in trip_requests
-        customerPhone: '', // We don't have this data in trip_requests
-        estimatedEarnings: tripToUse.final_price || tripToUse.quoted_price || 0,
-        estimatedDuration: tripToUse.estimated_duration_minutes || 30,
-        distanceKm: tripToUse.estimated_distance_km || 5,
+        id: trip.id,
+        orderId: trip.id,
+        customerId: trip.customer_id,
+        customerName,
+        customerPhone,
+        estimatedEarnings: trip.final_price || trip.quoted_price || 0,
+        estimatedDuration: trip.estimated_duration_minutes || 30,
+        distanceKm: trip.estimated_distance_km || 5,
         pickupLocation: {
-          latitude: tripToUse.pickup_latitude,
-          longitude: tripToUse.pickup_longitude,
-          address: tripToUse.pickup_address?.formatted_address || 'Pickup Location'
+          latitude: trip.pickup_latitude,
+          longitude: trip.pickup_longitude,
+          address: trip.pickup_address?.formatted_address || 'Pickup Location'
         },
         deliveryLocation: {
-          latitude: tripToUse.delivery_latitude,
-          longitude: tripToUse.delivery_longitude,
-          address: tripToUse.delivery_address?.formatted_address || 'Delivery Location'
+          latitude: trip.delivery_latitude,
+          longitude: trip.delivery_longitude,
+          address: trip.delivery_address?.formatted_address || 'Delivery Location'
         },
         materials: [{
-          type: tripToUse.material_type || 'building materials',
-          quantity: tripToUse.estimated_weight_tons || 1,
-          description: tripToUse.load_description || 'Building materials delivery'
+          type: trip.material_type || 'building materials',
+          quantity: trip.estimated_weight_tons || 1,
+          description: trip.load_description || 'Building materials delivery'
         }],
-        specialInstructions: tripToUse.special_requirements,
-        assignedAt: tripToUse.matched_at || tripToUse.created_at,
-        acceptDeadline: tripToUse.created_at, // Using created_at as placeholder
-        status: tripToUse.status === 'matched' ? 'accepted' : tripToUse.status // Use actual trip status from database
+        specialInstructions: trip.special_requirements,
+        assignedAt: trip.matched_at || trip.created_at,
+        acceptDeadline: trip.created_at,
+        status: trip.status === 'matched' ? 'accepted' : trip.status
       };
       
-      console.log('📱 Navigating to trip with status:', orderAssignment.status);
+      console.log('📱 Navigating to trip with customer info:', {
+        customerName: orderAssignment.customerName,
+        customerPhone: orderAssignment.customerPhone,
+        status: orderAssignment.status
+      });
       onNavigateToOrder(orderAssignment);
     } catch (error) {
       console.error('❌ Error in navigateToTrip:', error);
       // Fallback to original trip data
-      const orderAssignment: OrderAssignment = {
+      const fallbackAssignment: OrderAssignment = {
         id: trip.id,
         orderId: trip.id,
         customerId: trip.customer_id,
@@ -572,7 +740,7 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
         acceptDeadline: trip.created_at,
         status: trip.status === 'matched' ? 'accepted' : trip.status
       };
-      onNavigateToOrder(orderAssignment);
+      onNavigateToOrder(fallbackAssignment);
     }
   };
 
@@ -620,7 +788,7 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.secondary} />
       
       <ScrollView
         style={styles.scrollView}
@@ -638,6 +806,15 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
         
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      {/* ✅ NEW: Professional ASAP Modal */}
+      <ASAPTripModal
+        visible={showASAPModal}
+        trip={currentASAPTrip}
+        onAccept={handleAcceptASAPTrip}
+        onDecline={handleDeclineASAPTrip}
+        onClose={handleCloseASAPModal}
+      />
     </SafeAreaView>
   );
 };
@@ -645,7 +822,7 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: Colors.background.secondary,
   },
   loadingContainer: {
     flex: 1,
@@ -658,7 +835,7 @@ const styles = StyleSheet.create({
     alignSelf: isTablet ? 'center' : 'stretch',
   },
   header: {
-    backgroundColor: theme.secondary,
+    backgroundColor: Colors.background.primary,
     paddingHorizontal: responsive.padding(20, 40),
     paddingTop: responsive.padding(10, 15),
     paddingBottom: responsive.padding(20, 25),
@@ -675,27 +852,27 @@ const styles = StyleSheet.create({
   },
   greetingText: {
     fontSize: responsive.fontSize(16, 18),
-    color: theme.textSecondary,
+    color: Colors.text.secondary,
     fontWeight: '400',
   },
   userNameText: {
     fontSize: responsive.fontSize(24, 28),
     fontWeight: '700',
-    color: theme.text,
+    color: Colors.text.primary,
     marginTop: responsive.spacing(2, 4),
   },
   profileButton: {
     width: responsive.spacing(40, 50),
     height: responsive.spacing(40, 50),
     borderRadius: responsive.spacing(20, 25),
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: deviceTypes.isAndroid ? 48 : 40,
     minWidth: deviceTypes.isAndroid ? 48 : 40,
   },
   statusCard: {
-    backgroundColor: theme.secondary,
+    backgroundColor: Colors.background.primary,
     marginHorizontal: responsive.margin(20, 40),
     marginTop: responsive.margin(20, 25),
     borderRadius: responsive.spacing(12, 16),
@@ -718,7 +895,7 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontSize: responsive.fontSize(18, 22),
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     flex: 1,
     marginLeft: responsive.spacing(10, 15),
   },
@@ -730,15 +907,15 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: responsive.fontSize(16, 18),
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   statusSubtext: {
     fontSize: responsive.fontSize(14, 16),
-    color: theme.textSecondary,
+    color: Colors.text.secondary,
     marginTop: responsive.spacing(5, 8),
   },
   primaryActionButton: {
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.primary,
     marginHorizontal: responsive.margin(20, 40),
     marginTop: responsive.margin(20, 25),
     paddingVertical: responsive.padding(16, 20),
@@ -754,7 +931,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   primaryActionText: {
-    color: theme.secondary,
+    color: Colors.background.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -766,7 +943,7 @@ const styles = StyleSheet.create({
   },
   secondaryActionButton: {
     flex: 1,
-    backgroundColor: theme.secondary,
+    backgroundColor: Colors.background.primary,
     marginHorizontal: 5,
     paddingVertical: 15,
     borderRadius: 12,
@@ -783,13 +960,13 @@ const styles = StyleSheet.create({
   secondaryActionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     marginTop: 5,
   },
   sectionHeader: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.text,
+    color: Colors.text.primary,
     marginHorizontal: 20,
     marginTop: 30,
     marginBottom: 15,
@@ -804,7 +981,7 @@ const styles = StyleSheet.create({
   },
   seeAllText: {
     fontSize: 14,
-    color: theme.accent,
+    color: Colors.primary,
     fontWeight: '600',
   },
   statsGrid: {
@@ -813,7 +990,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   statCard: {
-    backgroundColor: theme.secondary,
+    backgroundColor: Colors.background.primary,
     flex: 1,
     marginHorizontal: 5,
     padding: 15,
@@ -831,11 +1008,11 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   statLabel: {
     fontSize: 12,
-    color: theme.textSecondary,
+    color: Colors.text.secondary,
     marginTop: 5,
   },
   availableTripsContainer: {
@@ -844,11 +1021,11 @@ const styles = StyleSheet.create({
   },
   tripCount: {
     fontSize: 14,
-    color: theme.textSecondary,
+    color: Colors.text.secondary,
     marginBottom: 15,
   },
   tripCard: {
-    backgroundColor: theme.secondary,
+    backgroundColor: Colors.background.primary,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -870,17 +1047,17 @@ const styles = StyleSheet.create({
   tripMaterial: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     flex: 1,
   },
   tripEarnings: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.success,
+    color: Colors.status.completed,
   },
   tripRoute: {
     fontSize: 14,
-    color: theme.textSecondary,
+    color: Colors.text.secondary,
     marginBottom: 8,
   },
   tripCardFooter: {
@@ -890,11 +1067,11 @@ const styles = StyleSheet.create({
   },
   tripDistance: {
     fontSize: 14,
-    color: theme.textSecondary,
+    color: Colors.text.secondary,
   },
   tripTime: {
     fontSize: 14,
-    color: theme.textSecondary,
+    color: Colors.text.secondary,
   },
   incompatibleTripCard: {
     backgroundColor: '#FFF5F5',
@@ -906,7 +1083,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   incompatibleBadge: {
-    backgroundColor: theme.error,
+    backgroundColor: Colors.status.cancelled,
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -915,12 +1092,12 @@ const styles = StyleSheet.create({
   },
   incompatibleBadgeText: {
     fontSize: 10,
-    color: theme.secondary,
+    color: Colors.background.primary,
     fontWeight: '500',
   },
   incompatibleText: {
     fontSize: 12,
-    color: theme.error,
+    color: Colors.status.cancelled,
     fontWeight: '500',
   },
   emptyState: {
@@ -934,12 +1111,12 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     marginBottom: 8,
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: theme.textSecondary,
+    color: Colors.text.secondary,
     textAlign: 'center',
   },
   bottomSpacing: {
@@ -947,18 +1124,18 @@ const styles = StyleSheet.create({
   },
   assignedTripCard: {
     borderLeftWidth: 2,
-    borderLeftColor: theme.primary,
-    backgroundColor: theme.secondary,
+    borderLeftColor: Colors.primary,
+    backgroundColor: Colors.background.primary,
     marginVertical: 4,
   },
   statusBadge: {
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 2,
   },
   statusBadgeText: {
-    color: theme.secondary,
+    color: Colors.background.primary,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -967,31 +1144,31 @@ const styles = StyleSheet.create({
   navigationButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 2,
   },
   navigationButtonText: {
-    color: theme.secondary,
+    color: Colors.background.primary,
     fontSize: 13,
     fontWeight: '600',
     marginLeft: 4,
   },
   navigationSecondaryButton: {
-    backgroundColor: theme.secondary,
+    backgroundColor: Colors.background.primary,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: Colors.border.light,
   },
   navigationSecondaryButtonText: {
-    color: theme.primary,
+    color: Colors.primary,
   },
   secondaryButton: {
-    backgroundColor: theme.border,
+    backgroundColor: Colors.border.light,
     marginLeft: 8,
   },
   secondaryButtonText: {
-    color: theme.primary,
+    color: Colors.primary,
   },
 });
 

@@ -5,6 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 import { driverLocationService, LocationCoordinates } from './DriverLocationService';
 import { enhancedNotificationService } from './EnhancedNotificationService';
 
@@ -27,7 +28,6 @@ export interface Driver {
   firstName: string;
   lastName: string;
   fullName: string;
-  email: string;
   phone: string;
   years_experience: number;
   specializations: any;
@@ -109,6 +109,8 @@ export interface OrderAssignment {
   estimatedDuration: number; // in minutes
   distanceKm: number;
   specialInstructions?: string;
+  pickupTimePreference?: 'asap' | 'scheduled'; // ASAP or scheduled pickup
+  scheduledPickupTime?: string; // ISO date string for scheduled pickups
   assignedAt: string;
   acceptDeadline: string;
   status: 'pending' | 'accepted' | 'declined' | 'expired';
@@ -673,8 +675,7 @@ class DriverService {
         .from('driver_profiles')
         .update({ 
           is_available: isAvailable,
-          status: status,
-          updated_at: new Date().toISOString()
+          status: status
         })
         .eq('id', this.currentDriver.id);
 
@@ -698,8 +699,7 @@ class DriverService {
         const { error: truckError } = await supabase
           .from('trucks')
           .update({
-            is_available: isAvailable,
-            updated_at: new Date().toISOString()
+            is_available: isAvailable
           })
           .in('id', truckIds);
 
@@ -718,8 +718,7 @@ class DriverService {
           const { error: relationshipError } = await supabase
             .from('driver_profiles')
             .update({ 
-              current_truck_id: primaryTruck.id,
-              updated_at: new Date().toISOString()
+              current_truck_id: primaryTruck.id
             })
             .eq('id', this.currentDriver.id);
 
@@ -1716,11 +1715,19 @@ class DriverService {
     if (!this.currentDriver) return [];
 
     try {
-      console.log('🔍 Fetching assigned trips for navigation...');
+      console.log('🔍 Fetching assigned trips with customer data for navigation...');
       
       const { data, error } = await supabase
         .from('trip_requests')
-        .select('*')
+        .select(`
+          *,
+          users!trip_requests_customer_id_fkey (
+            id,
+            first_name,
+            last_name,
+            phone
+          )
+        `)
         .eq('assigned_driver_id', this.currentDriver.user_id)
         .in('status', ['matched', 'in_transit'])
         .order('matched_at', { ascending: true });
@@ -1730,7 +1737,18 @@ class DriverService {
         return [];
       }
 
-      console.log('✅ Found', data?.length || 0, 'assigned trips for navigation');
+      console.log('✅ Found', data?.length || 0, 'assigned trips with customer data for navigation');
+      
+      // Debug: Log customer data for each assigned trip
+      data?.forEach(trip => {
+        console.log('🔍 Assigned trip customer data:', {
+          tripId: trip.id.substring(0, 8),
+          customerId: trip.customer_id,
+          customerName: trip.users ? `${trip.users.first_name || ''} ${trip.users.last_name || ''}`.trim() : 'No customer data',
+          customerPhone: trip.users?.phone || 'No phone'
+        });
+      });
+      
       return data || [];
     } catch (error) {
       console.error('❌ Exception in getAssignedTrips:', error);
@@ -1923,7 +1941,11 @@ class DriverService {
         error: authError?.message 
       });
       
-      // Try with regular client first
+      // ✅ NEW: Get current driver ID for ASAP requests
+      const currentDriver = this.getCurrentDriver();
+      const driverId = currentDriver?.id;
+
+      // Try with regular client first - Get regular trips AND driver-specific ASAP requests
       const { data: trips, error } = await supabase
         .from('trip_requests')
         .select(`
@@ -1944,22 +1966,30 @@ class DriverService {
           special_requirements,
           requires_crane,
           requires_hydraulic_lift,
+          pickup_time_preference,
           scheduled_pickup_time,
           created_at,
           customer_id,
           status,
-          assigned_driver_id
+          assigned_driver_id,
+          acceptance_deadline,
+          users!trip_requests_customer_id_fkey (
+            first_name,
+            last_name,
+            phone
+          )
         `)
         .eq('status', 'pending')
-        .is('assigned_driver_id', null)
+        .or(`assigned_driver_id.is.null,assigned_driver_id.eq.${driverId || 'none'}`)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       console.log('🔍 Query result:', { 
         error: error?.message, 
         errorCode: error?.code,
         tripCount: trips?.length,
-        authUserId: user?.id
+        authUserId: user?.id,
+        firstTripSample: trips?.[0] // Log first trip to see structure
       });
       
       if (error) {
@@ -1992,16 +2022,23 @@ class DriverService {
             special_requirements,
             requires_crane,
             requires_hydraulic_lift,
+            pickup_time_preference,
             scheduled_pickup_time,
             created_at,
             customer_id,
             status,
-            assigned_driver_id
+            assigned_driver_id,
+            acceptance_deadline,
+            users!trip_requests_customer_id_fkey (
+              first_name,
+              last_name,
+              phone
+            )
           `)
           .eq('status', 'pending')
-          .is('assigned_driver_id', null)
+          .or(`assigned_driver_id.is.null,assigned_driver_id.eq.${driverId || 'none'}`)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(20);
 
         if (serviceError) {
           console.error('❌ Service role also failed:', serviceError);
@@ -2064,12 +2101,40 @@ class DriverService {
             continue;
           }
           
+          // Debug: Log customer data for debugging
+          console.log('🔍 Debug trip customer data:', {
+            tripId: trip.id,
+            customerId: trip.customer_id,
+            users: trip.users,
+            hasUsers: !!trip.users,
+            firstName: trip.users?.first_name,
+            lastName: trip.users?.last_name,
+            phone: trip.users?.phone
+          });
+
+          // Calculate customer name with debug logging
+          let customerName = 'Customer'; // Default
+          if (trip.users) {
+            const firstName = trip.users.first_name || '';
+            const lastName = trip.users.last_name || '';
+            const fullName = `${firstName} ${lastName}`.trim();
+            customerName = fullName || 'Customer';
+            console.log('🔍 Customer name calculation:', {
+              firstName,
+              lastName,
+              fullName,
+              finalCustomerName: customerName
+            });
+          } else {
+            console.log('⚠️ No users object found for trip:', trip.id);
+          }
+          
           const assignment = {
             id: trip.id,
             orderId: trip.id,
             customerId: trip.customer_id || '',
-            customerName: 'Customer', // Will be loaded separately if needed
-            customerPhone: '', // Will be loaded separately if needed
+            customerName,
+            customerPhone: trip.users?.phone || '',
             // Fix UI mapping - provide both formats with proper data extraction
             pickupLocation: {
               address: this.extractAddress(trip.pickup_address),
@@ -2099,6 +2164,8 @@ class DriverService {
             distanceKm: driverLocation ? distanceToPickupKm : Number(trip.estimated_distance_km || 0),
             specialInstructions: trip.special_requirements ? 
               JSON.stringify(trip.special_requirements) : undefined,
+            pickupTimePreference: trip.pickup_time_preference || 'asap',
+            scheduledPickupTime: trip.scheduled_pickup_time,
             assignedAt: new Date().toISOString(),
             acceptDeadline: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes
             status: 'pending' as const,
@@ -2218,6 +2285,8 @@ class DriverService {
           distanceKm: driverLocation ? distanceToPickupKm : Number(trip.estimated_distance_km || 0), // Use distance to pickup, not trip distance
           specialInstructions: trip.special_requirements ? 
             JSON.stringify(trip.special_requirements) : undefined,
+          pickupTimePreference: trip.pickup_time_preference || 'asap',
+          scheduledPickupTime: trip.scheduled_pickup_time,
           assignedAt: new Date().toISOString(),
           acceptDeadline: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes
           status: 'pending' as const,
@@ -2244,7 +2313,16 @@ class DriverService {
         console.log(`📍 Filtered to ${assignments.length} nearby trips (within ${maxDistanceKm}km)`);
       }
 
-      return assignments;
+      // Filter out declined ASAP trips
+      const filteredAssignments = assignments.filter(assignment => 
+        !this.seenASAPTripIds.has(assignment.id)
+      );
+      
+      if (filteredAssignments.length !== assignments.length) {
+        console.log(`🚫 Filtered out ${assignments.length - filteredAssignments.length} declined ASAP trips`);
+      }
+
+      return filteredAssignments;
     } catch (error) {
       console.error('💥 Error in getAvailableTrips:', error);
       return [];
@@ -2295,7 +2373,13 @@ class DriverService {
           customer_id,
           status,
           assigned_driver_id,
-          matched_at
+          matched_at,
+          users!trip_requests_customer_id_fkey (
+            id,
+            first_name,
+            last_name,
+            phone
+          )
         `)
         .eq('assigned_driver_id', driver.user_id)
         .not('assigned_driver_id', 'is', null)
@@ -2334,12 +2418,25 @@ class DriverService {
       }
 
       // Convert to OrderAssignment format
-      const assignments: OrderAssignment[] = trips.map(trip => ({
-        id: trip.id,
-        orderId: trip.id,
-        customerId: trip.customer_id || '',
-        customerName: 'Customer',
-        customerPhone: '',
+      const assignments: OrderAssignment[] = trips.map((trip: any) => {
+        // Extract customer data from the joined users table
+        const customerName = trip.users ? `${trip.users.first_name || ''} ${trip.users.last_name || ''}`.trim() || 'Customer' : 'Customer';
+        const customerPhone = trip.users?.phone || '';
+        
+        console.log('🔍 Debug accepted trip customer data:', {
+          tripId: trip.id.substring(0, 8),
+          customerId: trip.customer_id,
+          users: trip.users,
+          customerName,
+          customerPhone
+        });
+
+        return {
+          id: trip.id,
+          orderId: trip.id,
+          customerId: trip.customer_id || '',
+          customerName,
+          customerPhone,
         // Fix UI mapping - provide both formats with proper data extraction
         pickupLocation: {
           address: this.extractAddress(trip.pickup_address),
@@ -2369,6 +2466,8 @@ class DriverService {
         distanceKm: Number(trip.estimated_distance_km || 0),
         specialInstructions: trip.special_requirements ? 
           JSON.stringify(trip.special_requirements) : undefined,
+        pickupTimePreference: trip.pickup_time_preference || 'asap',
+        scheduledPickupTime: trip.scheduled_pickup_time,
         assignedAt: trip.matched_at || new Date().toISOString(),
         acceptDeadline: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
         status: trip.status === 'matched' ? 'accepted' : trip.status as any,
@@ -2377,9 +2476,10 @@ class DriverService {
           latitude: Number(trip.pickup_latitude),
           longitude: Number(trip.pickup_longitude),
         },
-      }));
+      };
+    });
 
-      return assignments;
+    return assignments;
     } catch (error) {
       console.error('💥 Error in getAcceptedTrips:', error);
       return [];
@@ -2742,21 +2842,50 @@ class DriverService {
         console.log(`🔐 Access token exists: ${!!session.access_token}`);
       }
 
-      // Convert file URI to blob for React Native
-      console.log('🔄 Converting file to blob...');
-      const response = await fetch(file.uri);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
+      // For React Native, read file as ArrayBuffer for proper upload
+      console.log('🔄 Preparing file for React Native upload...');
+      
+      let fileBuffer;
+      let actualFileSize = 0;
+      
+      try {
+        // Validate file URI exists
+        const fileInfo = await FileSystem.getInfoAsync(file.uri);
+        console.log(`📁 File info:`, fileInfo);
+        
+        if (!fileInfo.exists) {
+          throw new Error('File does not exist at the provided URI');
+        }
+        
+        actualFileSize = fileInfo.size || file.size || 0;
+        
+        // Read file as base64
+        const base64Content = await FileSystem.readAsStringAsync(file.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        console.log(`✅ File read as base64 - length: ${base64Content.length}`);
+        
+        // Convert base64 to ArrayBuffer
+        const binaryString = atob(base64Content);
+        fileBuffer = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          fileBuffer[i] = binaryString.charCodeAt(i);
+        }
+        
+        console.log(`✅ File converted to ArrayBuffer - size: ${fileBuffer.length} bytes`);
+        
+      } catch (fileReadError: any) {
+        console.error('❌ Error accessing file:', fileReadError);
+        return { success: false, message: 'Failed to access file', error: fileReadError?.message || 'Unknown file access error' };
       }
-      const blob = await response.blob();
-      console.log(`✅ Blob created - size: ${blob.size}, type: ${blob.type}`);
 
-      // Upload to Supabase Storage with proper authentication
+      // Upload to Supabase Storage with the file buffer
       console.log('☁️ Uploading to Supabase Storage...');
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('driver-documents')
-        .upload(fileName, blob, {
-          contentType: file.type || blob.type,
+        .upload(fileName, fileBuffer, {
+          contentType: file.type || 'image/jpeg',
           upsert: false
         });
 
@@ -2786,7 +2915,7 @@ class DriverService {
           driver_id: driverId,
           document_type: documentType,
           file_name: file.name || fileName,
-          file_size: file.size || blob.size,
+          file_size: actualFileSize || fileBuffer.length,
           file_url: urlData.publicUrl,
           status: 'pending',
           uploaded_at: new Date().toISOString(),
@@ -3050,11 +3179,14 @@ class DriverService {
     return deg * (Math.PI/180);
   }
 
-  // Update driver location in real-time
+  // Update driver location in real-time - SIMPLIFIED to use existing location system
   async updateDriverLocation(latitude: number, longitude: number): Promise<boolean> {
     try {
       if (!this.currentDriver) return false;
 
+      console.log(`📍 Updating location for driver ${this.currentDriver.user_id}: ${latitude}, ${longitude}`);
+
+      // Update users table (used by both live tracking AND ASAP matching)
       const { error } = await supabase
         .from('users')
         .update({
@@ -3069,6 +3201,7 @@ class DriverService {
         return false;
       }
 
+      console.log('✅ Driver location updated - available for both live tracking and ASAP matching');
       return true;
     } catch (error) {
       console.error('💥 Error in updateDriverLocation:', error);
@@ -3522,6 +3655,565 @@ class DriverService {
         averageRating: 0,
         onlineHours: 0
       };
+    }
+  }
+
+  /**
+   * ✅ Professional Real-Time ASAP Trip Monitoring System
+   */
+  private asapMonitoringInterval: NodeJS.Timeout | null = null;
+  private asapSubscription: any = null; // Real-time subscription
+  private isASAPMonitoringActive = false;
+  private asapCallbacks: {
+    onNewASAPTrip: (trip: OrderAssignment) => void;
+    onASAPTripUpdate: (trip: OrderAssignment) => void;
+  } | null = null;
+  private seenASAPTripIds = new Set<string>();
+
+  // Professional Uber-Like ASAP Configuration
+  private static readonly ASAP_CONFIG = {
+    MAX_DISTANCE_KM: 25,           // Uber-like proximity (25km max for ASAP)
+    PREFERRED_DISTANCE_KM: 10,     // Priority zone (within 10km gets priority)
+    MAX_AGE_MINUTES: 10,           // Fresh trips only (10min max age)
+    POLLING_INTERVAL_MS: 2000,     // Fast polling for responsiveness
+    NOTIFICATION_TIMEOUT_SEC: 15,   // Standard driver response timeout
+    RETRY_ATTEMPTS: 3,             // Reliability features
+    SUBSCRIPTION_CHANNEL: 'professional-asap-monitoring',
+    MIN_BATTERY_LEVEL: 20,         // Don't spam drivers with low battery
+    MAX_CONCURRENT_OFFERS: 1,      // One offer at a time like Uber
+    DISTANCE_PRIORITY_WEIGHT: 0.7, // Distance is 70% of priority score
+    TIME_PRIORITY_WEIGHT: 0.3      // Time is 30% of priority score
+  };
+
+  /**
+   * Start monitoring for ASAP trips
+   */
+  async startASAPMonitoring(
+    onNewASAPTrip: (trip: OrderAssignment) => void,
+    onASAPTripUpdate: (trip: OrderAssignment) => void
+  ): Promise<void> {
+    // Prevent duplicate initialization
+    if (this.isASAPMonitoringActive) {
+      console.log('⚡ [DriverService] Professional ASAP monitoring already active');
+      return;
+    }
+
+    console.log('🚨 [DriverService] *** INITIALIZING PROFESSIONAL REAL-TIME ASAP SYSTEM ***');
+
+    // Stop existing monitoring
+    this.stopASAPMonitoring();
+
+    this.asapCallbacks = { onNewASAPTrip, onASAPTripUpdate };
+    this.isASAPMonitoringActive = true;
+
+    // Start with reliable polling system first (immediate reliability)
+    console.log('⚡ [DriverService] Starting with polling system for guaranteed reliability...');
+    this.fallbackToPolling();
+
+    // Try to setup real-time subscription as enhancement (but don't depend on it)
+    setTimeout(async () => {
+      try {
+        await this.setupRealTimeASAPSubscription();
+      } catch (error) {
+        console.error('⚠️ [DriverService] Real-time subscription failed, continuing with polling:', error);
+      }
+    }, 2000);
+
+    // Initial check for existing ASAP trips
+    setTimeout(async () => {
+      await this.performInitialASAPCheck();
+    }, 1000);
+
+    console.log('✅ [DriverService] Professional ASAP monitoring system activated with polling guarantee');
+  }
+
+  /**
+   * Setup professional real-time subscription for ASAP trips
+   */
+  private async setupRealTimeASAPSubscription(): Promise<void> {
+    try {
+      console.log('🔗 [DriverService] Setting up real-time ASAP subscription...');
+
+      // Get current driver for location-based filtering
+      const currentDriver = this.getCurrentDriver();
+      if (!currentDriver?.id) {
+        console.error('❌ [DriverService] Cannot setup ASAP subscription: No current driver');
+        console.log('🔄 [DriverService] Falling back to polling system...');
+        this.fallbackToPolling();
+        return;
+      }
+
+      console.log('✅ [DriverService] Driver found for subscription:', currentDriver.id.substring(0, 8));
+
+      // Subscribe to trip_requests table for real-time updates
+      const subscription = supabase
+        .channel(DriverService.ASAP_CONFIG.SUBSCRIPTION_CHANNEL)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'trip_requests',
+            filter: `pickup_time_preference=eq.asap`
+          },
+          async (payload) => {
+            console.log('🚨 [Real-time] New ASAP trip detected:', payload.new);
+            await this.handleNewASAPTripEvent(payload.new);
+          }
+        )
+        .on(
+          'postgres_changes', 
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'trip_requests',
+            filter: `pickup_time_preference=eq.asap`
+          },
+          async (payload) => {
+            console.log('� [Real-time] ASAP trip updated:', payload.new);
+            await this.handleASAPTripUpdateEvent(payload.old, payload.new);
+          }
+        )
+        .subscribe((status) => {
+          console.log('📡 [DriverService] Subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ [DriverService] Professional ASAP real-time subscription active');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('❌ [DriverService] ASAP subscription error, falling back to polling');
+            this.fallbackToPolling();
+          } else if (status === 'CLOSED') {
+            console.warn('⚠️ [DriverService] ASAP subscription closed, falling back to polling');
+            this.fallbackToPolling();
+          }
+        });
+
+      // Store subscription reference for cleanup
+      this.asapSubscription = subscription;
+
+    } catch (error) {
+      console.error('💥 [DriverService] Failed to setup ASAP subscription:', error);
+      this.fallbackToPolling();
+    }
+  }
+
+  /**
+   * Handle new ASAP trip from real-time event
+   */
+  private async handleNewASAPTripEvent(tripData: any): Promise<void> {
+    if (!this.isASAPMonitoringActive || !this.asapCallbacks) return;
+
+    try {
+      // Convert raw trip data to OrderAssignment format
+      const asapTrip = await this.convertToOrderAssignment(tripData);
+      
+      if (!asapTrip) {
+        console.log('⚠️ [DriverService] Could not convert trip data to OrderAssignment');
+        return;
+      }
+
+      // Check if we've already seen this trip
+      if (this.seenASAPTripIds.has(asapTrip.id)) {
+        console.log('🔄 [DriverService] ASAP trip already seen, skipping');
+        return;
+      }
+
+      // Check truck compatibility
+      const compatibility = await this.checkTruckTypeCompatibility(asapTrip.id);
+      if (!compatibility.isCompatible) {
+        console.log(`❌ [DriverService] ASAP trip not compatible: ${compatibility.error || 'Vehicle type mismatch'}`);
+        this.seenASAPTripIds.add(asapTrip.id);
+        return;
+      }
+
+      // Check proximity (within reasonable distance)
+      if (asapTrip.distanceKm > DriverService.ASAP_CONFIG.MAX_DISTANCE_KM) {
+        console.log(`📍 [DriverService] ASAP trip too far: ${asapTrip.distanceKm.toFixed(1)}km (max: ${DriverService.ASAP_CONFIG.MAX_DISTANCE_KM}km)`);
+        this.seenASAPTripIds.add(asapTrip.id);
+        return;
+      }
+
+      // Mark as seen and notify
+      this.seenASAPTripIds.add(asapTrip.id);
+      console.log('🚨 [DriverService] *** PROFESSIONAL ASAP NOTIFICATION ***', {
+        tripId: asapTrip.id.substring(0, 8),
+        distance: `${asapTrip.distanceKm.toFixed(1)}km`,
+        customer: asapTrip.customerName,
+        material: asapTrip.materials[0]?.type || 'Unknown'
+      });
+
+      // Professional notification delivery with Uber-like precision
+      if (this.asapCallbacks && this.asapCallbacks.onNewASAPTrip && this.isASAPMonitoringActive) {
+        console.log(`[ASAP] 🚨 DELIVERING PRIORITY NOTIFICATION TO DRIVER`);
+        try {
+          // Uber-like notification with enhanced trip data
+          const enhancedTrip = {
+            ...asapTrip,
+            priorityLevel: asapTrip.distanceKm <= DriverService.ASAP_CONFIG.PREFERRED_DISTANCE_KM ? 'HIGH' : 'MEDIUM',
+            estimatedPickupTime: `${Math.ceil(asapTrip.distanceKm * 2)} min`, // Rough ETA
+            zoneType: asapTrip.distanceKm <= DriverService.ASAP_CONFIG.PREFERRED_DISTANCE_KM ? 'preferred' : 'extended'
+          };
+          
+          this.asapCallbacks.onNewASAPTrip(enhancedTrip);
+          console.log(`[ASAP] ✅ Professional notification delivered successfully`);
+        } catch (callbackError) {
+          console.error(`[ASAP] ❌ Notification delivery failed:`, callbackError);
+        }
+      } else {
+        console.error(`[ASAP] ❌ Notification system unavailable - modal will not appear`);
+        console.error(`[ASAP] System diagnostic:`, {
+          monitoringActive: this.isASAPMonitoringActive,
+          callbacksAvailable: !!this.asapCallbacks,
+          notificationHandler: !!this.asapCallbacks?.onNewASAPTrip
+        });
+      }
+
+    } catch (error) {
+      console.error('💥 [DriverService] Error handling new ASAP trip:', error);
+    }
+  }
+
+  /**
+   * Handle ASAP trip update from real-time event
+   */
+  private async handleASAPTripUpdateEvent(oldData: any, newData: any): Promise<void> {
+    if (!this.isASAPMonitoringActive || !this.asapCallbacks) return;
+
+    try {
+      // If trip was accepted by another driver, remove from our notifications
+      if (oldData.status === 'pending' && newData.status === 'matched') {
+        console.log('✅ [DriverService] ASAP trip accepted by another driver, removing from queue');
+        this.seenASAPTripIds.add(newData.id);
+        return;
+      }
+
+      // Convert and notify about update
+      const updatedTrip = await this.convertToOrderAssignment(newData);
+      if (updatedTrip) {
+        this.asapCallbacks.onASAPTripUpdate(updatedTrip);
+      }
+
+    } catch (error) {
+      console.error('💥 [DriverService] Error handling ASAP trip update:', error);
+    }
+  }
+
+  /**
+   * Fallback to polling if real-time fails
+   */
+  private fallbackToPolling(): void {
+    console.log('🔄 [DriverService] Falling back to reliable polling-based ASAP monitoring...');
+    
+    // Clear any existing interval
+    if (this.asapMonitoringInterval) {
+      clearInterval(this.asapMonitoringInterval);
+    }
+    
+    // Start polling every 2 seconds (more frequent for reliability)
+    this.asapMonitoringInterval = setInterval(async () => {
+      console.log('🔍 [DriverService] Polling for ASAP trips...');
+      await this.checkForNewASAPTrips();
+    }, 2000); // 2 seconds for better responsiveness
+    
+    console.log('✅ [DriverService] Polling fallback system activated');
+  }
+
+  /**
+   * Stop professional ASAP monitoring
+   */
+  stopASAPMonitoring(): void {
+    console.log('🛑 [DriverService] Stopping professional ASAP monitoring system');
+    
+    this.isASAPMonitoringActive = false;
+    this.asapCallbacks = null;
+
+    // Clean up real-time subscription
+    if (this.asapSubscription) {
+      this.asapSubscription.unsubscribe();
+      this.asapSubscription = null;
+      console.log('🔌 [DriverService] Real-time ASAP subscription closed');
+    }
+
+    // Clean up polling fallback
+    if (this.asapMonitoringInterval) {
+      clearInterval(this.asapMonitoringInterval);
+      this.asapMonitoringInterval = null;
+    }
+
+    // Keep seen trips in memory to avoid re-notifications
+    console.log('💾 [DriverService] Preserving ASAP trip memory for session');
+  }
+
+  /**
+   * Convert raw trip data to OrderAssignment format
+   */
+  private async convertToOrderAssignment(tripData: any): Promise<OrderAssignment | null> {
+    try {
+      // Use existing getAvailableTrips to get properly formatted trip
+      const availableTrips = await this.getAvailableTrips();
+      return availableTrips.find(trip => trip.id === tripData.id) || null;
+    } catch (error) {
+      console.error('💥 [DriverService] Error converting trip data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Perform initial check for existing ASAP trips
+   */
+  private async performInitialASAPCheck(): Promise<void> {
+    console.log('🔍 [DriverService] Performing initial ASAP check...');
+    await this.checkForNewASAPTrips();
+  }
+
+  /**
+   * Check for new ASAP trips (legacy method for compatibility and fallback)
+   */
+  private async checkForNewASAPTrips(): Promise<void> {
+    if (!this.isASAPMonitoringActive || !this.asapCallbacks) {
+      return;
+    }
+
+    try {
+      console.log('🔍 [DriverService] Checking for new ASAP trips...');
+      console.log(`[ASAP DEBUG] Previously seen ASAP trips: ${this.seenASAPTripIds.size}`);
+
+      // Get current driver
+      const currentDriver = this.getCurrentDriver();
+      if (!currentDriver?.id) {
+        console.log('⚠️ [DriverService] No current driver found for ASAP monitoring');
+        return;
+      }
+
+      // Use existing getAvailableTrips method to get all trips
+      const allTrips = await this.getAvailableTrips();
+      console.log(`[ASAP DEBUG] *** getAvailableTrips returned ${allTrips.length} trips ***`);
+      allTrips.forEach((trip, index) => {
+        console.log(`[ASAP DEBUG] Trip ${index + 1}:`, {
+          id: trip.id.substring(0, 8),
+          pickupTimePreference: trip.pickupTimePreference,
+          status: trip.status,
+          distanceKm: trip.distanceKm.toFixed(1) + 'km',
+          material: trip.materials[0]?.type || 'Unknown'
+        });
+        
+        // Special check for our test trip
+        if (trip.id === '4e9d5d30-bed3-495d-bc4e-d4d50a1905f9') {
+          console.log(`[ASAP DEBUG] *** FOUND OUR TEST TRIP! ***`, {
+            pickupTimePreference: trip.pickupTimePreference,
+            status: trip.status,
+            isASAP: trip.pickupTimePreference === 'asap',
+            isPending: trip.status === 'pending'
+          });
+        }
+      });
+
+      // Professional Uber-like ASAP trip filtering with intelligent prioritization
+      const now = new Date();
+      const candidateTrips = allTrips.filter(trip => {
+        // Basic eligibility criteria
+        if (trip.pickupTimePreference !== 'asap') return false;
+        if (trip.status !== 'pending') return false;
+        if (this.seenASAPTripIds.has(trip.id)) return false;
+        
+        // Age filtering - Uber shows only fresh requests
+        const tripCreated = new Date(trip.assignedAt); // Use assignedAt as creation time
+        const timeDiff = now.getTime() - tripCreated.getTime();
+        const minutesAgo = timeDiff / (1000 * 60);
+        if (minutesAgo > DriverService.ASAP_CONFIG.MAX_AGE_MINUTES) {
+          console.log(`[ASAP] Trip ${trip.id.substring(0, 8)} expired: ${minutesAgo.toFixed(1)}min old`);
+          return false;
+        }
+
+        // Distance filtering - Uber-like proximity
+        if (trip.distanceKm > DriverService.ASAP_CONFIG.MAX_DISTANCE_KM) {
+          console.log(`[ASAP] Trip ${trip.id.substring(0, 8)} too far: ${trip.distanceKm.toFixed(1)}km`);
+          return false;
+        }
+
+        return true;
+      });
+
+      // Uber-like prioritization: Sort by distance and urgency
+      const prioritizedTrips = candidateTrips.map(trip => {
+        const tripAge = (now.getTime() - new Date(trip.assignedAt).getTime()) / (1000 * 60); // minutes
+        
+        // Calculate priority score (lower = higher priority)
+        const distanceScore = trip.distanceKm * DriverService.ASAP_CONFIG.DISTANCE_PRIORITY_WEIGHT;
+        const timeScore = tripAge * DriverService.ASAP_CONFIG.TIME_PRIORITY_WEIGHT;
+        const priorityScore = distanceScore + timeScore;
+        
+        const isPreferred = trip.distanceKm <= DriverService.ASAP_CONFIG.PREFERRED_DISTANCE_KM;
+        
+        return {
+          ...trip,
+          priorityScore,
+          isPreferred
+        };
+      }).sort((a, b) => a.priorityScore - b.priorityScore);
+
+      // Take only the highest priority trip (like Uber - one offer at a time)
+      const asapTrips = prioritizedTrips.slice(0, DriverService.ASAP_CONFIG.MAX_CONCURRENT_OFFERS);
+
+      console.log(`[ASAP] *** PROFESSIONAL FILTERING COMPLETE ***`);
+      console.log(`[ASAP] Total trips: ${allTrips.length}`);
+      console.log(`[ASAP] Candidate trips: ${candidateTrips.length}`); 
+      console.log(`[ASAP] Priority trips to offer: ${asapTrips.length}`);
+      
+      if (asapTrips.length === 0) {
+        console.log(`[ASAP] No priority trips available at this time`);
+        return;
+      }
+
+      console.log(`[ASAP] Processing ${asapTrips.length} priority trip(s):`);
+      asapTrips.forEach(trip => {
+        const priorityLevel = trip.isPreferred ? '🟢 HIGH' : '🟡 MEDIUM';
+        console.log(`[ASAP] ${priorityLevel} - Trip ${trip.id.substring(0, 8)}: ${trip.distanceKm.toFixed(1)}km away (Priority: ${trip.priorityScore.toFixed(2)})`);
+      });
+
+      // Process each priority ASAP trip (Uber-like: highest priority first)
+      for (const asapTrip of asapTrips) {
+        const priorityLabel = asapTrip.isPreferred ? '🚨 HIGH PRIORITY' : '⚡ PRIORITY';
+        console.log(`${priorityLabel} ASAP TRIP AVAILABLE:`, {
+          id: asapTrip.id.substring(0, 8),
+          material: asapTrip.materials[0]?.type || 'Unknown', 
+          distance: `${asapTrip.distanceKm.toFixed(1)}km away`,
+          customer: asapTrip.customerName,
+          priority: asapTrip.priorityScore.toFixed(2),
+          zone: asapTrip.isPreferred ? 'Preferred Zone' : 'Extended Zone'
+        });
+
+        // Professional vehicle compatibility check
+        console.log(`[ASAP] Vehicle compatibility check for trip ${asapTrip.id.substring(0, 8)}`);
+        const compatibility = await this.checkTruckTypeCompatibility(asapTrip.id);
+        
+        if (!compatibility.isCompatible) {
+          console.log(`[ASAP] ❌ Vehicle mismatch for trip ${asapTrip.id.substring(0, 8)}: ${compatibility.error || 'Incompatible vehicle type'}`);
+          this.seenASAPTripIds.add(asapTrip.id); // Mark as seen to avoid re-checking
+          continue; // Skip this trip
+        }
+        
+        console.log(`[ASAP] ✅ Vehicle compatibility confirmed for trip ${asapTrip.id.substring(0, 8)}`);
+
+        // Mark as seen
+        this.seenASAPTripIds.add(asapTrip.id);
+
+        // Notify callback
+        console.log(`[ASAP DEBUG] *** CALLING CALLBACK ***`);
+        console.log(`[ASAP DEBUG] Callbacks object:`, !!this.asapCallbacks);
+        console.log(`[ASAP DEBUG] onNewASAPTrip function:`, !!this.asapCallbacks?.onNewASAPTrip);
+        
+        if (this.asapCallbacks && this.asapCallbacks.onNewASAPTrip) {
+          console.log(`[ASAP DEBUG] ✅ Executing callback for trip ${asapTrip.id.substring(0, 8)}`);
+          this.asapCallbacks.onNewASAPTrip(asapTrip);
+          console.log(`[ASAP DEBUG] ✅ Callback executed successfully`);
+        } else {
+          console.log(`[ASAP DEBUG] ❌ CALLBACK NOT AVAILABLE!`);
+          console.log(`[ASAP DEBUG] - asapCallbacks exists:`, !!this.asapCallbacks);
+          console.log(`[ASAP DEBUG] - onNewASAPTrip function exists:`, !!this.asapCallbacks?.onNewASAPTrip);
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ [DriverService] Error checking for ASAP trips:', error);
+    }
+  }
+
+  /**
+   * Accept an ASAP trip
+   */
+  async acceptASAPTrip(tripId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log(`✅ [DriverService] Accepting ASAP trip: ${tripId}`);
+
+      const currentDriver = this.getCurrentDriver();
+      if (!currentDriver?.id) {
+        console.log('[ASAP DEBUG] No current driver found for acceptance.');
+        return { success: false, message: 'No current driver found' };
+      }
+
+      // Use service role client to bypass RLS for legitimate driver operations
+      const { createClient } = require('@supabase/supabase-js');
+      const serviceSupabase = createClient(
+        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
+      );
+
+      // Log trip before update
+      const { data: tripBefore, error: errorBefore } = await serviceSupabase
+        .from('trip_requests')
+        .select('*')
+        .eq('id', tripId)
+        .single();
+      console.log('[ASAP DEBUG] Trip before acceptance:', tripBefore);
+
+      // Update the trip to assign it to the driver
+      const { data, error } = await serviceSupabase
+        .from('trip_requests')
+        .update({
+          assigned_driver_id: currentDriver.user_id, // Use user_id which exists in users table
+          status: 'matched',
+          matched_at: new Date().toISOString()
+        })
+        .eq('id', tripId)
+        .eq('status', 'pending')
+        .is('assigned_driver_id', null);
+
+      if (error) {
+        console.error('❌ [DriverService] Error accepting ASAP trip:', error);
+        return { success: false, message: 'Failed to accept trip' };
+      }
+
+      // Log trip after update
+      const { data: tripAfter, error: errorAfter } = await supabase
+        .from('trip_requests')
+        .select('*')
+        .eq('id', tripId)
+        .single();
+      console.log('[ASAP DEBUG] Trip after acceptance:', tripAfter);
+
+      console.log('✅ [DriverService] ASAP trip accepted successfully');
+      return { success: true, message: 'Trip accepted successfully!' };
+
+    } catch (error) {
+      console.error('❌ [DriverService] Accept ASAP trip failed:', error);
+      return { success: false, message: 'Failed to accept trip' };
+    }
+  }
+
+  /**
+   * Professional ASAP trip decline handling
+   */
+  async declineASAPTrip(tripId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log(`❌ [DriverService] Professional decline for ASAP trip: ${tripId.substring(0, 8)}`);
+      
+      // Mark trip as seen to prevent re-notifications to this driver
+      this.seenASAPTripIds.add(tripId);
+      
+      // Optional: Record decline in database for analytics
+      try {
+        const currentDriver = this.getCurrentDriver();
+        if (currentDriver?.id) {
+          await supabase
+            .from('trip_declines')
+            .insert({
+              trip_id: tripId,
+              driver_id: currentDriver.id,
+              declined_at: new Date().toISOString(),
+              reason: 'driver_declined'
+            });
+        }
+      } catch (analyticsError) {
+        // Don't fail the decline if analytics fail
+        console.warn('⚠️ [DriverService] Analytics recording failed:', analyticsError);
+      }
+      
+      console.log(`✅ [DriverService] ASAP trip ${tripId.substring(0, 8)} declined professionally - available for other drivers`);
+      return { success: true, message: 'Trip declined successfully' };
+      
+    } catch (error) {
+      console.error('💥 [DriverService] Error declining ASAP trip:', error);
+      return { success: false, message: 'Failed to decline trip' };
     }
   }
 }

@@ -20,20 +20,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const { width } = Dimensions.get('window');
 
-// Minimal Black & White Theme
-const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
-  white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
-};
+import { Colors } from '../theme/colors';
 
 interface EnhancedDriverRegistrationScreenProps {
   onRegistrationComplete: (success: boolean, message: string) => void;
@@ -352,9 +339,9 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
                   name={isCompleted ? 'checkmark' : step.icon as any} 
                   size={isCompleted ? 16 : 14} 
                   color={
-                    isCompleted ? theme.white :
-                    isActive ? theme.white :
-                    isAccessible ? theme.primary : theme.lightText
+                    isCompleted ? Colors.text.white :
+                    isActive ? Colors.text.white :
+                    isAccessible ? Colors.primary : Colors.text.secondary
                   } 
                 />
               </View>
@@ -393,7 +380,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           value={formData.firstName}
           onChangeText={(value) => updateField('firstName', value)}
           placeholder="Enter your first name"
-          placeholderTextColor={theme.lightText}
+          placeholderTextColor={Colors.text.secondary}
           autoCapitalize="words"
         />
       </View>
@@ -405,7 +392,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           value={formData.lastName}
           onChangeText={(value) => updateField('lastName', value)}
           placeholder="Enter your last name"
-          placeholderTextColor={theme.lightText}
+          placeholderTextColor={Colors.text.secondary}
           autoCapitalize="words"
         />
       </View>
@@ -417,7 +404,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           value={formData.email}
           onChangeText={(value) => updateField('email', value)}
           placeholder="Enter your email address"
-          placeholderTextColor={theme.lightText}
+          placeholderTextColor={Colors.text.secondary}
           keyboardType="email-address"
           autoCapitalize="none"
         />
@@ -431,7 +418,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
             value={formData.password}
             onChangeText={(value) => updateField('password', value)}
             placeholder="Enter your password"
-            placeholderTextColor={theme.lightText}
+            placeholderTextColor={Colors.text.secondary}
             secureTextEntry={!showPassword}
           />
           <TouchableOpacity
@@ -441,7 +428,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
             <Ionicons 
               name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
               size={20} 
-              color={theme.lightText} 
+              color={Colors.text.secondary} 
             />
           </TouchableOpacity>
         </View>
@@ -455,7 +442,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
             value={formData.confirmPassword}
             onChangeText={(value) => updateField('confirmPassword', value)}
             placeholder="Confirm your password"
-            placeholderTextColor={theme.lightText}
+            placeholderTextColor={Colors.text.secondary}
             secureTextEntry={!showConfirmPassword}
           />
           <TouchableOpacity
@@ -465,7 +452,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
             <Ionicons 
               name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} 
               size={20} 
-              color={theme.lightText} 
+              color={Colors.text.secondary} 
             />
           </TouchableOpacity>
         </View>
@@ -488,7 +475,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           value={formData.phone}
           onChangeText={(value) => updateField('phone', value)}
           placeholder="Enter your phone number"
-          placeholderTextColor={theme.lightText}
+          placeholderTextColor={Colors.text.secondary}
           keyboardType="phone-pad"
         />
       </View>
@@ -500,7 +487,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           value={formData.licenseNumber}
           onChangeText={(value) => updateField('licenseNumber', value)}
           placeholder="Enter your license number"
-          placeholderTextColor={theme.lightText}
+          placeholderTextColor={Colors.text.secondary}
           autoCapitalize="characters"
         />
       </View>
@@ -512,13 +499,13 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           value={formData.yearsExperience}
           onChangeText={(value) => updateField('yearsExperience', value)}
           placeholder="Enter years of driving experience"
-          placeholderTextColor={theme.lightText}
+          placeholderTextColor={Colors.text.secondary}
           keyboardType="numeric"
         />
       </View>
 
       <View style={styles.infoBox}>
-        <Ionicons name="information-circle-outline" size={20} color={theme.warning} />
+        <Ionicons name="information-circle-outline" size={20} color={Colors.status.pending} />
         <Text style={styles.infoText}>
           You'll need to upload your driver's license for verification in the next step
         </Text>
@@ -541,7 +528,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           value={formData.vehicleModel}
           onChangeText={(value) => updateField('vehicleModel', value)}
           placeholder="e.g., Ford Transit, Toyota Hiace"
-          placeholderTextColor={theme.lightText}
+          placeholderTextColor={Colors.text.secondary}
           autoCapitalize="words"
         />
       </View>
@@ -553,7 +540,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           value={formData.vehicleYear}
           onChangeText={(value) => updateField('vehicleYear', value)}
           placeholder="Enter vehicle year"
-          placeholderTextColor={theme.lightText}
+          placeholderTextColor={Colors.text.secondary}
           keyboardType="numeric"
         />
       </View>
@@ -565,7 +552,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           value={formData.vehiclePlate}
           onChangeText={(value) => updateField('vehiclePlate', value)}
           placeholder="Enter license plate number"
-          placeholderTextColor={theme.lightText}
+          placeholderTextColor={Colors.text.secondary}
           autoCapitalize="characters"
         />
       </View>
@@ -612,7 +599,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
             value={formData.maxPayload}
             onChangeText={(value) => updateField('maxPayload', value)}
             placeholder="e.g., 5.0"
-            placeholderTextColor={theme.lightText}
+            placeholderTextColor={Colors.text.secondary}
             keyboardType="decimal-pad"
           />
         </View>
@@ -624,14 +611,14 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
             value={formData.maxVolume}
             onChangeText={(value) => updateField('maxVolume', value)}
             placeholder="e.g., 10.0"
-            placeholderTextColor={theme.lightText}
+            placeholderTextColor={Colors.text.secondary}
             keyboardType="decimal-pad"
           />
         </View>
       </View>
 
       <View style={styles.infoBox}>
-        <Ionicons name="car-outline" size={20} color={theme.warning} />
+        <Ionicons name="car-outline" size={20} color={Colors.status.pending} />
         <Text style={styles.infoText}>
           You'll need to upload vehicle registration and insurance documents in the next step. 
           Your truck type selection helps us match you with appropriate delivery orders.
@@ -644,7 +631,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
   const renderCompleteStep = () => (
     <View style={styles.completeContainer}>
       <View style={styles.successIcon}>
-        <Ionicons name="checkmark-circle" size={80} color={theme.success} />
+        <Ionicons name="checkmark-circle" size={80} color={Colors.status.completed} />
       </View>
       
       <Text style={styles.successTitle}>Registration Complete!</Text>
@@ -655,15 +642,15 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
       <View style={styles.nextStepsContainer}>
         <Text style={styles.nextStepsTitle}>What happens next:</Text>
         <View style={styles.nextStep}>
-          <Ionicons name="time-outline" size={16} color={theme.lightText} />
+          <Ionicons name="time-outline" size={16} color={Colors.text.secondary} />
           <Text style={styles.nextStepText}>Review takes 2-3 business days</Text>
         </View>
         <View style={styles.nextStep}>
-          <Ionicons name="mail-outline" size={16} color={theme.lightText} />
+          <Ionicons name="mail-outline" size={16} color={Colors.text.secondary} />
           <Text style={styles.nextStepText}>You'll receive an email with the decision</Text>
         </View>
         <View style={styles.nextStep}>
-          <Ionicons name="checkmark-outline" size={16} color={theme.lightText} />
+          <Ionicons name="checkmark-outline" size={16} color={Colors.text.secondary} />
           <Text style={styles.nextStepText}>Once approved, you can start accepting orders</Text>
         </View>
       </View>
@@ -686,7 +673,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Driver Registration</Text>
         <View style={styles.placeholder} />
@@ -715,7 +702,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           />
         ) : currentStep === 'documents' && !driverId ? (
           <View style={styles.completeContainer}>
-            <Ionicons name="alert-circle-outline" size={64} color={theme.error} style={styles.successIcon} />
+            <Ionicons name="alert-circle-outline" size={64} color={Colors.status.cancelled} style={styles.successIcon} />
             <Text style={styles.successTitle}>Registration Error</Text>
             <Text style={styles.successDescription}>
               No driver ID found. Please restart the registration process.
@@ -740,13 +727,13 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator size="small" color={theme.white} />
+              <ActivityIndicator size="small" color={Colors.text.white} />
             ) : (
               <>
                 <Text style={styles.nextButtonText}>
                   {currentStep === 'vehicle' ? 'Register' : 'Next'}
                 </Text>
-                <Ionicons name="arrow-forward" size={16} color={theme.white} />
+                <Ionicons name="arrow-forward" size={16} color={Colors.text.white} />
               </>
             )}
           </TouchableOpacity>
@@ -759,7 +746,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: Colors.background.primary,
   },
   header: {
     flexDirection: 'row',
@@ -769,7 +756,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: Colors.border.light,
   },
   backButton: {
     width: 40,
@@ -780,7 +767,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   placeholder: {
     width: 40,
@@ -788,7 +775,7 @@ const styles = StyleSheet.create({
   progressContainer: {
     paddingHorizontal: 20,
     paddingVertical: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.background.secondary,
   },
   progressSteps: {
     flexDirection: 'row',
@@ -804,37 +791,37 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: theme.border,
-    backgroundColor: theme.white,
+    borderColor: Colors.border.light,
+    backgroundColor: Colors.background.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
   progressCircleActive: {
-    borderColor: theme.primary,
-    backgroundColor: theme.primary,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary,
   },
   progressCircleCompleted: {
-    borderColor: theme.success,
-    backgroundColor: theme.success,
+    borderColor: Colors.status.completed,
+    backgroundColor: Colors.status.completed,
   },
   progressCircleDisabled: {
-    borderColor: theme.border,
-    backgroundColor: '#f8f9fa',
+    borderColor: Colors.border.light,
+    backgroundColor: Colors.background.secondary,
   },
   progressLabel: {
     fontSize: 11,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     fontWeight: '500',
     textAlign: 'center',
     minWidth: 60,
   },
   progressLabelActive: {
-    color: theme.text,
+    color: Colors.text.primary,
     fontWeight: '600',
   },
   progressLabelDisabled: {
-    color: theme.lightText,
+    color: Colors.text.secondary,
   },
   progressLine: {
     position: 'absolute',
@@ -842,10 +829,10 @@ const styles = StyleSheet.create({
     left: 32,
     width: 40,
     height: 2,
-    backgroundColor: theme.border,
+    backgroundColor: Colors.border.light,
   },
   progressLineCompleted: {
-    backgroundColor: theme.success,
+    backgroundColor: Colors.status.completed,
   },
   content: {
     flex: 1,
@@ -857,13 +844,13 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 24,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     marginTop: 20,
     marginBottom: 8,
   },
   stepDescription: {
     fontSize: 16,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     lineHeight: 22,
     marginBottom: 30,
   },
@@ -873,18 +860,18 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: theme.white,
+    backgroundColor: Colors.background.primary,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: Colors.border.light,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: theme.text,
+    color: Colors.text.primary,
   },
   passwordContainer: {
     position: 'relative',
@@ -901,7 +888,7 @@ const styles = StyleSheet.create({
   infoBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#fff3cd',
+    backgroundColor: 'rgba(255, 243, 205, 0.3)',
     borderRadius: 8,
     padding: 12,
     marginTop: 10,
@@ -909,7 +896,7 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: 14,
-    color: theme.text,
+    color: Colors.text.primary,
     lineHeight: 18,
     marginLeft: 8,
   },
@@ -925,13 +912,13 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 28,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     marginBottom: 12,
     textAlign: 'center',
   },
   successDescription: {
     fontSize: 16,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     lineHeight: 22,
     textAlign: 'center',
     marginBottom: 32,
@@ -943,7 +930,7 @@ const styles = StyleSheet.create({
   nextStepsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     marginBottom: 16,
   },
   nextStep: {
@@ -953,7 +940,7 @@ const styles = StyleSheet.create({
   },
   nextStepText: {
     fontSize: 14,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginLeft: 12,
     flex: 1,
   },
@@ -961,8 +948,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: theme.border,
-    backgroundColor: theme.white,
+    borderTopColor: Colors.border.light,
+    backgroundColor: Colors.background.primary,
   },
   button: {
     borderRadius: 12,
@@ -972,16 +959,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   nextButton: {
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.primary,
   },
   nextButtonText: {
-    color: theme.white,
+    color: Colors.text.white,
     fontSize: 16,
     fontWeight: '600',
     marginRight: 8,
   },
   completeButton: {
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 32,
@@ -990,14 +977,14 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   completeButtonText: {
-    color: theme.white,
+    color: Colors.text.white,
     fontSize: 16,
     fontWeight: '600',
   },
   // New styles for truck type selection and layout
   inputDescription: {
     fontSize: 12,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginBottom: 12,
     lineHeight: 16,
   },
@@ -1005,9 +992,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   truckTypeCard: {
-    backgroundColor: theme.white,
+    backgroundColor: Colors.background.primary,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: Colors.border.light,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -1016,26 +1003,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   truckTypeCardSelected: {
-    borderColor: theme.primary,
-    backgroundColor: '#f8f9fa',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.background.secondary,
   },
   truckTypeName: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     textAlign: 'center',
     marginBottom: 4,
   },
   truckTypeNameSelected: {
-    color: theme.primary,
+    color: Colors.primary,
   },
   truckTypeSpecs: {
     fontSize: 12,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     textAlign: 'center',
   },
   truckTypeSpecsSelected: {
-    color: theme.primary,
+    color: Colors.primary,
   },
   row: {
     flexDirection: 'row',

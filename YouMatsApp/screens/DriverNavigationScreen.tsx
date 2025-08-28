@@ -19,23 +19,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { OrderAssignment, driverService } from '../services/DriverService';
 import { driverLocationService } from '../services/DriverLocationService';
+import { Colors, theme } from '../theme/colors';
 
 const { width, height } = Dimensions.get('window');
-
-// Black & White Theme (matching customer app)
-const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
-  white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
-};
 
 interface Props {
   order: OrderAssignment;

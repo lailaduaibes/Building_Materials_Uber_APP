@@ -1,7 +1,7 @@
 /**
- * YouMats Driver App - Modern Uber-style Interface
+ * YouMats Driver App - Modern Professional Interface
  * Professional building materials delivery platform for drivers
- * Black & White Theme
+ * Updated to match YouMats Brand Blue Theme
  */
 
 import React, { useState, useEffect } from 'react';
@@ -17,20 +17,8 @@ import {
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Black & White Theme (matching customer app)
-const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
-  white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
-};
+// Import the new YouMats theme system
+import { Colors, theme } from './theme/colors';
 
 // Import modern services
 import { driverService, Driver, OrderAssignment } from './services/DriverService';
@@ -44,12 +32,14 @@ import EarningsScreen from './screens/EarningsScreen';
 import TripHistoryScreen from './screens/TripHistoryScreen';
 import DriverProfileScreen from './screens/DriverProfileScreen';
 import LiveTripTrackingScreen from './screens/LiveTripTrackingScreen';
+import WelcomeScreen from './screens/WelcomeScreen';
 import { AuthScreensSupabase } from './AuthScreensSupabase';
 import { authService, User } from './AuthServiceSupabase';
 import EnhancedDriverRegistrationScreen from './screens/EnhancedDriverRegistrationScreen';
 import { EmailVerificationScreen } from './screens/EmailVerificationScreen';
 
 type AppScreen =
+  | 'welcome'
   | 'auth'
   | 'dashboard'
   | 'order_assignment'
@@ -63,14 +53,15 @@ type AppScreen =
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentDriver, setCurrentDriver] = useState<Driver | null>(null);
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('auth');
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>('welcome'); // Start with welcome screen
   const [pendingOrder, setPendingOrder] = useState<OrderAssignment | null>(null);
   const [activeOrder, setActiveOrder] = useState<OrderAssignment | null>(null);
   const [showOrderAssignment, setShowOrderAssignment] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const [verificationEmail, setVerificationEmail] = useState<string>('');
-  const [useProfessionalDashboard, setUseProfessionalDashboard] = useState(true); // Default to new professional dashboard
+  const [useProfessionalDashboard, setUseProfessionalDashboard] = useState(true); // Always use professional dashboard due to ModernDriverDashboard corruption
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
 
   useEffect(() => {
     initializeApp();
@@ -78,6 +69,28 @@ const App: React.FC = () => {
 
   const initializeApp = async () => {
     try {
+      // TEMPORARY: Clear welcome flag to test new welcome screen
+      await AsyncStorage.removeItem('hasSeenWelcome');
+      
+      // DEVELOPMENT MODE: Always show welcome screen for testing
+      const FORCE_WELCOME_SCREEN = true; // Set to false in production
+      
+      if (FORCE_WELCOME_SCREEN) {
+        setCurrentScreen('welcome');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if user has seen welcome screen
+      const welcomeSeen = await AsyncStorage.getItem('hasSeenWelcome');
+      if (!welcomeSeen) {
+        setCurrentScreen('welcome');
+        setIsLoading(false);
+        return;
+      }
+      
+      setHasSeenWelcome(true);
+      
       // Check for existing session
       const session = await authService.getCurrentSession();
       if (session?.user) {
@@ -97,6 +110,8 @@ const App: React.FC = () => {
           // If driver initialization fails, logout the user
           handleLogout();
         }
+      } else {
+        setCurrentScreen('auth');
       }
     } catch (error) {
       console.error('Error initializing app:', error);
@@ -182,6 +197,29 @@ const App: React.FC = () => {
       setCurrentScreen('auth');
     } catch (error) {
       console.error('Error during logout:', error);
+    }
+  };
+
+  const handleWelcomeComplete = async () => {
+    try {
+      await AsyncStorage.setItem('hasSeenWelcome', 'true');
+      setHasSeenWelcome(true);
+      setCurrentScreen('auth');
+    } catch (error) {
+      console.error('Error saving welcome completion:', error);
+      setCurrentScreen('auth');
+    }
+  };
+
+  // TEMPORARY: Function to reset welcome screen for testing
+  const resetWelcomeScreen = async () => {
+    try {
+      await AsyncStorage.removeItem('hasSeenWelcome');
+      setHasSeenWelcome(false);
+      setCurrentScreen('welcome');
+      console.log('Welcome screen reset - app will show welcome on next launch');
+    } catch (error) {
+      console.error('Error resetting welcome screen:', error);
     }
   };
 
@@ -283,6 +321,10 @@ const App: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
       <ExpoStatusBar style="dark" />
+
+      {currentScreen === 'welcome' && (
+        <WelcomeScreen onGetStarted={handleWelcomeComplete} />
+      )}
 
       {currentScreen === 'auth' && (
         <AuthScreensSupabase

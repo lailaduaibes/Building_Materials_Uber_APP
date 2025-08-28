@@ -26,20 +26,21 @@ const supabase = createClient(
 const { width } = Dimensions.get('window');
 const isTablet = width >= 768;
 
-// Theme colors - matching our black & white theme
+// Professional Blue Theme - matching chat and modern UI
 const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
+  primary: '#3B82F6',      // Professional blue
+  secondary: '#FFFFFF',     // Clean white
+  accent: '#1E40AF',       // Darker blue for emphasis
+  background: '#F8FAFC',   // Very light blue-gray
   white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
-  cardBackground: '#F8F8F8',
+  text: '#1F2937',         // Dark gray for text
+  lightText: '#6B7280',    // Medium gray for secondary text
+  success: '#10B981',      // Modern green
+  warning: '#F59E0B',      // Warm amber
+  error: '#EF4444',        // Modern red
+  border: '#E5E7EB',       // Light border
+  cardBackground: '#FFFFFF', // White cards with shadows
+  shadow: '#000000',       // For shadow effects
 };
 
 interface DriverProfileScreenProps {
@@ -63,6 +64,13 @@ interface DriverProfile {
   preferredTruckTypes: string[];
   status: string;
   isAvailable: boolean;
+  // Additional registration fields
+  licenseNumber?: string;
+  licenseExpiry?: string;
+  address?: string;
+  emergencyContact?: string;
+  emergencyContactPhone?: string;
+  birthDate?: string;
   vehicleInfo?: {
     model?: string;
     year?: number;
@@ -111,6 +119,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         firstName: currentDriver.firstName,
         lastName: currentDriver.lastName,
         phone: currentDriver.phone,
+        email: currentDriver.email,
         years_experience: currentDriver.years_experience,
         vehicle_model: currentDriver.vehicle_model,
         vehicle_year: currentDriver.vehicle_year,
@@ -145,6 +154,13 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         preferredTruckTypes: currentDriver.preferred_truck_types || [],
         status: currentDriver.status || 'offline',
         isAvailable: currentDriver.is_available || false,
+        // Additional fields - using available data or placeholders
+        licenseNumber: 'Not provided', // Will be added when available in driver registration
+        licenseExpiry: 'Not provided',
+        address: 'Not provided',
+        emergencyContact: 'Not provided',
+        emergencyContactPhone: 'Not provided',
+        birthDate: 'Not provided',
         vehicleInfo: {
           model: currentDriver.vehicle_model || 'Not specified',
           year: currentDriver.vehicle_year || 2020,
@@ -245,7 +261,64 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
             </View>
             <View style={styles.statItem}>
               <Ionicons name="time" size={16} color={theme.primary} />
-              <Text style={styles.statValue}>{driverProfile.yearsActive}y</Text>
+              <Text style={styles.statValue}>{driverProfile.yearsExperience}y</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderPersonalInfo = () => {
+    if (!driverProfile) return null;
+    
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <TouchableOpacity onPress={() => Alert.alert('Edit', 'Contact support to update personal information')}>
+            <Ionicons name="pencil" size={20} color={theme.primary} />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.vehicleCard}>
+          <View style={styles.vehicleRow}>
+            <Ionicons name="person-outline" size={20} color={theme.primary} />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={styles.vehicleLabel}>Full Name</Text>
+              <Text style={styles.vehicleValue}>{driverProfile.name}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.vehicleRow}>
+            <Ionicons name="mail-outline" size={20} color={theme.primary} />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={styles.vehicleLabel}>Email</Text>
+              <Text style={styles.vehicleValue}>{driverProfile.email}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.vehicleRow}>
+            <Ionicons name="call-outline" size={20} color={theme.primary} />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={styles.vehicleLabel}>Phone</Text>
+              <Text style={styles.vehicleValue}>{driverProfile.phone}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.vehicleRow}>
+            <Ionicons name="time-outline" size={20} color={theme.primary} />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={styles.vehicleLabel}>Years of Experience</Text>
+              <Text style={styles.vehicleValue}>{driverProfile.yearsExperience} years</Text>
+            </View>
+          </View>
+          
+          <View style={styles.vehicleRow}>
+            <Ionicons name="location-outline" size={20} color={theme.primary} />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={styles.vehicleLabel}>Max Distance</Text>
+              <Text style={styles.vehicleValue}>{driverProfile.maxDistance} km</Text>
             </View>
           </View>
         </View>
@@ -514,6 +587,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
           ) : (
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
               {renderProfileHeader()}
+              {renderPersonalInfo()}
               {renderVehicleInfo()}
               {renderSpecializations()}
               {renderSettings()}
@@ -555,8 +629,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     backgroundColor: theme.white,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   profileImageContainer: {
     position: 'relative',
@@ -622,6 +702,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 20,
     paddingVertical: 16,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -638,6 +726,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.cardBackground,
     borderRadius: 12,
     padding: 16,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   vehicleRow: {
     flexDirection: 'row',
@@ -664,6 +760,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginRight: 8,
     marginBottom: 8,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   specializationText: {
     color: theme.white,
@@ -843,7 +947,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     padding: 8,
-    backgroundColor: '#f0f8ff',
+    backgroundColor: theme.background,
     borderRadius: 6,
     borderLeftWidth: 3,
     borderLeftColor: theme.primary,

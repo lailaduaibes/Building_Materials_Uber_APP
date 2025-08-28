@@ -11,24 +11,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
+import { Colors } from '../theme/colors'; // Import YouMats theme
 
 const { width } = Dimensions.get('window');
-
-// Theme colors - matching our black & white theme
-const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
-  white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
-  cardBackground: '#F8F8F8',
-};
 
 interface EarningsScreenProps {
   onBack: () => void;
@@ -139,10 +124,10 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return theme.success;
-      case 'processing': return theme.warning;
-      case 'pending': return theme.accent;
-      default: return theme.accent;
+      case 'completed': return Colors.status.completed;
+      case 'processing': return Colors.status.inProgress;
+      case 'pending': return Colors.status.pending;
+      default: return Colors.primary;
     }
   };
 
@@ -151,7 +136,7 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={theme.primary} />
+            <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Earnings</Text>
         </View>
@@ -193,19 +178,19 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
       
       <View style={styles.earningsStats}>
         <View style={styles.statItem}>
-          <Ionicons name="car" size={20} color={theme.primary} />
+          <Ionicons name="car" size={20} color={Colors.primary} />
           <Text style={styles.statLabel}>Trips</Text>
           <Text style={styles.statValue}>{currentData?.trips || 0}</Text>
         </View>
         
         <View style={styles.statItem}>
-          <Ionicons name="time" size={20} color={theme.primary} />
+          <Ionicons name="time" size={20} color={Colors.primary} />
           <Text style={styles.statLabel}>Online</Text>
           <Text style={styles.statValue}>{currentData?.onlineTime || '0h 0m'}</Text>
         </View>
         
         <View style={styles.statItem}>
-          <Ionicons name="trending-up" size={20} color={theme.primary} />
+          <Ionicons name="trending-up" size={20} color={Colors.primary} />
           <Text style={styles.statLabel}>Avg/Trip</Text>
           <Text style={styles.statValue}>{formatCurrency(currentData?.averagePerTrip || 0)}</Text>
         </View>
@@ -242,7 +227,7 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
         style={styles.actionButton}
         onPress={() => Alert.alert('Cash Out', 'Instant cash out feature coming soon')}
       >
-        <Ionicons name="card" size={24} color={theme.white} />
+        <Ionicons name="card" size={24} color={Colors.text.onPrimary} />
         <Text style={styles.actionButtonText}>Cash Out</Text>
       </TouchableOpacity>
       
@@ -250,7 +235,7 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
         style={styles.actionButton}
         onPress={() => Alert.alert('Tax Documents', 'Download tax documents')}
       >
-        <Ionicons name="document" size={24} color={theme.white} />
+        <Ionicons name="document" size={24} color={Colors.text.onPrimary} />
         <Text style={styles.actionButtonText}>Tax Docs</Text>
       </TouchableOpacity>
       
@@ -258,7 +243,7 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
         style={styles.actionButton}
         onPress={() => Alert.alert('Trip Details', 'View detailed trip breakdown')}
       >
-        <Ionicons name="list" size={24} color={theme.white} />
+        <Ionicons name="list" size={24} color={Colors.text.onPrimary} />
         <Text style={styles.actionButtonText}>Trip Details</Text>
       </TouchableOpacity>
     </View>
@@ -269,11 +254,11 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.primary} />
+          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Earnings</Text>
         <TouchableOpacity onPress={() => Alert.alert('Help', 'Contact support for earnings questions')}>
-          <Ionicons name="help-circle-outline" size={24} color={theme.primary} />
+          <Ionicons name="help-circle-outline" size={24} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -290,7 +275,7 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: Colors.background.primary,
   },
   header: {
     flexDirection: 'row',
@@ -299,7 +284,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: Colors.border.light,
   },
   backButton: {
     padding: 5,
@@ -307,7 +292,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   content: {
     flex: 1,
@@ -315,7 +300,7 @@ const styles = StyleSheet.create({
   },
   periodSelector: {
     flexDirection: 'row',
-    backgroundColor: theme.cardBackground,
+    backgroundColor: Colors.background.secondary,
     borderRadius: 12,
     padding: 4,
     marginBottom: 20,
@@ -327,22 +312,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   periodButtonActive: {
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.primary,
   },
   periodButtonText: {
     fontSize: 16,
     fontWeight: '500',
-    color: theme.lightText,
+    color: Colors.text.secondary,
   },
   periodButtonTextActive: {
-    color: theme.white,
+    color: Colors.text.onPrimary,
   },
   earningsCard: {
-    backgroundColor: theme.white,
+    backgroundColor: Colors.background.primary,
     borderRadius: 16,
     padding: 24,
     marginBottom: 20,
-    shadowColor: theme.primary,
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -354,13 +339,13 @@ const styles = StyleSheet.create({
   },
   earningsTitle: {
     fontSize: 16,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginBottom: 8,
   },
   earningsAmount: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: theme.primary,
+    color: Colors.primary,
   },
   earningsStats: {
     flexDirection: 'row',
@@ -371,14 +356,14 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginTop: 4,
     marginBottom: 2,
   },
   statValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   quickActions: {
     flexDirection: 'row',
@@ -387,23 +372,23 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginHorizontal: 4,
   },
   actionButtonText: {
-    color: theme.white,
+    color: Colors.text.onPrimary,
     fontSize: 12,
     fontWeight: '600',
     marginTop: 4,
   },
   payoutSection: {
-    backgroundColor: theme.white,
+    backgroundColor: Colors.background.primary,
     borderRadius: 16,
     padding: 20,
-    shadowColor: theme.primary,
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -418,11 +403,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   viewAllText: {
     fontSize: 14,
-    color: theme.primary,
+    color: Colors.primary,
     fontWeight: '500',
   },
   payoutItem: {
@@ -431,7 +416,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: Colors.border.light,
   },
   payoutInfo: {
     flex: 1,
@@ -439,11 +424,11 @@ const styles = StyleSheet.create({
   payoutAmount: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   payoutDate: {
     fontSize: 14,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginTop: 2,
   },
   payoutStatus: {
@@ -454,7 +439,7 @@ const styles = StyleSheet.create({
   payoutStatusText: {
     fontSize: 12,
     fontWeight: '500',
-    color: theme.white,
+    color: Colors.text.onPrimary,
     textTransform: 'capitalize',
   },
   loadingContainer: {
@@ -464,6 +449,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: theme.lightText,
+    color: Colors.text.secondary,
   },
 });

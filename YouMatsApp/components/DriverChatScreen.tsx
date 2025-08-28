@@ -33,18 +33,20 @@ interface Props {
 const { width, height } = Dimensions.get('window');
 
 const theme = {
-  primary: '#000000',
-  secondary: '#FFFFFF',
-  accent: '#007AFF',
-  success: '#34C759',
-  warning: '#FF9500',
-  error: '#FF3B30',
-  background: '#F8F8F8',
-  text: '#000000',
-  lightText: '#8E8E93',
-  border: '#E5E5EA',
-  driverBubble: '#007AFF',
-  customerBubble: '#E5E5EA',
+  primary: '#1E3A8A',      // Professional blue
+  secondary: '#FFFFFF',     // Clean white
+  accent: '#3B82F6',       // Bright blue for accents
+  success: '#3B82F6',      // Blue instead of green
+  warning: '#F59E0B',      // Warm amber
+  error: '#EF4444',        // Modern red
+  background: '#F8FAFC',   // Very light blue-gray
+  text: '#1F2937',         // Dark gray for text
+  lightText: '#6B7280',    // Medium gray for secondary text
+  border: '#E5E7EB',       // Light border
+  inputBackground: '#FFFFFF',
+  driverBubble: '#3B82F6', // Blue for driver messages
+  customerBubble: '#F1F5F9', // Light gray for customer messages
+  shadow: '#000000',
 };
 
 export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) => {
@@ -187,7 +189,21 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
         message
       );
 
-      if (!result.success) {
+      if (result.success && result.message) {
+        // Add sent message to UI immediately
+        setMessages(prev => {
+          const exists = prev.find(msg => msg.id === result.message!.id);
+          if (!exists) {
+            return [...prev, result.message!];
+          }
+          return prev;
+        });
+        
+        // Auto-scroll to bottom
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      } else {
         Alert.alert('Error', result.error || 'Failed to send message');
       }
     } catch (error) {
@@ -210,7 +226,21 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
                 trip.customerId,
                 Number(value)
               );
-              if (!result.success) {
+              if (result.success && result.message) {
+                // Add ETA update to UI immediately
+                setMessages(prev => {
+                  const exists = prev.find(msg => msg.id === result.message!.id);
+                  if (!exists) {
+                    return [...prev, result.message!];
+                  }
+                  return prev;
+                });
+                
+                // Auto-scroll to bottom
+                setTimeout(() => {
+                  flatListRef.current?.scrollToEnd({ animated: true });
+                }, 100);
+              } else {
                 Alert.alert('Error', result.error || 'Failed to send ETA update');
               }
             }
@@ -225,14 +255,52 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
 
   const sendPhoto = async (photoType: TripPhoto['photo_type']) => {
     try {
+      // Show action sheet for camera vs library choice
+      Alert.alert(
+        'Add Photo',
+        'Choose how to add a photo',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Take Photo', 
+            onPress: () => sendPhotoWithSource(photoType, 'camera')
+          },
+          { 
+            text: 'Choose from Library', 
+            onPress: () => sendPhotoWithSource(photoType, 'library')
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send photo');
+    }
+  };
+
+  const sendPhotoWithSource = async (photoType: TripPhoto['photo_type'], source: 'camera' | 'library') => {
+    try {
       const result = await driverCommunicationService.sendPhoto(
         trip.id,
         trip.customerId,
         photoType,
-        `${photoType.replace('_', ' ')} photo`
+        `${photoType.replace('_', ' ')} photo`,
+        source
       );
 
-      if (!result.success) {
+      if (result.success && result.message) {
+        // Add photo message to UI immediately
+        setMessages(prev => {
+          const exists = prev.find(msg => msg.id === result.message!.id);
+          if (!exists) {
+            return [...prev, result.message!];
+          }
+          return prev;
+        });
+        
+        // Auto-scroll to bottom
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      } else {
         Alert.alert('Error', result.error || 'Failed to send photo');
       }
     } catch (error) {
@@ -266,6 +334,13 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
     const isDriver = item.sender_type === 'driver';
     const isSystemMessage = item.message_type === 'system';
 
+    console.log('🎨 Rendering message:', {
+      id: item.id.substring(0, 8),
+      type: item.message_type,
+      hasImage: !!item.image_url,
+      content: item.content.substring(0, 50)
+    });
+
     if (isSystemMessage) {
       return (
         <View style={styles.systemMessageContainer}>
@@ -277,15 +352,39 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
     return (
       <View style={[styles.messageContainer, isDriver ? styles.driverMessage : styles.customerMessage]}>
         <View style={[styles.messageBubble, isDriver ? styles.driverBubble : styles.customerBubble]}>
-          <Text style={[styles.messageText, isDriver ? styles.driverText : styles.customerText]}>
-            {item.content}
-          </Text>
+          {/* Show photo if it's a photo message */}
+          {item.message_type === 'image' && item.image_url && (
+            <TouchableOpacity onPress={() => setSelectedImage(item.image_url || null)}>
+              <Image 
+                source={{ uri: item.image_url }} 
+                style={styles.messagePhoto}
+                resizeMode="cover"
+                onLoad={() => console.log('✅ Image loaded successfully:', item.image_url)}
+                onError={(error) => {
+                  console.error('❌ Image failed to load:', item.image_url, error.nativeEvent.error);
+                }}
+                onLoadStart={() => console.log('🔄 Image loading started:', item.image_url)}
+                onLoadEnd={() => console.log('🏁 Image loading ended:', item.image_url)}
+              />
+            </TouchableOpacity>
+          )}
+          
+          {/* Text content - only show if not an image-only message */}
+          {(item.message_type !== 'image' || item.content) && (
+            <Text style={[styles.messageText, isDriver ? styles.driverText : styles.customerText]}>
+              {item.content}
+            </Text>
+          )}
+          
+          {/* ETA Update Badge */}
           {item.message_type === 'eta_update' && (
             <View style={styles.etaUpdateBadge}>
               <MaterialIcons name="schedule" size={12} color={theme.warning} />
               <Text style={styles.etaUpdateText}>ETA Update</Text>
             </View>
           )}
+          
+          {/* Location sharing */}
           {item.location_data && (
             <TouchableOpacity style={styles.locationContainer}>
               <MaterialIcons name="location-on" size={16} color={theme.accent} />
@@ -315,6 +414,7 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
         <KeyboardAvoidingView 
           style={styles.content}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -322,11 +422,22 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
               <Ionicons name="arrow-back" size={24} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerInfo}>
-              <Text style={styles.headerTitle}>Chat with Customer</Text>
-              <Text style={styles.headerSubtitle}>{trip.customerName || 'Customer'}</Text>
+              <View style={styles.customerProfileSection}>
+                <View style={styles.customerAvatar}>
+                  <Ionicons name="person" size={20} color={theme.secondary} />
+                </View>
+                <View style={styles.customerDetails}>
+                  <Text style={styles.customerName}>{trip.customerName || 'Customer'}</Text>
+                  <Text style={styles.tripStatus}>
+                    {trip.status === 'pending' ? 'New Trip Request' : 
+                     trip.status === 'accepted' ? 'Trip Accepted' :
+                     'Active Trip'}
+                  </Text>
+                </View>
+              </View>
             </View>
             <TouchableOpacity onPress={makeCall} style={styles.callButton}>
-              <Ionicons name="call" size={24} color={theme.accent} />
+              <Ionicons name="call" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
 
@@ -377,6 +488,7 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
             style={styles.messagesList}
             contentContainerStyle={styles.messagesContent}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            showsVerticalScrollIndicator={false}
           />
 
           {/* Input */}
@@ -390,14 +502,17 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
               maxLength={500}
             />
             <TouchableOpacity
-              style={[styles.sendButton, (!newMessage.trim() || sendingMessage) && styles.sendButtonDisabled]}
+              style={[
+                styles.sendButton, 
+                (!newMessage.trim() || sendingMessage) ? styles.sendButtonDisabled : styles.sendButtonEnabled
+              ]}
               onPress={sendTextMessage}
               disabled={!newMessage.trim() || sendingMessage}
             >
               <MaterialIcons 
                 name="send" 
                 size={24} 
-                color={(!newMessage.trim() || sendingMessage) ? theme.lightText : theme.secondary} 
+                color={(!newMessage.trim() || sendingMessage) ? '#CCCCCC' : '#FFFFFF'} 
               />
             </TouchableOpacity>
           </View>
@@ -433,47 +548,120 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 16,
     backgroundColor: theme.secondary,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   backButton: {
-    padding: 5,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: theme.background,
   },
   headerInfo: {
     flex: 1,
-    marginLeft: 15,
+    marginLeft: 16,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: theme.text,
+    marginBottom: 2,
   },
   headerSubtitle: {
     fontSize: 14,
     color: theme.lightText,
+  },
+  customerProfileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  customerAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  customerDetails: {
+    flex: 1,
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  tripStatus: {
+    fontSize: 12,
+    color: theme.lightText,
     marginTop: 2,
   },
   callButton: {
-    padding: 5,
+    padding: 12,
+    borderRadius: 24,
+    backgroundColor: theme.accent,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   quickActionsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 12,
     backgroundColor: theme.secondary,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
-    gap: 15,
+    gap: 12,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   quickActionButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     backgroundColor: theme.background,
-    minWidth: 60,
+    minWidth: 70,
+    borderWidth: 1,
+    borderColor: theme.border,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   quickActionText: {
     fontSize: 11,
@@ -483,28 +671,40 @@ const styles = StyleSheet.create({
   },
   quickMessagesContainer: {
     backgroundColor: theme.secondary,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
   },
   quickMessageButton: {
-    backgroundColor: theme.accent + '10',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 15,
-    marginLeft: 10,
+    backgroundColor: '#3B82F6' + '15',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#3B82F6' + '30',
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   quickMessageText: {
     fontSize: 13,
-    color: theme.accent,
-    fontWeight: '500',
+    color: '#3B82F6',
+    fontWeight: '600',
   },
   messagesList: {
     flex: 1,
     backgroundColor: theme.background,
+    paddingHorizontal: 20,
   },
   messagesContent: {
-    padding: 20,
+    paddingVertical: 10,
+    paddingBottom: 20,
   },
   messageContainer: {
     marginBottom: 15,
@@ -517,20 +717,49 @@ const styles = StyleSheet.create({
   },
   messageBubble: {
     maxWidth: width * 0.75,
-    padding: 12,
-    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   driverBubble: {
     backgroundColor: theme.driverBubble,
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 6,
   },
   customerBubble: {
     backgroundColor: theme.customerBubble,
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 6,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   messageText: {
     fontSize: 16,
     lineHeight: 20,
+    fontWeight: '400',
+  },
+  messagePhoto: {
+    width: 200,
+    height: 150,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: theme.background,
+    borderWidth: 1,
+    borderColor: theme.border,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   driverText: {
     color: theme.secondary,
@@ -575,39 +804,68 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 14,
-    color: theme.accent,
+    color: '#3B82F6',
     fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 16,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
     backgroundColor: theme.secondary,
     borderTopWidth: 1,
     borderTopColor: theme.border,
-    gap: 10,
+    gap: 12,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 8,
   },
   textInput: {
     flex: 1,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: theme.border,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
     fontSize: 16,
-    maxHeight: 100,
+    maxHeight: 120,
+    backgroundColor: theme.inputBackground,
+    color: theme.text,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   sendButton: {
-    backgroundColor: theme.accent,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  sendButtonEnabled: {
+    backgroundColor: '#3B82F6',
   },
   sendButtonDisabled: {
-    backgroundColor: theme.lightText,
+    backgroundColor: '#D1D5DB',
   },
   imageModalContainer: {
     flex: 1,

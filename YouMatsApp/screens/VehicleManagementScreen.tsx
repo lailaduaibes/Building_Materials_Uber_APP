@@ -14,23 +14,26 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { responsive } from '../utils/ResponsiveUtils';
+import VehicleDocumentsScreen from './VehicleDocumentsScreen';
+import VehicleSettingsScreen from './VehicleSettingsScreen';
 
 const { width } = Dimensions.get('window');
 
-// Theme colors
+// Professional Blue Theme - matching the profile screen
 const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
+  primary: '#3B82F6',      // Professional blue
+  secondary: '#FFFFFF',     // Clean white
+  accent: '#1E40AF',       // Darker blue for emphasis
+  background: '#F8FAFC',   // Very light blue-gray
   white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
-  cardBackground: '#F8F8F8',
+  text: '#1F2937',         // Dark gray for text
+  lightText: '#6B7280',    // Medium gray for secondary text
+  success: '#10B981',      // Modern green
+  warning: '#F59E0B',      // Warm amber
+  error: '#EF4444',        // Modern red
+  border: '#E5E7EB',       // Light border
+  cardBackground: '#FFFFFF', // White cards with shadows
+  shadow: '#000000',       // For shadow effects
 };
 
 interface Vehicle {
@@ -56,6 +59,8 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDocuments, setShowDocuments] = useState<Vehicle | null>(null);
+  const [showSettings, setShowSettings] = useState<Vehicle | null>(null);
 
   useEffect(() => {
     loadVehicles();
@@ -108,6 +113,14 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
       `Verification: ${vehicle.verification_status || 'Not verified'}`,
       [{ text: 'OK', style: 'default' }]
     );
+  };
+
+  const handleVehicleDocuments = (vehicle: Vehicle) => {
+    setShowDocuments(vehicle);
+  };
+
+  const handleVehicleSettings = (vehicle: Vehicle) => {
+    setShowSettings(vehicle);
   };
 
   const getStatusColor = (status: string) => {
@@ -188,12 +201,18 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
       </View>
 
       <View style={styles.vehicleActions}>
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => handleVehicleDocuments(vehicle)}
+        >
           <Ionicons name="document-text" size={16} color={theme.primary} />
           <Text style={styles.actionText}>Documents</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => handleVehicleSettings(vehicle)}
+        >
           <Ionicons name="settings" size={16} color={theme.primary} />
           <Text style={styles.actionText}>Settings</Text>
         </TouchableOpacity>
@@ -203,16 +222,33 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Vehicles</Text>
-        <TouchableOpacity onPress={handleRegisterNewVehicle} style={styles.addButton}>
-          <Ionicons name="add" size={24} color={theme.primary} />
-        </TouchableOpacity>
-      </View>
+      {showDocuments ? (
+        <VehicleDocumentsScreen 
+          vehicle={showDocuments} 
+          onBack={() => setShowDocuments(null)} 
+        />
+      ) : showSettings ? (
+        <VehicleSettingsScreen 
+          vehicle={showSettings} 
+          onBack={() => setShowSettings(null)}
+          onVehicleUpdate={(updatedVehicle) => {
+            // Update the vehicle in the list
+            setVehicles(prev => prev.map(v => v.id === updatedVehicle.id ? updatedVehicle : v));
+            setShowSettings(null);
+          }}
+        />
+      ) : (
+        <>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onBack} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={theme.primary} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>My Vehicles</Text>
+            <TouchableOpacity onPress={handleRegisterNewVehicle} style={styles.addButton}>
+              <Ionicons name="add" size={24} color={theme.primary} />
+            </TouchableOpacity>
+          </View>
 
       <ScrollView
         style={styles.content}
@@ -267,6 +303,8 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
           </View>
         )}
       </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -321,6 +359,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: responsive.spacing(5),
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   statNumber: {
     fontSize: responsive.fontSize(24),
@@ -342,17 +388,17 @@ const styles = StyleSheet.create({
     marginBottom: responsive.spacing(15),
   },
   vehicleCard: {
-    backgroundColor: theme.white,
-    borderRadius: 12,
-    padding: responsive.padding(15),
+    backgroundColor: theme.cardBackground,
+    borderRadius: 16,
+    padding: responsive.padding(20),
     marginBottom: responsive.spacing(15),
     borderWidth: 1,
     borderColor: theme.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
   },
   vehicleHeader: {
     flexDirection: 'row',
@@ -409,21 +455,39 @@ const styles = StyleSheet.create({
   },
   vehicleActions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     borderTopWidth: 1,
     borderTopColor: theme.border,
-    paddingTop: responsive.spacing(12),
+    paddingTop: responsive.spacing(16),
+    marginTop: responsive.spacing(4),
+    gap: responsive.spacing(8),
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: responsive.padding(8),
-    paddingHorizontal: responsive.padding(12),
+    justifyContent: 'center',
+    paddingVertical: responsive.padding(12),
+    paddingHorizontal: responsive.padding(20),
+    backgroundColor: theme.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.primary,
+    flex: 1,
+    marginHorizontal: responsive.spacing(4),
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   actionText: {
     fontSize: responsive.fontSize(14),
     color: theme.primary,
-    marginLeft: responsive.spacing(4),
+    marginLeft: responsive.spacing(6),
+    fontWeight: '600',
   },
   emptyContainer: {
     alignItems: 'center',

@@ -589,6 +589,30 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
                     const error = await approvalResponse.json();
                     throw new Error(error.message || 'Failed to approve driver');
                 }
+
+                // Step 1.5: Auto-approve all pending documents for the driver
+                console.log('Auto-approving pending documents for driver:', driverId);
+                const documentsResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_documents?driver_id=eq.${driverId}&status=eq.pending`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        status: 'approved',
+                        reviewed_at: new Date().toISOString(),
+                        reviewed_by: null // Auto-approved by system when driver was approved
+                    })
+                });
+
+                if (documentsResponse.ok) {
+                    const approvedDocs = await documentsResponse.json();
+                    console.log(`Auto-approved ${approvedDocs.length} documents for ${driverName}`);
+                } else {
+                    console.warn('Failed to auto-approve documents, but driver approval successful');
+                }
                 
                 // Step 2: Add driver's vehicle to the trucks fleet (if they have vehicle info)
                 if (driver.vehicle_plate && driver.vehicle_model) {
@@ -635,10 +659,10 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
                     } else {
                         const truckResult = await truckResponse.json();
                         console.log('Vehicle added to fleet successfully:', truckResult);
-                        showMessage(`✅ ${driverName} approved and vehicle (${driver.vehicle_plate}) added to fleet!`, 'success');
+                        showMessage(`✅ ${driverName} approved, documents auto-approved, and vehicle (${driver.vehicle_plate}) added to fleet!`, 'success');
                     }
                 } else {
-                    showMessage(`✅ ${driverName} approved! (No vehicle information to add to fleet)`, 'success');
+                    showMessage(`✅ ${driverName} approved and documents auto-approved! (No vehicle information to add to fleet)`, 'success');
                 }
                 
                 setTimeout(() => {

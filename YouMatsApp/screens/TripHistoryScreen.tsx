@@ -12,24 +12,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
+import { Colors } from '../theme/colors';
 
 const { width } = Dimensions.get('window');
-
-// Theme colors - matching our black & white theme
-const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
-  white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
-  cardBackground: '#F8F8F8',
-};
 
 interface TripHistoryScreenProps {
   onBack: () => void;
@@ -113,10 +98,10 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return theme.success;
-      case 'cancelled': return theme.error;
-      case 'ongoing': return theme.warning;
-      default: return theme.accent;
+      case 'completed': return Colors.status.completed;
+      case 'cancelled': return Colors.status.cancelled;
+      case 'ongoing': return Colors.status.pending;
+      default: return Colors.text.secondary;
     }
   };
 
@@ -128,7 +113,7 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
             key={star}
             name={star <= rating ? "star" : "star-outline"}
             size={14}
-            color={star <= rating ? "#FFD700" : theme.accent}
+            color={star <= rating ? "#FFD700" : Colors.text.secondary}
           />
         ))}
       </View>
@@ -251,11 +236,11 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.primary} />
+          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Trip History</Text>
         <TouchableOpacity onPress={() => Alert.alert('Search', 'Search trips functionality')}>
-          <Ionicons name="search" size={24} color={theme.primary} />
+          <Ionicons name="search" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
       </View>
 
@@ -280,7 +265,7 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: Colors.background.primary,
   },
   header: {
     flexDirection: 'row',
@@ -289,7 +274,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: Colors.border.light,
   },
   backButton: {
     padding: 5,
@@ -297,17 +282,17 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   content: {
     flex: 1,
   },
   summaryCard: {
-    backgroundColor: theme.white,
+    backgroundColor: Colors.background.primary,
     margin: 20,
     borderRadius: 16,
     padding: 20,
-    shadowColor: theme.primary,
+    shadowColor: Colors.text.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -316,7 +301,7 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     marginBottom: 16,
   },
   summaryStats: {
@@ -329,11 +314,11 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: theme.primary,
+    color: Colors.text.primary,
   },
   summaryLabel: {
     fontSize: 14,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginTop: 4,
   },
   filterContainer: {
@@ -349,15 +334,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   filterTabActive: {
-    borderBottomColor: theme.primary,
+    borderBottomColor: Colors.text.primary,
   },
   filterTabText: {
     fontSize: 16,
     fontWeight: '500',
-    color: theme.lightText,
+    color: Colors.text.secondary,
   },
   filterTabTextActive: {
-    color: theme.primary,
+    color: Colors.text.primary,
     fontWeight: '600',
   },
   tripsContainer: {
@@ -365,11 +350,11 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   tripCard: {
-    backgroundColor: theme.white,
+    backgroundColor: Colors.background.primary,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: theme.primary,
+    shadowColor: Colors.text.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -387,11 +372,11 @@ const styles = StyleSheet.create({
   tripDate: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
   },
   tripTime: {
     fontSize: 14,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginTop: 2,
   },
   tripEarnings: {
@@ -400,11 +385,11 @@ const styles = StyleSheet.create({
   earningsAmount: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.success,
+    color: Colors.driver.earnings, // Professional blue instead of green
   },
   tipAmount: {
     fontSize: 12,
-    color: theme.success,
+    color: Colors.driver.earnings, // Professional blue instead of green
     marginTop: 2,
   },
   tripRoute: {
@@ -420,29 +405,29 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.text.primary,
   },
   routeLine: {
     width: 2,
     height: 20,
-    backgroundColor: theme.border,
+    backgroundColor: Colors.border.light,
     marginVertical: 4,
   },
   destinationDot: {
-    backgroundColor: theme.success,
+    backgroundColor: Colors.status.completed, // Professional blue instead of green
   },
   routeAddresses: {
     flex: 1,
   },
   pickupAddress: {
     fontSize: 14,
-    color: theme.text,
+    color: Colors.text.primary,
     fontWeight: '500',
     marginBottom: 8,
   },
   deliveryAddress: {
     fontSize: 14,
-    color: theme.text,
+    color: Colors.text.primary,
     fontWeight: '500',
   },
   tripDetails: {
@@ -451,7 +436,7 @@ const styles = StyleSheet.create({
   customerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.text,
+    color: Colors.text.primary,
     marginBottom: 8,
   },
   tripMeta: {
@@ -461,7 +446,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 14,
-    color: theme.lightText,
+    color: Colors.text.secondary,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -471,7 +456,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '500',
-    color: theme.white,
+    color: Colors.background.primary,
     textTransform: 'capitalize',
   },
   materialsSection: {
@@ -479,12 +464,12 @@ const styles = StyleSheet.create({
   },
   materialsLabel: {
     fontSize: 12,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     marginBottom: 4,
   },
   materialsText: {
     fontSize: 14,
-    color: theme.text,
+    color: Colors.text.primary,
     fontWeight: '500',
   },
   ratingSection: {
@@ -497,6 +482,6 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 12,
-    color: theme.lightText,
+    color: Colors.text.secondary,
   },
 });

@@ -20,25 +20,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { authService, AuthResponse } from './AuthServiceSupabase';
+import { Colors } from './theme/colors';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
-
-// Black & White Theme (matching customer app)
-const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
-  white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
-  inputBackground: '#F8F8F8',
-};
 
 interface AuthScreensProps {
   onAuthSuccess: (user: any) => void;
@@ -253,11 +238,11 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: Colors.background.primary,
   },
   gradient: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: Colors.background.primary,
   },
   scrollContent: {
     flexGrow: 1,
@@ -269,7 +254,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
     paddingVertical: 20,
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.primary,
     borderRadius: 15,
     marginHorizontal: -10,
     paddingHorizontal: 10,
@@ -277,22 +262,22 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: isTablet ? 48 : 36,
     fontWeight: 'bold',
-    color: theme.white,
+    color: Colors.text.white,
     marginBottom: 8,
   },
   tagline: {
     fontSize: isTablet ? 20 : 16,
-    color: theme.white,
+    color: Colors.text.white,
     textAlign: 'center',
     opacity: 0.9,
   },
   formWrapper: {
-    backgroundColor: theme.white,
+    backgroundColor: Colors.text.white,
     borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: theme.border,
-    shadowColor: theme.primary,
+    borderColor: Colors.border.light,
+    shadowColor: Colors.primary,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -307,13 +292,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: isTablet ? 32 : 24,
     fontWeight: 'bold',
-    color: theme.text,
+    color: Colors.text.primary,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: isTablet ? 18 : 14,
-    color: theme.lightText,
+    color: Colors.text.secondary,
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 20,
@@ -326,31 +311,31 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   input: {
-    backgroundColor: theme.inputBackground,
+    backgroundColor: Colors.background.secondary,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: Colors.border.light,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: isTablet ? 16 : 12,
     fontSize: isTablet ? 18 : 16,
-    color: theme.text,
+    color: Colors.text.primary,
   },
   inputError: {
-    borderColor: theme.error,
+    borderColor: Colors.status.cancelled,
   },
   errorText: {
-    color: theme.error,
+    color: Colors.status.cancelled,
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
   },
   button: {
-    backgroundColor: theme.primary,
+    backgroundColor: Colors.primary,
     borderRadius: 12,
     paddingVertical: isTablet ? 18 : 14,
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: theme.primary,
+    shadowColor: Colors.primary,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -360,21 +345,21 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   buttonText: {
-    color: theme.white,
+    color: Colors.text.white,
     fontSize: isTablet ? 20 : 16,
     fontWeight: '600',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: theme.primary,
+    borderColor: Colors.primary,
     borderRadius: 12,
     paddingVertical: isTablet ? 18 : 14,
     alignItems: 'center',
     marginTop: 16,
   },
   secondaryButtonText: {
-    color: theme.primary,
+    color: Colors.primary,
     fontSize: isTablet ? 20 : 16,
     fontWeight: '600',
   },
@@ -384,17 +369,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   linkText: {
-    color: theme.primary,
+    color: Colors.primary,
     fontSize: isTablet ? 16 : 14,
     fontWeight: '500',
   },
   divider: {
     height: 1,
-    backgroundColor: theme.border,
+    backgroundColor: Colors.border.light,
     marginVertical: 24,
   },
   infoText: {
-    color: theme.lightText,
+    color: Colors.text.secondary,
     fontSize: isTablet ? 16 : 14,
     textAlign: 'center',
     lineHeight: 20,

@@ -7,6 +7,7 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
 const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
@@ -285,14 +286,15 @@ class DriverCommunicationService {
   }
 
   /**
-   * Upload and send photo
+   * Upload and send photo with camera/library choice
    */
   async sendPhoto(
     tripId: string,
     customerId: string,
     photoType: TripPhoto['photo_type'],
-    description?: string
-  ): Promise<{ success: boolean; error?: string; photoId?: string }> {
+    description?: string,
+    source: 'camera' | 'library' = 'library'
+  ): Promise<{ success: boolean; error?: string; photoId?: string; message?: TripMessage }> {
     try {
       // Get current authenticated user (driver)
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -301,18 +303,33 @@ class DriverCommunicationService {
         return { success: false, error: 'Driver not authenticated' };
       }
 
-      // Request permission and pick image
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        return { success: false, error: 'Permission to access camera roll is required' };
+      // Request permission based on source
+      if (source === 'camera') {
+        const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!cameraPermission.granted) {
+          return { success: false, error: 'Permission to access camera is required' };
+        }
+      } else {
+        const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!mediaPermission.granted) {
+          return { success: false, error: 'Permission to access camera roll is required' };
+        }
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
+      // Launch the appropriate picker
+      const result = source === 'camera' 
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.8,
+          });
 
       if (result.canceled) {
         return { success: false, error: 'Photo selection canceled' };
@@ -320,23 +337,44 @@ class DriverCommunicationService {
 
       const asset = result.assets[0];
       
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage using the same method as customer app
       const fileExt = asset.uri.split('.').pop();
       const fileName = `${tripId}_${user.id}_${Date.now()}.${fileExt}`;
       
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
+      console.log('📤 Uploading image to storage...', { uri: asset.uri, fileName });
+
+      // Read file as base64 (same as customer app)
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Convert base64 to Uint8Array (React Native compatible, same as customer app)
+      const byteArray = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+
+      console.log('📊 File info:', { size: byteArray.length, type: 'image/jpeg' });
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('trip-photos')
-        .upload(fileName, blob);
+        .upload(fileName, byteArray, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
 
       if (uploadError) throw uploadError;
+
+      console.log('✅ Image uploaded to storage:', uploadData.path);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('trip-photos')
         .getPublicUrl(fileName);
+
+      console.log('📷 Generated public URL:', publicUrl);
+      console.log('🔗 URL breakdown:', {
+        bucket: 'trip-photos',
+        fileName,
+        fullUrl: publicUrl
+      });
 
       // Save photo record
       const { data, error } = await supabase
@@ -347,7 +385,7 @@ class DriverCommunicationService {
           taken_by_type: 'driver',
           photo_type: photoType,
           image_url: publicUrl,
-          file_size: blob.size,
+          file_size: byteArray.length,
           image_width: asset.width,
           image_height: asset.height,
           description: description,
@@ -359,14 +397,31 @@ class DriverCommunicationService {
       if (error) throw error;
 
       // Send message with photo
-      await this.sendTextMessage(
-        tripId,
-        customerId,
-        `Photo shared: ${description || photoType.replace('_', ' ')}`
-      );
+      const messageData = {
+        trip_id: tripId,
+        sender_id: user.id,
+        sender_type: 'driver' as const,
+        message_type: 'image' as const,
+        content: description || `${photoType.replace('_', ' ')} photo`,
+        image_url: publicUrl,
+        is_read: false,
+        delivered_at: new Date().toISOString(),
+      };
 
-      console.log('📷 Photo uploaded and sent:', data.id);
-      return { success: true, photoId: data.id };
+      const { data: messageData2, error: messageError } = await supabase
+        .from('trip_messages')
+        .insert(messageData)
+        .select()
+        .single();
+
+      if (messageError) {
+        console.error('❌ Failed to create image message:', messageError);
+        // Don't fail the whole operation if message creation fails
+        return { success: true, photoId: data.id };
+      }
+
+      console.log('📷 Photo uploaded and message sent:', data.id);
+      return { success: true, photoId: data.id, message: messageData2 };
     } catch (error) {
       console.error('❌ Failed to send photo:', error);
       return { 
