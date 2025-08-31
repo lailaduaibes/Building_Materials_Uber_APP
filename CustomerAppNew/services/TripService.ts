@@ -1,6 +1,7 @@
 // TripService.ts - Handles trip requests with shared authentication
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ProfessionalPricingService, PricingParams } from '../shared/services/ProfessionalPricingService';
 
 // Initialize Supabase client with CORRECT URL matching authentication
 const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
@@ -82,7 +83,7 @@ export interface AvailableDriver {
 export interface TripOrder {
   id: string;
   orderNumber: string;
-  status: 'pending' | 'assigned' | 'matched' | 'picked_up' | 'in_transit' | 'delivered' | 'cancelled';
+  status: 'pending' | 'assigned' | 'matched' | 'picked_up' | 'in_transit' | 'delivered' | 'cancelled' | 'expired';
   orderType?: string; // Add order type for filtering
   items: Array<{
     materialName: string;
@@ -107,6 +108,8 @@ export interface TripOrder {
   orderDate: string;
   estimatedDelivery?: string;
   driverName?: string;
+  assigned_driver_id?: string;
+  customer_rating?: number;
 }
 
 class TripService {
@@ -250,47 +253,111 @@ class TripService {
     }
   }
 
-  // Calculate estimated price for a trip
+  // 🚀 Professional Price Calculation with ASAP Premium
   async calculateTripPrice(
     pickupLat: number,
     pickupLng: number,
     deliveryLat: number,
     deliveryLng: number,
     truckTypeId: string,
-    estimatedWeight?: number
+    estimatedWeight?: number,
+    pickupTimePreference: 'asap' | 'scheduled' = 'scheduled',
+    scheduledTime?: Date
   ): Promise<number> {
     try {
-      // Calculate distance (simplified Haversine formula)
-      const distance = this.calculateDistance(pickupLat, pickupLng, deliveryLat, deliveryLng);
-      
-      // Get truck type pricing
-      const { data: truckType } = await supabase
+      console.log('💰 [TripService] Starting professional price calculation...');
+      console.log('📊 [TripService] Params:', {
+        truckType: truckTypeId,
+        preference: pickupTimePreference,
+        weight: estimatedWeight || 'N/A'
+      });
+
+      // Get truck type pricing from Supabase
+      const { data: truckType, error: truckError } = await supabase
         .from('truck_types')
         .select('base_rate_per_km, base_rate_per_hour')
         .eq('id', truckTypeId)
         .single();
 
-      const baseRatePerKm = truckType?.base_rate_per_km || 3.00;
-      const baseRatePerHour = truckType?.base_rate_per_hour || 50.00;
-      
-      // Estimate travel time (assuming 40 km/h average speed in city)
-      const estimatedHours = distance / 40;
-      
-      // Calculate price: base rate + distance rate + weight multiplier
-      let basePrice = (distance * baseRatePerKm) + (estimatedHours * baseRatePerHour);
-      
-      // Add weight-based pricing
-      if (estimatedWeight && estimatedWeight > 5) {
-        basePrice *= (1 + (estimatedWeight - 5) * 0.1); // 10% extra per ton over 5 tons
+      if (truckError) {
+        console.warn('⚠️ [TripService] Truck type query error:', truckError.message);
       }
-      
-      // Minimum charge
-      const minimumCharge = 50.00;
-      return Math.max(basePrice, minimumCharge);
+
+      // Prepare pricing parameters
+      const pricingParams: PricingParams = {
+        pickupLat,
+        pickupLng,
+        deliveryLat,
+        deliveryLng,
+        truckTypeId,
+        estimatedWeight,
+        pickupTimePreference,
+        scheduledTime,
+        // Include current demand info (future enhancement)
+        isHighDemand: false
+      };
+
+      // Calculate using professional pricing service
+      const pricingResult = await ProfessionalPricingService.calculatePrice(
+        pricingParams,
+        truckType ? {
+          base_rate_per_km: Number(truckType.base_rate_per_km),
+          base_rate_per_hour: Number(truckType.base_rate_per_hour)
+        } : undefined
+      );
+
+      console.log('✅ [TripService] Professional pricing calculated:');
+      console.log(`   Final Price: ₪${pricingResult.finalPrice}`);
+      console.log(`   ASAP Multiplier: ${pricingResult.asapMultiplier}x`);
+      console.log(`   Proximity Bonus: ₪${pricingResult.proximityBonus}`);
+      console.log(`   Premium Type: ${pricingResult.pricing.premiumType}`);
+
+      return pricingResult.finalPrice;
       
     } catch (error) {
-      console.error('Error calculating trip price:', error);
-      return 75.00; // Default fallback price
+      console.error('❌ [TripService] Professional pricing error:', error);
+      
+      // Fallback to basic calculation
+      const distance = this.calculateDistance(pickupLat, pickupLng, deliveryLat, deliveryLng);
+      const basePrice = Math.max(distance * 3.5 + 25, 50);
+      const asapMultiplier = pickupTimePreference === 'asap' ? 1.3 : 1.0;
+      
+      console.log('🛡️ [TripService] Using fallback pricing: ₪' + (basePrice * asapMultiplier).toFixed(2));
+      return Math.round(basePrice * asapMultiplier * 100) / 100;
+    }
+  }
+
+  // 🧮 Enhanced Price Calculation with Full Parameters (For Internal Use)
+  async calculateTripPriceDetailed(params: PricingParams): Promise<any> {
+    try {
+      // Get truck type pricing
+      const { data: truckType } = await supabase
+        .from('truck_types')
+        .select('base_rate_per_km, base_rate_per_hour')
+        .eq('id', params.truckTypeId)
+        .single();
+
+      // Calculate with full breakdown
+      const result = await ProfessionalPricingService.calculatePrice(
+        params,
+        truckType ? {
+          base_rate_per_km: Number(truckType.base_rate_per_km),
+          base_rate_per_hour: Number(truckType.base_rate_per_hour)
+        } : undefined
+      );
+
+      return {
+        success: true,
+        pricing: result,
+        summary: ProfessionalPricingService.getPricingSummary(result)
+      };
+    } catch (error) {
+      console.error('Error in detailed price calculation:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown pricing error',
+        fallbackPrice: 75.00
+      };
     }
   }
 
@@ -708,7 +775,9 @@ class TripService {
           finalAmount: trip.quoted_price || trip.delivery_fee || 0,
           orderDate: trip.created_at,
           estimatedDelivery: trip.scheduled_pickup_time || trip.scheduled_delivery_time,
-          driverName: getDriverName(trip)
+          driverName: getDriverName(trip),
+          assigned_driver_id: trip.assigned_driver_id || trip.driver_id,
+          customer_rating: trip.customer_rating
         };
       });
     } catch (error) {

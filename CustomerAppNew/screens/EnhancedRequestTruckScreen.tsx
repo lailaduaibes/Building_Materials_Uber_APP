@@ -581,6 +581,45 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
     }
   };
 
+  // 🧮 Professional Price Calculation with ASAP Logic
+  const calculatePrice = async () => {
+    if (!pickupLocation || !deliveryLocation || !selectedTruckType) {
+      console.log('⚠️ [EnhancedRequestTruckScreen] Missing required data for price calculation');
+      return;
+    }
+
+    try {
+      console.log('💰 [EnhancedRequestTruckScreen] Calculating professional price...');
+
+      const price = await TripService.calculateTripPrice(
+        pickupLocation.latitude,
+        pickupLocation.longitude,
+        deliveryLocation.latitude,
+        deliveryLocation.longitude,
+        selectedTruckType,
+        parseFloat(estimatedWeight) || undefined,
+        pickupTimePreference,
+        scheduledTime || undefined
+      );
+
+      setEstimatedPrice(price);
+      console.log(`✅ [EnhancedRequestTruckScreen] Price calculated: ₪${price.toFixed(2)}`);
+      console.log(`   ASAP: ${pickupTimePreference === 'asap' ? 'Yes' : 'No'}`);
+      console.log(`   Peak Hours: ${new Date().getHours()}`);
+
+    } catch (error) {
+      console.error('❌ [EnhancedRequestTruckScreen] Price calculation error:', error);
+      // Set fallback price
+      const fallbackPrice = pickupTimePreference === 'asap' ? 97.50 : 75.00;
+      setEstimatedPrice(fallbackPrice);
+    }
+  };
+
+  // Auto-calculate price when key parameters change
+  useEffect(() => {
+    calculatePrice();
+  }, [pickupLocation, deliveryLocation, selectedTruckType, estimatedWeight, pickupTimePreference, scheduledTime]);
+
   // Submit Order
   const submitOrder = async () => {
     if (!pickupLocation || !deliveryLocation) {

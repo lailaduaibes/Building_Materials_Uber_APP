@@ -32,7 +32,9 @@ import EarningsScreen from './screens/EarningsScreen';
 import TripHistoryScreen from './screens/TripHistoryScreen';
 import DriverProfileScreen from './screens/DriverProfileScreen';
 import LiveTripTrackingScreen from './screens/LiveTripTrackingScreen';
+import RatingScreen from './screens/RatingScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
+import RouteOptimizationScreen from './screens/RouteOptimizationScreen';
 import { AuthScreensSupabase } from './AuthScreensSupabase';
 import { authService, User } from './AuthServiceSupabase';
 import EnhancedDriverRegistrationScreen from './screens/EnhancedDriverRegistrationScreen';
@@ -48,7 +50,9 @@ type AppScreen =
   | 'profile'
   | 'live_tracking'
   | 'register'
-  | 'email_verification';
+  | 'email_verification'
+  | 'route_optimization'
+  | 'rating';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -62,6 +66,14 @@ const App: React.FC = () => {
   const [verificationEmail, setVerificationEmail] = useState<string>('');
   const [useProfessionalDashboard, setUseProfessionalDashboard] = useState(true); // Always use professional dashboard due to ModernDriverDashboard corruption
   const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
+  const [availableOrders, setAvailableOrders] = useState<OrderAssignment[]>([]);
+  const [completedTripData, setCompletedTripData] = useState<{
+    tripId: string;
+    customerName?: string;
+    pickupLocation?: string;
+    deliveryLocation?: string;
+    completedAt?: string;
+  } | null>(null);
 
   useEffect(() => {
     initializeApp();
@@ -211,6 +223,28 @@ const App: React.FC = () => {
     }
   };
 
+  const handleGetStarted = async () => {
+    try {
+      await AsyncStorage.setItem('hasSeenWelcome', 'true');
+      setHasSeenWelcome(true);
+      setCurrentScreen('register'); // Navigate to driver registration
+    } catch (error) {
+      console.error('Error saving welcome completion:', error);
+      setCurrentScreen('register');
+    }
+  };
+
+  const handleLoginFromWelcome = async () => {
+    try {
+      await AsyncStorage.setItem('hasSeenWelcome', 'true');
+      setHasSeenWelcome(true);
+      setCurrentScreen('auth'); // Navigate to login
+    } catch (error) {
+      console.error('Error saving welcome completion:', error);
+      setCurrentScreen('auth');
+    }
+  };
+
   // TEMPORARY: Function to reset welcome screen for testing
   const resetWelcomeScreen = async () => {
     try {
@@ -262,6 +296,19 @@ const App: React.FC = () => {
     setCurrentScreen('profile');
   };
 
+  const handleNavigateToRouteOptimization = async () => {
+    // Load available orders before showing route optimization screen
+    try {
+      const orders = await driverService.getAvailableTrips();
+      setAvailableOrders(orders);
+      console.log(`📊 Route Optimization: Loaded ${orders.length} available orders`);
+    } catch (error) {
+      console.error('Error loading available orders for route optimization:', error);
+      setAvailableOrders([]);
+    }
+    setCurrentScreen('route_optimization');
+  };
+
   const handleBackToDashboard = () => {
     // Increment refresh key to force dashboard to reload its data
     setDashboardRefreshKey(prev => prev + 1);
@@ -269,15 +316,23 @@ const App: React.FC = () => {
   };
 
   const handleTripCompleted = () => {
+    // Store completed trip data for rating
+    if (activeOrder) {
+      setCompletedTripData({
+        tripId: activeOrder.id,
+        customerName: activeOrder.customerName,
+        pickupLocation: activeOrder.pickupLocation.address,
+        deliveryLocation: activeOrder.deliveryLocation.address,
+        completedAt: new Date().toISOString()
+      });
+      
+      // Navigate to rating screen
+      setCurrentScreen('rating');
+    }
+    
     setActiveOrder(null);
     // Increment refresh key to force dashboard to reload its data
     setDashboardRefreshKey(prev => prev + 1);
-    setCurrentScreen('dashboard');
-    Alert.alert(
-      'Trip Completed!',
-      'Great job! Your earnings have been updated.',
-      [{ text: 'OK' }]
-    );
   };
 
   const handleNavigateToRegister = () => {
@@ -323,7 +378,10 @@ const App: React.FC = () => {
       <ExpoStatusBar style="dark" />
 
       {currentScreen === 'welcome' && (
-        <WelcomeScreen onGetStarted={handleWelcomeComplete} />
+        <WelcomeScreen 
+          onGetStarted={handleGetStarted} 
+          onLogin={handleLoginFromWelcome}
+        />
       )}
 
       {currentScreen === 'auth' && (
@@ -364,6 +422,7 @@ const App: React.FC = () => {
               onNavigateToEarnings={handleNavigateToEarnings}
               onNavigateToTripHistory={handleNavigateToTripHistory}
               onNavigateToProfile={handleNavigateToProfile}
+              onNavigateToRouteOptimization={handleNavigateToRouteOptimization}
             />
           ) : (
             <ModernDriverDashboard
@@ -398,6 +457,41 @@ const App: React.FC = () => {
           driverId={currentDriver.id}
           onBack={handleBackToDashboard}
           onCompleteTrip={handleTripCompleted}
+        />
+      )}
+
+      {currentScreen === 'route_optimization' && currentDriver && (
+        <RouteOptimizationScreen
+          onBack={handleBackToDashboard}
+          onNavigateToOrder={(order) => {
+            setActiveOrder(order);
+            setCurrentScreen('live_tracking');
+          }}
+          availableOrders={availableOrders}
+          driverId={currentDriver.id}
+        />
+      )}
+
+      {/* Rating Screen */}
+      {currentScreen === 'rating' && completedTripData && (
+        <RatingScreen
+          route={{
+            params: {
+              ...completedTripData,
+              ratingType: 'customer' as const  // Driver is rating the customer
+            }
+          }}
+          navigation={{
+            goBack: () => {
+              setCompletedTripData(null);
+              setCurrentScreen('dashboard');
+              Alert.alert(
+                'Trip Completed!',
+                'Great job! Your earnings have been updated.',
+                [{ text: 'OK' }]
+              );
+            }
+          }}
         />
       )}
 

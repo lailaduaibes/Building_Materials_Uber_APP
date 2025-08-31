@@ -77,11 +77,22 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
+  // Safety mechanism to prevent stuck UI states
+  useEffect(() => {
+    if (saving) {
+      // Safety timeout to prevent stuck saving state
+      const safetyTimeout = setTimeout(() => {
+        console.warn('⚠️ Safety timeout: Resetting saving state after 5 seconds');
+        setSaving(false);
+        setEditMode(false);
+      }, 5000); // 5 seconds timeout (reduced from 10)
+      
+      return () => clearTimeout(safetyTimeout);
+    }
+  }, [saving]);
+
   // Settings state - now using proper preferences service
   const [notifications, setNotifications] = useState<NotificationPreferences>({
-    orderUpdates: true,
-    promotions: false,
-    newsletter: false,
     pushNotifications: true,
   });
 
@@ -114,7 +125,18 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
     try {
       setSavingNotifications(true);
       const user = await authService.getCurrentUser();
+      
+      // Save to user preferences service
       await userPreferencesService.updateNotificationPreferences(newNotifications, user?.id);
+      
+      // Update the enhanced notification service configuration
+      await notificationManager.updateConfiguration({
+        enablePushNotifications: newNotifications.pushNotifications,
+        enableSound: newNotifications.pushNotifications,
+        enableVibration: newNotifications.pushNotifications,
+        enableBadge: newNotifications.pushNotifications,
+      });
+      
       setNotifications(newNotifications);
       
       // Show success message
@@ -171,12 +193,12 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
     loadPaymentMethods(); // Reload payment methods
   };
 
-  const loadUserProfile = async () => {
+  const loadUserProfile = async (forceRefresh: boolean = false) => {
     try {
       setLoading(true);
       
-      // Use Supabase auth service to get current user (CORRECT ARCHITECTURE)
-      const currentUser = await authService.getCurrentUser();
+      // Use cached data for better performance, only refresh when needed
+      const currentUser = await authService.getCurrentUser(forceRefresh);
       
       if (!currentUser) {
         Alert.alert('Error', 'Please login again');
@@ -229,38 +251,115 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
     }
   };
 
+  // Safe handler for edit button press
+  const handleEditButtonPress = async () => {
+    try {
+      console.log('🔘 Edit button pressed - current state:', { editMode, saving });
+      
+      if (saving) {
+        console.log('⚠️ Already saving, ignoring button press');
+        return;
+      }
+      
+      if (editMode) {
+        // Save mode
+        console.log('💾 Saving profile changes...');
+        await updateProfile();
+      } else {
+        // Edit mode
+        console.log('✏️ Entering edit mode...');
+        setEditMode(true);
+      }
+    } catch (error) {
+      console.error('❌ Error in edit button handler:', error);
+      // Force reset states to prevent stuck UI
+      setSaving(false);
+      setEditMode(false);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    }
+  };
+
+  // Emergency reset function (for development/debugging)
+  const forceResetStates = () => {
+    console.log('🆘 Force resetting UI states');
+    setSaving(false);
+    setEditMode(false);
+    Alert.alert('Reset', 'UI states have been reset');
+  };
+
   const updateProfile = async () => {
     try {
+      console.log('🔄 Starting profile update...');
       setSaving(true);
       
-      // Update profile in Supabase database
+      // Update profile in Supabase database and Auth metadata
+      console.log('📝 Updating profile with data:', {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phone: formData.phone.trim(),
+      });
+      
       const response = await authService.updateProfile({
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         phone: formData.phone.trim(),
       });
 
+      console.log('📄 Profile update response:', response);
+      
       if (!response.success) {
         throw new Error(response.message || 'Failed to update profile');
       }
 
-      // Update local state after successful database update
-      const updatedUser = {
-        ...user!,
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        phone: formData.phone.trim(),
-      };
+      // The updateProfile method already refreshes the user data internally
+      // Just get the updated cached user (no additional DB call needed)
+      console.log('🔄 Getting refreshed user data...');
+      const refreshedUser = await authService.getCurrentUser(false); // Use cached data
       
-      setUser(updatedUser);
+      if (refreshedUser) {
+        const userData = {
+          id: refreshedUser.id,
+          firstName: refreshedUser.firstName || '',
+          lastName: refreshedUser.lastName || '',
+          email: refreshedUser.email,
+          phone: refreshedUser.phone || '',
+          role: refreshedUser.role || 'customer',
+          isActive: true,
+          emailVerified: refreshedUser.emailConfirmed || false,
+          createdAt: refreshedUser.createdAt || new Date().toISOString(),
+          profilePhoto: (refreshedUser as any).profilePhoto || null,
+        };
+        
+        console.log('🔄 Setting updated user data in UI...');
+        setUser(userData);
+        setFormData({
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          phone: userData.phone,
+        });
+        
+        console.log('✅ Profile UI updated with cached data (optimized)');
+      } else {
+        console.warn('⚠️ No refreshed user data received');
+      }
+      
+      console.log('🔄 Exiting edit mode...');
       setEditMode(false);
-      Alert.alert('Success', 'Profile updated successfully in database');
+      console.log('✅ Profile update completed successfully');
+      Alert.alert('Success', 'Profile updated successfully!');
       
     } catch (error: any) {
-      console.error('Error updating profile:', error);
+      console.error('❌ Error updating profile:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       Alert.alert('Error', error.message || 'Failed to update profile. Please try again.');
     } finally {
+      console.log('🔄 Setting saving to false...');
       setSaving(false);
+      console.log('✅ Profile update process finished');
     }
   };
 
@@ -398,30 +497,30 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            if (onLogout) {
-              onLogout();
-            } else {
-              // Fallback logout if no onLogout prop provided
+    if (onLogout) {
+      onLogout();
+    } else {
+      // Fallback logout if no onLogout prop provided - only then show confirmation
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: () => {
               authService.logout().then(() => {
                 onBack();
               }).catch((error) => {
                 console.error('Error during logout:', error);
                 Alert.alert('Error', 'Failed to logout. Please try again.');
               });
-            }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const deleteAccount = () => {
@@ -463,7 +562,8 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
         <Text style={styles.headerTitle}>Account Settings</Text>
         <TouchableOpacity
           style={styles.editButton}
-          onPress={() => editMode ? updateProfile() : setEditMode(true)}
+          onPress={handleEditButtonPress}
+          onLongPress={forceResetStates}
           disabled={saving}
         >
           {saving ? (
@@ -683,63 +783,33 @@ const EnhancedAccountSettingsScreen: React.FC<AccountSettingsScreenProps> = ({
           
           <View style={styles.notificationRow}>
             <View style={styles.notificationInfo}>
-              <Text style={styles.notificationTitle}>Order Updates</Text>
-              <Text style={styles.notificationSubtitle}>Get notified about order status changes</Text>
-            </View>
-            <Switch
-              value={notifications.orderUpdates}
-              onValueChange={(value) => {
-                const newNotifications = {...notifications, orderUpdates: value};
-                saveNotificationPreferences(newNotifications);
-              }}
-              trackColor={{false: '#767577', true: Theme.colors.secondary}}
-              thumbColor={notifications.orderUpdates ? '#fff' : '#f4f3f4'}
-              disabled={savingNotifications}
-            />
-          </View>
-
-          <View style={styles.notificationRow}>
-            <View style={styles.notificationInfo}>
-              <Text style={styles.notificationTitle}>Promotions</Text>
-              <Text style={styles.notificationSubtitle}>Receive promotional offers and discounts</Text>
-            </View>
-            <Switch
-              value={notifications.promotions}
-              onValueChange={(value) => {
-                const newNotifications = {...notifications, promotions: value};
-                saveNotificationPreferences(newNotifications);
-              }}
-              trackColor={{false: '#767577', true: Theme.colors.secondary}}
-              thumbColor={notifications.promotions ? '#fff' : '#f4f3f4'}
-              disabled={savingNotifications}
-            />
-          </View>
-
-          <View style={styles.notificationRow}>
-            <View style={styles.notificationInfo}>
-              <Text style={styles.notificationTitle}>Newsletter</Text>
-              <Text style={styles.notificationSubtitle}>Monthly newsletter with industry updates</Text>
-            </View>
-            <Switch
-              value={notifications.newsletter}
-              onValueChange={(value) => {
-                const newNotifications = {...notifications, newsletter: value};
-                saveNotificationPreferences(newNotifications);
-              }}
-              trackColor={{false: '#767577', true: Theme.colors.secondary}}
-              thumbColor={notifications.newsletter ? '#fff' : '#f4f3f4'}
-              disabled={savingNotifications}
-            />
-          </View>
-
-          <View style={styles.notificationRow}>
-            <View style={styles.notificationInfo}>
               <Text style={styles.notificationTitle}>Push Notifications</Text>
-              <Text style={styles.notificationSubtitle}>Enable all push notifications on this device</Text>
+              <Text style={styles.notificationSubtitle}>Enable push notifications for order updates and alerts</Text>
             </View>
             <Switch
               value={notifications.pushNotifications}
-              onValueChange={(value) => {
+              onValueChange={async (value) => {
+                if (value) {
+                  // When enabling, initialize notification manager to request permissions
+                  try {
+                    await notificationManager.initialize();
+                  } catch (error) {
+                    console.error('Failed to initialize notifications:', error);
+                    Alert.alert(
+                      'Permission Required',
+                      'Please allow notifications in your device settings to receive updates about your orders.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Open Settings', onPress: () => {
+                          // Note: Opening settings automatically is platform-specific
+                          console.log('User should open settings manually');
+                        }}
+                      ]
+                    );
+                    return;
+                  }
+                }
+                
                 const newNotifications = {...notifications, pushNotifications: value};
                 saveNotificationPreferences(newNotifications);
               }}

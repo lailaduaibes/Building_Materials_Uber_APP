@@ -34,6 +34,7 @@ interface ProfessionalDriverDashboardProps {
   onNavigateToOrder: (order: OrderAssignment) => void;
   onNavigateToEarnings: () => void;
   onNavigateToTripHistory: () => void;
+  onNavigateToRouteOptimization?: () => void;
 }
 
 const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = ({
@@ -41,6 +42,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
   onNavigateToOrder,
   onNavigateToEarnings,
   onNavigateToTripHistory,
+  onNavigateToRouteOptimization,
 }) => {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [nearbyOrders, setNearbyOrders] = useState<OrderAssignment[]>([]);
@@ -886,6 +888,12 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
               <Ionicons name="list" size={20} color={Colors.primary} />
               <Text style={styles.actionText}>Available</Text>
             </TouchableOpacity>
+            {onNavigateToRouteOptimization && (
+              <TouchableOpacity style={styles.actionButton} onPress={onNavigateToRouteOptimization}>
+                <Ionicons name="flash" size={20} color={Colors.warning} />
+                <Text style={styles.actionText}>AI Routes</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={styles.actionButton} onPress={onNavigateToProfile}>
               <Ionicons name="person" size={20} color={Colors.primary} />
               <Text style={styles.actionText}>Profile</Text>
@@ -1247,11 +1255,15 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-around',
+    paddingHorizontal: 8,
   },
   actionButton: {
     alignItems: 'center',
-    padding: 12,
+    padding: 8,
+    minWidth: '18%',
+    maxWidth: '20%',
   },
   actionText: {
     fontSize: 12,

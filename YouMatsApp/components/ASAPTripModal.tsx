@@ -133,8 +133,18 @@ export const ASAPTripModal: React.FC<ASAPTripModalProps> = ({
 
             <View style={styles.row}>
               <Text style={styles.label}>Earnings:</Text>
-              <Text style={styles.priceValue}>₪{trip.estimatedEarnings}</Text>
+              <Text style={[styles.priceValue, trip.isPremiumTrip && styles.premiumPrice]}>
+                ₪{trip.estimatedEarnings}
+                {trip.isPremiumTrip && <Text style={styles.premiumBadge}> 🔥 PREMIUM</Text>}
+              </Text>
             </View>
+
+            {trip.earningsSummary && (
+              <View style={styles.row}>
+                <Text style={styles.label}>Breakdown:</Text>
+                <Text style={styles.summaryText}>{trip.earningsSummary}</Text>
+              </View>
+            )}
 
             <View style={styles.addressContainer}>
               <Text style={styles.addressLabel}>📍 Pickup:</Text>
@@ -251,6 +261,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1E3A8A',
     fontWeight: '700',
+  },
+  premiumPrice: {
+    color: '#DC2626', // Red for premium trips
+    fontWeight: '800',
+  },
+  premiumBadge: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#DC2626',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  summaryText: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
   addressContainer: {
     marginBottom: 12,

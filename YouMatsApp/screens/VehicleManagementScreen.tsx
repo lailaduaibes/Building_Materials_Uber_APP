@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { responsive } from '../utils/ResponsiveUtils';
 import VehicleDocumentsScreen from './VehicleDocumentsScreen';
-import VehicleSettingsScreen from './VehicleSettingsScreen';
+// Removed VehicleSettingsScreen import - functionality not needed
 
 const { width } = Dimensions.get('window');
 
@@ -60,7 +60,7 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showDocuments, setShowDocuments] = useState<Vehicle | null>(null);
-  const [showSettings, setShowSettings] = useState<Vehicle | null>(null);
+  // Removed showSettings state - functionality not needed
 
   useEffect(() => {
     loadVehicles();
@@ -119,9 +119,7 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
     setShowDocuments(vehicle);
   };
 
-  const handleVehicleSettings = (vehicle: Vehicle) => {
-    setShowSettings(vehicle);
-  };
+  // Removed handleVehicleSettings - functionality not needed
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -209,13 +207,7 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
           <Text style={styles.actionText}>Documents</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => handleVehicleSettings(vehicle)}
-        >
-          <Ionicons name="settings" size={16} color={theme.primary} />
-          <Text style={styles.actionText}>Settings</Text>
-        </TouchableOpacity>
+        {/* Removed Settings button - functionality not needed */}
       </View>
     </TouchableOpacity>
   );
@@ -227,16 +219,6 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
           vehicle={showDocuments} 
           onBack={() => setShowDocuments(null)} 
         />
-      ) : showSettings ? (
-        <VehicleSettingsScreen 
-          vehicle={showSettings} 
-          onBack={() => setShowSettings(null)}
-          onVehicleUpdate={(updatedVehicle) => {
-            // Update the vehicle in the list
-            setVehicles(prev => prev.map(v => v.id === updatedVehicle.id ? updatedVehicle : v));
-            setShowSettings(null);
-          }}
-        />
       ) : (
         <>
           {/* Header */}
@@ -245,9 +227,7 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
               <Ionicons name="arrow-back" size={24} color={theme.primary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Vehicles</Text>
-            <TouchableOpacity onPress={handleRegisterNewVehicle} style={styles.addButton}>
-              <Ionicons name="add" size={24} color={theme.primary} />
-            </TouchableOpacity>
+            {/* Removed Add Vehicle button - functionality not needed */}
           </View>
 
       <ScrollView

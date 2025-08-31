@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouMats Advanced Analytics Dashboard</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-blue: #3B82F6;
+            --dark-blue: #1E40AF;
+            --light-blue: #EFF6FF;
+            --success-green: #10B981;
+            --warning-orange: #F59E0B;
+            --danger-red: #EF4444;
+            --gray-100: #F3F4F6;
+            --gray-200: #E5E7EB;
+            --gray-300: #D1D5DB;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--gray-100);
+            color: var(--gray-900);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 2px solid var(--primary-blue);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-blue);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-tab {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            color: var(--gray-700);
+        }
+
+        .nav-tab.active {
+            background: var(--primary-blue);
+            color: white;
+            border-color: var(--primary-blue);
+        }
+
+        .nav-tab:hover:not(.active) {
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Analytics Dashboard Styles */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--primary-blue);
+            transition: transform 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .metric-title {
+            font-size: 0.9rem;
+            color: var(--gray-700);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+            color: var(--primary-blue);
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-change {
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .metric-change.positive {
+            color: var(--success-green);
+        }
+
+        .metric-change.negative {
+            color: var(--danger-red);
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .time-filter {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .time-btn {
+            padding: 0.5rem 1rem;
+            background: none;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .time-btn.active {
+            background: var(--primary-blue);
+            color: white;
+            border-color: var(--primary-blue);
+        }
+
+        /* Route Optimization Styles */
+        .route-optimizer {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .optimizer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .optimizer-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--dark-blue);
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: var(--success-green);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning-orange);
+            color: white;
+        }
+
+        .route-map {
+            height: 400px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .route-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .route-stat {
+            text-align: center;
+            padding: 1rem;
+            background: var(--light-blue);
+            border-radius: 8px;
+        }
+
+        .route-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-blue);
+        }
+
+        .route-stat-label {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+            margin-top: 0.25rem;
+        }
+
+        /* Push Notifications Styles */
+        .notification-center {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .notification-item {
+            display: flex;
+            align-items: start;
+            gap: 1rem;
+            padding: 1rem;
+            border-left: 3px solid var(--primary-blue);
+            background: var(--light-blue);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .notification-item.success {
+            border-left-color: var(--success-green);
+            background: #ECFDF5;
+        }
+
+        .notification-item.warning {
+            border-left-color: var(--warning-orange);
+            background: #FFFBEB;
+        }
+
+        .notification-item.error {
+            border-left-color: var(--danger-red);
+            background: #FEF2F2;
+        }
+
+        .notification-icon {
+            font-size: 1.25rem;
+            margin-top: 0.25rem;
+        }
+
+        .notification-content {
+            flex: 1;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .notification-message {
+            font-size: 0.9rem;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+
+        .notification-time {
+            font-size: 0.8rem;
+            color: var(--gray-700);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-tabs {
+                flex-wrap: wrap;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .optimizer-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+
+            .optimizer-controls {
+                justify-content: center;
+            }
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--gray-300);
+            border-top: 4px solid var(--primary-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-analytics"></i>
+                YouMats Advanced Analytics
+            </div>
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="switchTab('analytics')">
+                    <i class="fas fa-chart-line"></i> Analytics
+                </button>
+                <button class="nav-tab" onclick="switchTab('routes')">
+                    <i class="fas fa-route"></i> Route Optimizer
+                </button>
+                <button class="nav-tab" onclick="switchTab('notifications')">
+                    <i class="fas fa-bell"></i> Notifications
+                </button>
+                <button class="nav-tab" onclick="switchTab('drivers')">
+                    <i class="fas fa-users"></i> Driver Management
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Analytics Dashboard Tab -->
+        <div id="analytics" class="tab-content active">
+            <div class="analytics-grid">
+                <!-- Revenue Metrics -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Total Revenue</div>
+                        <i class="fas fa-dollar-sign metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="totalRevenue">₪0</div>
+                    <div class="metric-change positive" id="revenueChange">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>0% vs last month</span>
+                    </div>
+                </div>
+
+                <!-- ASAP Premium Revenue -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">ASAP Premium Revenue</div>
+                        <i class="fas fa-bolt metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="asapRevenue">₪0</div>
+                    <div class="metric-change positive" id="asapChange">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>0% ASAP uplift</span>
+                    </div>
+                </div>
+
+                <!-- Total Trips -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Total Trips</div>
+                        <i class="fas fa-truck metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="totalTrips">0</div>
+                    <div class="metric-change positive" id="tripsChange">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>0% vs last month</span>
+                    </div>
+                </div>
+
+                <!-- Average Trip Value -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Avg Trip Value</div>
+                        <i class="fas fa-calculator metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="avgTripValue">₪0</div>
+                    <div class="metric-change positive" id="avgValueChange">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>0% vs last month</span>
+                    </div>
+                </div>
+
+                <!-- Active Drivers -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Active Drivers</div>
+                        <i class="fas fa-user-check metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="activeDrivers">0</div>
+                    <div class="metric-change positive" id="driversChange">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>0 online now</span>
+                    </div>
+                </div>
+
+                <!-- Driver Efficiency -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Driver Efficiency</div>
+                        <i class="fas fa-tachometer-alt metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="driverEfficiency">0%</div>
+                    <div class="metric-change positive" id="efficiencyChange">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>Avg completion rate</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue Chart -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">Revenue Trends & ASAP Performance</h3>
+                    <div class="time-filter">
+                        <button class="time-btn active" onclick="updateChartPeriod('7d')">7D</button>
+                        <button class="time-btn" onclick="updateChartPeriod('30d')">30D</button>
+                        <button class="time-btn" onclick="updateChartPeriod('90d')">90D</button>
+                        <button class="time-btn" onclick="updateChartPeriod('1y')">1Y</button>
+                    </div>
+                </div>
+                <canvas id="revenueChart" width="400" height="200"></canvas>
+            </div>
+
+            <!-- Trip Status Chart -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">Trip Performance & ASAP vs Scheduled</h3>
+                </div>
+                <canvas id="tripChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Route Optimization Tab -->
+        <div id="routes" class="tab-content">
+            <div class="route-optimizer">
+                <div class="optimizer-header">
+                    <h2><i class="fas fa-robot"></i> AI Route Optimization</h2>
+                    <div class="optimizer-controls">
+                        <button class="btn btn-primary" onclick="loadActiveTrips()">
+                            <i class="fas fa-sync-alt"></i> Refresh Trips
+                        </button>
+                        <button class="btn btn-success" onclick="optimizeRoutes()">
+                            <i class="fas fa-magic"></i> Optimize Routes
+                        </button>
+                        <button class="btn btn-warning" onclick="sendOptimizedRoutes()">
+                            <i class="fas fa-paper-plane"></i> Send to Drivers
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Map Container -->
+                <div id="routeMap" class="route-map"></div>
+
+                <!-- Route Statistics -->
+                <div class="route-details">
+                    <div class="route-stat">
+                        <div class="route-stat-value" id="totalDistance">0 km</div>
+                        <div class="route-stat-label">Total Distance</div>
+                    </div>
+                    <div class="route-stat">
+                        <div class="route-stat-value" id="estimatedTime">0 min</div>
+                        <div class="route-stat-label">Estimated Time</div>
+                    </div>
+                    <div class="route-stat">
+                        <div class="route-stat-value" id="fuelSavings">0%</div>
+                        <div class="route-stat-label">Fuel Savings</div>
+                    </div>
+                    <div class="route-stat">
+                        <div class="route-stat-value" id="costSavings">₪0</div>
+                        <div class="route-stat-label">Cost Savings</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Push Notifications Tab -->
+        <div id="notifications" class="tab-content">
+            <div class="notification-center">
+                <div class="notification-header">
+                    <h2><i class="fas fa-bell"></i> Real-time Notifications</h2>
+                    <button class="btn btn-primary" onclick="sendTestNotification()">
+                        <i class="fas fa-test"></i> Send Test
+                    </button>
+                </div>
+
+                <div id="notificationsList">
+                    <!-- Notifications will be populated here -->
+                </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="notification-center">
+                <h3>Notification Settings</h3>
+                <div style="margin-top: 1rem;">
+                    <label>
+                        <input type="checkbox" id="enableTripAlerts" checked> Trip Status Updates
+                    </label>
+                    <br><br>
+                    <label>
+                        <input type="checkbox" id="enableDriverAlerts" checked> Driver Status Changes
+                    </label>
+                    <br><br>
+                    <label>
+                        <input type="checkbox" id="enableASAPAlerts" checked> ASAP Trip Alerts
+                    </label>
+                    <br><br>
+                    <label>
+                        <input type="checkbox" id="enableSystemAlerts" checked> System Notifications
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Driver Management Tab (Enhanced from existing) -->
+        <div id="drivers" class="tab-content">
+            <div class="analytics-grid">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Total Drivers</div>
+                        <i class="fas fa-users metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="totalDriversCount">0</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Pending Approvals</div>
+                        <i class="fas fa-clock metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="pendingDriversCount">0</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Active Drivers</div>
+                        <i class="fas fa-user-check metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="activeDriversCount">0</div>
+                </div>
+            </div>
+
+            <!-- Driver Table will go here - keeping existing functionality -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">Driver Management</h3>
+                    <button class="btn btn-primary" onclick="refreshDriverData()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div id="driversTableContainer">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Global variables
+        let revenueChart = null;
+        let tripChart = null;
+        let routeMap = null;
+        let notifications = [];
+        let currentPeriod = '7d';
+
+        // Initialize Dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initializing Advanced Analytics Dashboard...');
+            initializeDashboard();
+        });
+
+        async function initializeDashboard() {
+            try {
+                await loadAnalyticsData();
+                await initializeCharts();
+                await initializeRouteMap();
+                await loadNotifications();
+                await loadDriverData();
+                
+                console.log('✅ Dashboard initialized successfully');
+            } catch (error) {
+                console.error('❌ Dashboard initialization failed:', error);
+            }
+        }
+
+        // Tab Switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.closest('.nav-tab').classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+
+            // Load specific tab data
+            if (tabName === 'routes' && !routeMap) {
+                setTimeout(initializeRouteMap, 100);
+            }
+        }
+
+        // Analytics Functions
+        async function loadAnalyticsData() {
+            try {
+                console.log('📊 Loading analytics data...');
+                
+                // Load trip data with revenue calculations
+                const { data: trips, error: tripsError } = await supabase
+                    .from('trip_requests')
+                    .select(`
+                        id,
+                        status,
+                        final_price,
+                        quoted_price,
+                        pickup_time_preference,
+                        created_at,
+                        delivered_at,
+                        assigned_driver_id
+                    `)
+                    .order('created_at', { ascending: false });
+
+                if (tripsError) throw tripsError;
+
+                // Calculate metrics
+                const completedTrips = trips.filter(t => t.status === 'delivered');
+                const asapTrips = trips.filter(t => t.pickup_time_preference === 'asap');
+                const asapCompletedTrips = completedTrips.filter(t => t.pickup_time_preference === 'asap');
+
+                // Revenue calculations
+                const totalRevenue = completedTrips.reduce((sum, trip) => 
+                    sum + (parseFloat(trip.final_price) || 0), 0);
+                
+                const asapRevenue = asapCompletedTrips.reduce((sum, trip) => 
+                    sum + (parseFloat(trip.final_price) || 0), 0);
+
+                const avgTripValue = completedTrips.length > 0 ? 
+                    totalRevenue / completedTrips.length : 0;
+
+                // Update UI
+                document.getElementById('totalRevenue').textContent = `₪${totalRevenue.toLocaleString()}`;
+                document.getElementById('asapRevenue').textContent = `₪${asapRevenue.toLocaleString()}`;
+                document.getElementById('totalTrips').textContent = trips.length.toLocaleString();
+                document.getElementById('avgTripValue').textContent = `₪${avgTripValue.toFixed(0)}`;
+
+                // ASAP uplift calculation
+                const regularRevenue = totalRevenue - asapRevenue;
+                const regularTrips = completedTrips.length - asapCompletedTrips.length;
+                const regularAvg = regularTrips > 0 ? regularRevenue / regularTrips : 0;
+                const asapAvg = asapCompletedTrips.length > 0 ? asapRevenue / asapCompletedTrips.length : 0;
+                const asapUplift = regularAvg > 0 ? ((asapAvg - regularAvg) / regularAvg * 100) : 0;
+
+                document.getElementById('asapChange').innerHTML = `
+                    <i class="fas fa-bolt"></i>
+                    <span>+${asapUplift.toFixed(1)}% ASAP uplift</span>
+                `;
+
+                // Load driver data
+                await loadDriverMetrics();
+
+                console.log('✅ Analytics data loaded', {
+                    totalTrips: trips.length,
+                    completedTrips: completedTrips.length,
+                    asapTrips: asapTrips.length,
+                    totalRevenue: totalRevenue,
+                    asapUplift: asapUplift
+                });
+
+            } catch (error) {
+                console.error('❌ Error loading analytics:', error);
+            }
+        }
+
+        async function loadDriverMetrics() {
+            try {
+                const { data: drivers, error } = await supabase
+                    .from('driver_profiles')
+                    .select('approval_status, is_online, user_id');
+
+                if (error) throw error;
+
+                const activeDrivers = drivers.filter(d => d.approval_status === 'approved').length;
+                const onlineDrivers = drivers.filter(d => d.is_online === true).length;
+                
+                document.getElementById('activeDrivers').textContent = activeDrivers;
+                document.getElementById('driversChange').innerHTML = `
+                    <i class="fas fa-circle" style="color: var(--success-green);"></i>
+                    <span>${onlineDrivers} online now</span>
+                `;
+
+                // Calculate efficiency (placeholder - you can enhance this)
+                const efficiency = activeDrivers > 0 ? Math.round((onlineDrivers / activeDrivers) * 100) : 0;
+                document.getElementById('driverEfficiency').textContent = `${efficiency}%`;
+
+            } catch (error) {
+                console.error('❌ Error loading driver metrics:', error);
+            }
+        }
+
+        // Charts Initialization
+        async function initializeCharts() {
+            try {
+                console.log('📈 Initializing charts...');
+                
+                // Revenue Chart
+                const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+                revenueChart = new Chart(revenueCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: 'Total Revenue',
+                                data: [],
+                                borderColor: '#3B82F6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            },
+                            {
+                                label: 'ASAP Revenue',
+                                data: [],
+                                borderColor: '#10B981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                tension: 0.4,
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₪' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Trip Chart
+                const tripCtx = document.getElementById('tripChart').getContext('2d');
+                tripChart = new Chart(tripCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Delivered', 'In Transit', 'Matched', 'Pending'],
+                        datasets: [{
+                            data: [0, 0, 0, 0],
+                            backgroundColor: [
+                                '#10B981',  // Success Green
+                                '#3B82F6',  // Primary Blue  
+                                '#F59E0B',  // Warning Orange
+                                '#E5E7EB'   // Gray
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                            }
+                        }
+                    }
+                });
+
+                await updateChartsData();
+                console.log('✅ Charts initialized');
+
+            } catch (error) {
+                console.error('❌ Error initializing charts:', error);
+            }
+        }
+
+        async function updateChartsData() {
+            try {
+                // Get trip data for charts
+                const { data: trips, error } = await supabase
+                    .from('trip_requests')
+                    .select('status, final_price, pickup_time_preference, created_at')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                // Update trip status chart
+                const statusCounts = {
+                    'delivered': 0,
+                    'in_transit': 0, 
+                    'matched': 0,
+                    'pending': 0
+                };
+
+                trips.forEach(trip => {
+                    if (statusCounts.hasOwnProperty(trip.status)) {
+                        statusCounts[trip.status]++;
+                    }
+                });
+
+                tripChart.data.datasets[0].data = [
+                    statusCounts.delivered,
+                    statusCounts.in_transit,
+                    statusCounts.matched,
+                    statusCounts.pending
+                ];
+                tripChart.update();
+
+                // Update revenue chart (simplified - you can enhance this)
+                const last7Days = [];
+                const today = new Date();
+                
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    last7Days.push(date.toLocaleDateString());
+                }
+
+                revenueChart.data.labels = last7Days;
+                revenueChart.data.datasets[0].data = [1200, 1500, 1800, 2100, 1900, 2300, 2600]; // Mock data
+                revenueChart.data.datasets[1].data = [400, 600, 750, 850, 700, 900, 1100]; // Mock ASAP data
+                revenueChart.update();
+
+            } catch (error) {
+                console.error('❌ Error updating charts:', error);
+            }
+        }
+
+        function updateChartPeriod(period) {
+            // Update active button
+            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            currentPeriod = period;
+            updateChartsData();
+        }
+
+        // Route Optimization Functions
+        async function initializeRouteMap() {
+            try {
+                console.log('🗺️ Initializing route map...');
+                
+                // Initialize Leaflet map
+                if (!routeMap) {
+                    routeMap = L.map('routeMap').setView([32.0853, 34.7818], 10); // Tel Aviv center
+                    
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(routeMap);
+                }
+
+                await loadActiveTrips();
+                console.log('✅ Route map initialized');
+
+            } catch (error) {
+                console.error('❌ Error initializing route map:', error);
+            }
+        }
+
+        async function loadActiveTrips() {
+            try {
+                console.log('🚛 Loading active trips for route optimization...');
+                
+                const { data: trips, error } = await supabase
+                    .from('trip_requests')
+                    .select(`
+                        id,
+                        status,
+                        pickup_latitude,
+                        pickup_longitude,
+                        delivery_latitude,
+                        delivery_longitude,
+                        pickup_address,
+                        delivery_address,
+                        assigned_driver_id
+                    `)
+                    .in('status', ['pending', 'matched', 'in_transit']);
+
+                if (error) throw error;
+
+                // Clear existing markers
+                if (routeMap) {
+                    routeMap.eachLayer(layer => {
+                        if (layer instanceof L.Marker) {
+                            routeMap.removeLayer(layer);
+                        }
+                    });
+
+                    // Add trip markers
+                    trips.forEach(trip => {
+                        // Pickup marker
+                        L.marker([trip.pickup_latitude, trip.pickup_longitude])
+                            .addTo(routeMap)
+                            .bindPopup(`
+                                <strong>Pickup</strong><br>
+                                Status: ${trip.status}<br>
+                                Trip ID: ${trip.id}
+                            `);
+
+                        // Delivery marker
+                        L.marker([trip.delivery_latitude, trip.delivery_longitude])
+                            .addTo(routeMap)
+                            .bindPopup(`
+                                <strong>Delivery</strong><br>
+                                Status: ${trip.status}<br>
+                                Trip ID: ${trip.id}
+                            `);
+                    });
+                }
+
+                console.log(`✅ Loaded ${trips.length} active trips`);
+
+            } catch (error) {
+                console.error('❌ Error loading active trips:', error);
+            }
+        }
+
+        async function optimizeRoutes() {
+            try {
+                console.log('🤖 Running AI route optimization...');
+                
+                // Mock optimization logic (you can enhance this with actual AI)
+                const mockOptimization = {
+                    totalDistance: '127 km',
+                    estimatedTime: '185 min',
+                    fuelSavings: '23%',
+                    costSavings: '₪145'
+                };
+
+                // Update UI
+                document.getElementById('totalDistance').textContent = mockOptimization.totalDistance;
+                document.getElementById('estimatedTime').textContent = mockOptimization.estimatedTime;
+                document.getElementById('fuelSavings').textContent = mockOptimization.fuelSavings;
+                document.getElementById('costSavings').textContent = mockOptimization.costSavings;
+
+                // Add notification
+                addNotification('success', 'Route Optimization Complete', 
+                    'AI has optimized routes for maximum efficiency. Fuel savings: 23%');
+
+                console.log('✅ Route optimization complete');
+
+            } catch (error) {
+                console.error('❌ Error optimizing routes:', error);
+            }
+        }
+
+        async function sendOptimizedRoutes() {
+            try {
+                console.log('📤 Sending optimized routes to drivers...');
+                
+                // Mock sending routes (implement with actual push notification service)
+                addNotification('success', 'Routes Sent', 
+                    'Optimized routes have been sent to 12 active drivers');
+
+                console.log('✅ Routes sent to drivers');
+
+            } catch (error) {
+                console.error('❌ Error sending routes:', error);
+            }
+        }
+
+        // Push Notifications Functions
+        async function loadNotifications() {
+            try {
+                console.log('🔔 Loading notifications...');
+                
+                // Mock notifications (enhance with real-time data)
+                const mockNotifications = [
+                    {
+                        id: 1,
+                        type: 'success',
+                        title: 'ASAP Trip Completed',
+                        message: 'Driver completed high-priority delivery in record time',
+                        time: new Date(Date.now() - 5 * 60000).toLocaleTimeString()
+                    },
+                    {
+                        id: 2,
+                        type: 'warning',
+                        title: 'Driver Delayed',
+                        message: 'Heavy traffic reported on Route 1. ETA updated.',
+                        time: new Date(Date.now() - 15 * 60000).toLocaleTimeString()
+                    },
+                    {
+                        id: 3,
+                        type: 'info',
+                        title: 'New Driver Application',
+                        message: 'New driver application requires review',
+                        time: new Date(Date.now() - 30 * 60000).toLocaleTimeString()
+                    }
+                ];
+
+                displayNotifications(mockNotifications);
+                console.log('✅ Notifications loaded');
+
+            } catch (error) {
+                console.error('❌ Error loading notifications:', error);
+            }
+        }
+
+        function displayNotifications(notifications) {
+            const container = document.getElementById('notificationsList');
+            
+            container.innerHTML = notifications.map(notification => `
+                <div class="notification-item ${notification.type}">
+                    <div class="notification-icon">
+                        ${getNotificationIcon(notification.type)}
+                    </div>
+                    <div class="notification-content">
+                        <div class="notification-title">${notification.title}</div>
+                        <div class="notification-message">${notification.message}</div>
+                        <div class="notification-time">${notification.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getNotificationIcon(type) {
+            switch(type) {
+                case 'success': return '<i class="fas fa-check-circle" style="color: var(--success-green);"></i>';
+                case 'warning': return '<i class="fas fa-exclamation-triangle" style="color: var(--warning-orange);"></i>';
+                case 'error': return '<i class="fas fa-times-circle" style="color: var(--danger-red);"></i>';
+                default: return '<i class="fas fa-info-circle" style="color: var(--primary-blue);"></i>';
+            }
+        }
+
+        function addNotification(type, title, message) {
+            const notification = {
+                id: Date.now(),
+                type: type,
+                title: title,
+                message: message,
+                time: new Date().toLocaleTimeString()
+            };
+
+            notifications.unshift(notification);
+            displayNotifications(notifications.slice(0, 10)); // Show latest 10
+        }
+
+        function sendTestNotification() {
+            addNotification('info', 'Test Notification', 
+                'This is a test notification from the admin dashboard');
+        }
+
+        // Driver Management Functions (Enhanced)
+        async function loadDriverData() {
+            try {
+                console.log('👥 Loading driver data...');
+                
+                const { data: drivers, error } = await supabase
+                    .from('driver_profiles')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                // Update driver metrics
+                const total = drivers.length;
+                const pending = drivers.filter(d => d.approval_status === 'pending').length;
+                const approved = drivers.filter(d => d.approval_status === 'approved').length;
+
+                document.getElementById('totalDriversCount').textContent = total;
+                document.getElementById('pendingDriversCount').textContent = pending;
+                document.getElementById('activeDriversCount').textContent = approved;
+
+                // Create driver table
+                createDriverTable(drivers);
+                console.log('✅ Driver data loaded');
+
+            } catch (error) {
+                console.error('❌ Error loading driver data:', error);
+            }
+        }
+
+        function createDriverTable(drivers) {
+            const container = document.getElementById('driversTableContainer');
+            
+            if (drivers.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 2rem;">No drivers found</div>';
+                return;
+            }
+
+            const tableHTML = `
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: var(--light-blue);">
+                                <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--primary-blue);">Name</th>
+                                <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--primary-blue);">Phone</th>
+                                <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--primary-blue);">Status</th>
+                                <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--primary-blue);">Online</th>
+                                <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--primary-blue);">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${drivers.map(driver => `
+                                <tr style="border-bottom: 1px solid var(--gray-200);">
+                                    <td style="padding: 1rem;">
+                                        <strong>${driver.first_name || ''} ${driver.last_name || ''}</strong>
+                                    </td>
+                                    <td style="padding: 1rem;">${driver.phone || 'N/A'}</td>
+                                    <td style="padding: 1rem;">
+                                        <span class="status-badge ${driver.approval_status}">
+                                            ${driver.approval_status || 'pending'}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 1rem;">
+                                        <span style="color: ${driver.is_online ? 'var(--success-green)' : 'var(--gray-700)'};">
+                                            <i class="fas fa-circle"></i> ${driver.is_online ? 'Online' : 'Offline'}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 1rem;">
+                                        ${driver.approval_status === 'pending' ? 
+                                            `<button class="btn-small btn-success" onclick="approveDriver('${driver.id}')">Approve</button>
+                                             <button class="btn-small btn-danger" onclick="rejectDriver('${driver.id}')">Reject</button>` :
+                                            `<button class="btn-small btn-primary" onclick="viewDriver('${driver.id}')">View</button>`
+                                        }
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <style>
+                    .status-badge {
+                        padding: 0.25rem 0.75rem;
+                        border-radius: 20px;
+                        font-size: 0.875rem;
+                        font-weight: 500;
+                        text-transform: capitalize;
+                    }
+                    .status-badge.pending {
+                        background: var(--warning-orange);
+                        color: white;
+                    }
+                    .status-badge.approved {
+                        background: var(--success-green);
+                        color: white;
+                    }
+                    .status-badge.rejected {
+                        background: var(--danger-red);
+                        color: white;
+                    }
+                    .btn-small {
+                        padding: 0.5rem 1rem;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 0.875rem;
+                        margin-right: 0.5rem;
+                    }
+                    .btn-success {
+                        background: var(--success-green);
+                        color: white;
+                    }
+                    .btn-danger {
+                        background: var(--danger-red);
+                        color: white;
+                    }
+                </style>
+            `;
+
+            container.innerHTML = tableHTML;
+        }
+
+        async function approveDriver(driverId) {
+            try {
+                const { error } = await supabase
+                    .from('driver_profiles')
+                    .update({ approval_status: 'approved' })
+                    .eq('id', driverId);
+
+                if (error) throw error;
+
+                addNotification('success', 'Driver Approved', 'Driver has been approved and can now accept trips');
+                loadDriverData();
+
+            } catch (error) {
+                console.error('❌ Error approving driver:', error);
+                addNotification('error', 'Error', 'Failed to approve driver');
+            }
+        }
+
+        async function rejectDriver(driverId) {
+            try {
+                const { error } = await supabase
+                    .from('driver_profiles')
+                    .update({ approval_status: 'rejected' })
+                    .eq('id', driverId);
+
+                if (error) throw error;
+
+                addNotification('warning', 'Driver Rejected', 'Driver application has been rejected');
+                loadDriverData();
+
+            } catch (error) {
+                console.error('❌ Error rejecting driver:', error);
+                addNotification('error', 'Error', 'Failed to reject driver');
+            }
+        }
+
+        function refreshDriverData() {
+            loadDriverData();
+        }
+
+        function viewDriver(driverId) {
+            alert(`View driver details for ID: ${driverId}\n(This can be enhanced with a modal or detail page)`);
+        }
+
+        // Auto-refresh functionality
+        setInterval(async () => {
+            const currentTab = document.querySelector('.tab-content.active').id;
+            
+            if (currentTab === 'analytics') {
+                await loadAnalyticsData();
+                await updateChartsData();
+            } else if (currentTab === 'notifications') {
+                // Add new notifications periodically (mock)
+                if (Math.random() < 0.1) { // 10% chance
+                    const types = ['info', 'success', 'warning'];
+                    const randomType = types[Math.floor(Math.random() * types.length)];
+                    addNotification(randomType, 'Auto Update', 'System update notification');
+                }
+            }
+        }, 30000); // Refresh every 30 seconds
+
+        console.log('🚀 Advanced Analytics Dashboard loaded successfully!');
+    </script>
+</body>
+</html>

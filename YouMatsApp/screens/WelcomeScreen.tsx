@@ -1,6 +1,6 @@
 /**
  * YouMats Driver App Welcome Screen
- * Professional welcome screen with minimal design and YouMats branding
+ * Professional welcome screen matching customer app design
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -12,29 +12,34 @@ import {
   Dimensions,
   TouchableOpacity,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { YouMatsLogo } from '../components';
 import { Colors, getGradient } from '../theme/colors';
 
 const { width, height } = Dimensions.get('window');
+const isTablet = width >= 768;
 
 interface WelcomeScreenProps {
   onGetStarted: () => void;
+  onLogin: () => void;
 }
 
-export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted }) => {
-  // Animation references
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ 
+  onGetStarted, 
+  onLogin 
+}) => {
+  // Animation values
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.5)).current;
-  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const logoRotate = useRef(new Animated.Value(0)).current;
+  const taglineOpacity = useRef(new Animated.Value(0)).current;
   const buttonsTranslateY = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
-    // Professional sequential animations
+    // Sequential animations for professional entrance
     Animated.sequence([
-      // Logo entrance
+      // Logo entrance with scale and fade
       Animated.parallel([
         Animated.timing(logoOpacity, {
           toValue: 1,
@@ -48,8 +53,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted }) =>
           useNativeDriver: true,
         }),
       ]),
-      // Content fade in
-      Animated.timing(contentOpacity, {
+      // Subtle rotation animation
+      Animated.timing(logoRotate, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      // Tagline fade in
+      Animated.timing(taglineOpacity, {
         toValue: 1,
         duration: 600,
         useNativeDriver: true,
@@ -61,12 +72,31 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted }) =>
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Continuous subtle rotation for logo
+    const rotateLoop = () => {
+      Animated.loop(
+        Animated.timing(logoRotate, {
+          toValue: 2,
+          duration: 8000,
+          useNativeDriver: true,
+        })
+      ).start();
+    };
+
+    const rotateTimer = setTimeout(rotateLoop, 2000);
+    return () => clearTimeout(rotateTimer);
   }, []);
+
+  const rotateInterpolate = logoRotate.interpolate({
+    inputRange: [0, 1, 2],
+    outputRange: ['0deg', '2deg', '0deg'],
+  });
 
   return (
     <LinearGradient
       colors={getGradient('welcome')}
-      style={styles.fullScreenContainer}
+      style={styles.gradientContainer}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
@@ -78,32 +108,35 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted }) =>
       
       {/* Main Content Container */}
       <View style={styles.mainContainer}>
-        {/* Animated YouMats Logo */}
+        {/* Animated Logo Section */}
         <Animated.View 
           style={[
-            styles.logoSection,
+            styles.logoContainer,
             {
               opacity: logoOpacity,
-              transform: [{ scale: logoScale }]
+              transform: [
+                { scale: logoScale },
+                { rotate: rotateInterpolate }
+              ]
             }
           ]}
         >
           <YouMatsLogo size="xlarge" animated={true} showText={false} />
         </Animated.View>
 
-        {/* YouMats Brand Text */}
+        {/* Animated Tagline */}
         <Animated.View 
           style={[
-            styles.brandContainer,
-            { opacity: contentOpacity }
+            styles.taglineContainer,
+            { opacity: taglineOpacity }
           ]}
         >
-          <Text style={styles.powerText}>Power</Text>
-          <Text style={styles.youMatsText}>YouMats Driver</Text>
+          <Text style={styles.powerText}>Power YouMats</Text>
+          <Text style={styles.youMatsText}>Driver Portal</Text>
         </Animated.View>
       </View>
 
-      {/* Action Button */}
+      {/* Action Buttons */}
       <Animated.View 
         style={[
           styles.actionContainer,
@@ -111,101 +144,113 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted }) =>
         ]}
       >
         <TouchableOpacity 
-          style={styles.getStartedButton}
+          style={styles.primaryButton}
           onPress={onGetStarted}
           activeOpacity={0.9}
         >
-          <Text style={styles.getStartedText}>Get Started</Text>
+          <Text style={styles.primaryButtonText}>Get Started</Text>
         </TouchableOpacity>
-
-        {/* Minimal Footer */}
-        <Text style={styles.footerText}>
-          Professional delivery solutions
-        </Text>
+        
+        <TouchableOpacity 
+          style={styles.secondaryButton}
+          onPress={onLogin}
+          activeOpacity={0.9}
+        >
+          <Text style={styles.secondaryButtonText}>I already have an account</Text>
+        </TouchableOpacity>
       </Animated.View>
     </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  fullScreenContainer: {
+  gradientContainer: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
-    backgroundColor: Colors.primary, // Fallback color
+    paddingHorizontal: isTablet ? 40 : 20,
+    maxWidth: isTablet ? 600 : '100%',
+    alignSelf: isTablet ? 'center' : 'stretch',
   },
   
   mainContainer: {
     flex: 2,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: width * 0.08, // Responsive horizontal padding (8% of screen width)
-    paddingTop: height * 0.05, // Responsive top padding (5% of screen height)
+    paddingTop: 40,
   },
   
-  logoSection: {
+  logoContainer: {
     alignItems: 'center',
-    marginBottom: height * 0.08, // Responsive margin (8% of screen height)
+    marginBottom: 60,
   },
   
-  brandContainer: {
+  taglineContainer: {
     alignItems: 'center',
   },
   
   powerText: {
-    fontSize: Math.min(width * 0.075, 32), // Responsive font size, max 32
+    fontSize: isTablet ? 36 : 28,
     color: '#ffffff',
     fontWeight: '300',
     letterSpacing: 1,
     textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   
   youMatsText: {
-    fontSize: Math.min(width * 0.085, 36), // Responsive font size, max 36
+    fontSize: isTablet ? 42 : 32,
     color: '#ffffff',
-    fontWeight: 'bold',
-    letterSpacing: -0.5,
+    fontWeight: '700',
+    letterSpacing: 1.5,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   
   actionContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingHorizontal: width * 0.1, // Responsive horizontal padding (10% of screen width)
-    paddingBottom: height * 0.08, // Responsive bottom padding (8% of screen height)
+    paddingBottom: 32,
+    paddingTop: 16,
+    paddingHorizontal: 40,
   },
   
-  getStartedButton: {
+  primaryButton: {
     backgroundColor: '#ffffff',
-    paddingVertical: height * 0.02, // Responsive vertical padding (2% of screen height)
-    paddingHorizontal: width * 0.15, // Responsive horizontal padding (15% of screen width)
+    paddingVertical: 16,
     borderRadius: 25,
-    marginBottom: height * 0.04, // Responsive margin (4% of screen height)
+    marginBottom: 24,
+    minHeight: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    minWidth: width * 0.5, // Minimum 50% of screen width
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   
-  getStartedText: {
-    fontSize: Math.min(width * 0.045, 18), // Responsive font size, max 18
+  primaryButtonText: {
+    fontSize: 18,
     fontWeight: '600',
     color: Colors.primary,
     textAlign: 'center',
   },
   
-  footerText: {
-    fontSize: Math.min(width * 0.035, 14), // Responsive font size, max 14
+  secondaryButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: '#ffffff',
+    borderWidth: 1,
+    paddingVertical: 16,
+    borderRadius: 25,
+    minHeight: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
     color: '#ffffff',
-    opacity: 0.7,
     textAlign: 'center',
-    fontWeight: '300',
   },
 });
 

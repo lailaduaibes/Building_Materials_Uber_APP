@@ -8,9 +8,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export interface NotificationPreferences {
-  orderUpdates: boolean;
-  promotions: boolean;
-  newsletter: boolean;
   pushNotifications: boolean;
 }
 
@@ -23,9 +20,6 @@ export interface UserPreferences {
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   notifications: {
-    orderUpdates: true,
-    promotions: false,
-    newsletter: false,
     pushNotifications: true,
   },
   language: 'en',
@@ -185,8 +179,8 @@ class UserPreferencesService {
       return prefs[type] === true;
     } catch (error) {
       console.error('Error checking notification preference:', error);
-      // Default to allowing notifications on error
-      return type === 'orderUpdates' || type === 'pushNotifications';
+      // Default to allowing push notifications on error
+      return type === 'pushNotifications';
     }
   }
 }

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 import VehicleManagementScreen from './VehicleManagementScreen';
+import VehicleDocumentsScreen from './VehicleDocumentsScreen';
 import SpecializationsManagementScreen from './SpecializationsManagementScreen';
 import { createClient } from '@supabase/supabase-js';
 
@@ -83,6 +84,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
   const [driverTrucks, setDriverTrucks] = useState<any[]>([]); // NEW: Store actual truck data
   const [loading, setLoading] = useState(true);
   const [showVehicleManagement, setShowVehicleManagement] = useState(false);
+  const [showVehicleDocuments, setShowVehicleDocuments] = useState<any>(null);
   const [showSpecializationsManagement, setShowSpecializationsManagement] = useState(false);
   const [settings, setSettings] = useState({
     notifications: true,
@@ -106,6 +108,9 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
       setLoading(true);
       console.log('📋 Loading driver profile...');
       
+      // First refresh driver profile from database to get latest data
+      await driverService.refreshDriverProfile();
+      
       // Get current driver from service
       const currentDriver = driverService.getCurrentDriver();
       if (!currentDriver) {
@@ -119,6 +124,8 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         firstName: currentDriver.firstName,
         lastName: currentDriver.lastName,
         phone: currentDriver.phone,
+        phoneType: typeof currentDriver.phone,
+        phoneLength: currentDriver.phone ? currentDriver.phone.length : 0,
         email: currentDriver.email,
         years_experience: currentDriver.years_experience,
         vehicle_model: currentDriver.vehicle_model,
@@ -144,7 +151,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         email: currentDriver.email,
         phone: currentDriver.phone || 'Not provided',
         profileImage: undefined, // Add profile image URL when available
-        rating: currentDriver.rating || 0,
+        rating: tripStats?.allTime?.averageRating || 0, // Use real rating from customer feedback
         totalTrips: currentDriver.total_trips || 0,
         totalEarnings: currentDriver.total_earnings || 0,
         yearsActive: yearsActive,
@@ -257,7 +264,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
             </View>
             <View style={styles.statItem}>
               <Ionicons name="car" size={16} color={theme.primary} />
-              <Text style={styles.statValue}>{driverProfile.totalTrips}</Text>
+              <Text style={styles.statValue}>{driverTrucks.length}</Text>
             </View>
             <View style={styles.statItem}>
               <Ionicons name="time" size={16} color={theme.primary} />
@@ -333,12 +340,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Vehicle Information</Text>
-          <TouchableOpacity onPress={() => setShowVehicleManagement(true)}>
-            <View style={styles.manageVehiclesButton}>
-              <Ionicons name="car" size={18} color={theme.primary} />
-              <Text style={styles.manageVehiclesText}>Manage</Text>
-            </View>
-          </TouchableOpacity>
+          {/* Removed Manage button - functionality simplified */}
         </View>
         
         {/* Driver Profile Vehicle Info */}
@@ -360,9 +362,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
           ) : (
             <View style={styles.vehicleRow}>
               <Text style={styles.vehicleLabel}>No vehicle information available</Text>
-              <TouchableOpacity onPress={() => setShowVehicleManagement(true)}>
-                <Text style={[styles.vehicleValue, { color: theme.accent }]}>Add Vehicle</Text>
-              </TouchableOpacity>
+              <Text style={styles.vehicleValue}>Contact admin to add vehicle</Text>
             </View>
           )}
         </View>
@@ -437,6 +437,16 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                       </Text>
                     </View>
                   )}
+                  
+                  {/* Vehicle Documents Button */}
+                  <TouchableOpacity 
+                    style={styles.vehicleDocumentsButton}
+                    onPress={() => setShowVehicleDocuments(truck)}
+                  >
+                    <Ionicons name="document-text" size={16} color={theme.primary} />
+                    <Text style={styles.vehicleDocumentsText}>View Documents</Text>
+                    <Ionicons name="chevron-forward" size={16} color={theme.lightText} />
+                  </TouchableOpacity>
                 </View>
               </View>
             ))
@@ -447,6 +457,16 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
               <Text style={styles.noTrucksSubtext}>
                 Complete your registration to add vehicle information
               </Text>
+              
+              {/* Documents access for drivers without vehicles */}
+              <TouchableOpacity 
+                style={styles.vehicleDocumentsButton}
+                onPress={() => setShowVehicleDocuments({ id: 'general', license_plate: 'N/A' })}
+              >
+                <Ionicons name="document-text" size={16} color={theme.primary} />
+                <Text style={styles.vehicleDocumentsText}>Upload Documents</Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.lightText} />
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -550,6 +570,11 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
     <SafeAreaView style={styles.container}>
       {showVehicleManagement ? (
         <VehicleManagementScreen onBack={() => setShowVehicleManagement(false)} />
+      ) : showVehicleDocuments ? (
+        <VehicleDocumentsScreen 
+          vehicle={showVehicleDocuments} 
+          onBack={() => setShowVehicleDocuments(null)} 
+        />
       ) : showSpecializationsManagement ? (
         <SpecializationsManagementScreen 
           onBack={() => setShowSpecializationsManagement(false)}
@@ -956,6 +981,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.primary,
     marginLeft: 6,
+    flex: 1,
+  },
+  vehicleDocumentsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.white,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  vehicleDocumentsText: {
+    fontSize: 14,
+    color: theme.primary,
+    fontWeight: '500',
+    marginLeft: 8,
     flex: 1,
   },
 });

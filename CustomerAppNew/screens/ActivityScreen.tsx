@@ -22,7 +22,7 @@ import { authService } from '../AuthServiceSupabase';
 
 interface ActivityItem {
   id: string;
-  type: 'order_created' | 'pickup_scheduled' | 'driver_assigned' | 'in_transit' | 'delivered';
+  type: 'order_created' | 'pickup_scheduled' | 'driver_assigned' | 'in_transit' | 'delivered' | 'cancelled';
   title: string;
   description: string;
   timestamp: string;
@@ -139,6 +139,8 @@ const ActivityScreen: React.FC<ActivityScreenProps> = ({
       case 'matched': return 'driver_assigned';
       case 'in_transit': return 'in_transit';
       case 'delivered': return 'delivered';
+      case 'cancelled': return 'cancelled';
+      case 'expired': return 'cancelled'; // Treat expired similar to cancelled for activity purposes
       default: return 'order_created';
     }
   };
@@ -149,6 +151,8 @@ const ActivityScreen: React.FC<ActivityScreenProps> = ({
       case 'matched': return 'Driver Assigned';
       case 'in_transit': return 'Delivery In Progress';
       case 'delivered': return 'Delivery Completed';
+      case 'cancelled': return 'Order Cancelled';
+      case 'expired': return 'Order Expired';
       default: return 'Order Update';
     }
   };
@@ -160,6 +164,7 @@ const ActivityScreen: React.FC<ActivityScreenProps> = ({
       case 'pickup_scheduled': return 'schedule';
       case 'in_transit': return 'local-shipping';
       case 'delivered': return 'check-circle';
+      case 'cancelled': return 'cancel';
       default: return 'info';
     }
   };
@@ -171,6 +176,7 @@ const ActivityScreen: React.FC<ActivityScreenProps> = ({
       case 'pickup_scheduled': return '#FF9800';
       case 'in_transit': return '#4CAF50';
       case 'delivered': return '#8BC34A';
+      case 'cancelled': return '#F44336';
       default: return Theme.colors.text.secondary;
     }
   };

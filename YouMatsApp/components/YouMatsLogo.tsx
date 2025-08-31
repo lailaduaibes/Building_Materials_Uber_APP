@@ -26,11 +26,11 @@ export const YouMatsLogo: React.FC<YouMatsLogoProps> = ({
 
   useEffect(() => {
     if (animated) {
-      // Gentle pulse animation
+      // Continuous pulse animation
       const pulseAnimation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.03,
+            toValue: 1.05,
             duration: 2000,
             useNativeDriver: true,
           }),
@@ -42,10 +42,21 @@ export const YouMatsLogo: React.FC<YouMatsLogoProps> = ({
         ])
       );
 
+      // Gentle rotation animation
+      const rotateAnimation = Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 8000,
+          useNativeDriver: true,
+        })
+      );
+
       pulseAnimation.start();
+      rotateAnimation.start();
 
       return () => {
         pulseAnimation.stop();
+        rotateAnimation.stop();
       };
     }
   }, [animated]);
@@ -75,6 +86,11 @@ export const YouMatsLogo: React.FC<YouMatsLogoProps> = ({
 
   const currentSize = sizeStyles[size];
 
+  const rotateInterpolate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
   return (
     <View style={[styles.container, { height: currentSize.container.height }, style]}>
       {/* Animated Logo */}
@@ -83,17 +99,19 @@ export const YouMatsLogo: React.FC<YouMatsLogoProps> = ({
           styles.logoContainer,
           {
             transform: [
-              { scale: animated ? pulseAnim : 1 }
+              { scale: animated ? pulseAnim : 1 },
+              { rotate: animated ? rotateInterpolate : '0deg' }
             ]
           }
         ]}
       >
-        {/* Actual YouMats Logo Image */}
+        {/* Real YouMats Logo */}
         <Image
-          source={require('../assets/images/YouMats-logo.webp')}
+          source={require('../assets/images/youmatlogo2.webp')}
           style={[styles.logoImage, {
             width: currentSize.logo.width,
             height: currentSize.logo.height,
+            backgroundColor: 'transparent',
           }]}
           resizeMode="contain"
         />

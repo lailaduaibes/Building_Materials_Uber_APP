@@ -55,6 +55,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 interface LiveTrackingScreenTripProps {
   tripId: string;
   onBack: () => void;
+  navigation?: any; // Add navigation for rating screen
 }
 
 interface TripTracking {
@@ -85,6 +86,7 @@ interface DriverInfo {
 export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
   tripId,
   onBack,
+  navigation,
 }) => {
   const [trip, setTrip] = useState<TripRequest | null>(null);
   const [tracking, setTracking] = useState<TripTracking | null>(null);
@@ -251,8 +253,14 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
         (payload) => {
           console.log('Real-time tracking update:', payload);
           if (payload.new) {
-            setTracking(payload.new as TripTracking);
-            calculateETA(payload.new as TripTracking);
+            const newTracking = payload.new as TripTracking;
+            setTracking(newTracking);
+            calculateETA(newTracking);
+            
+            // Check if trip just completed - show rating screen
+            if (newTracking.status === 'delivered' && tracking?.status !== 'delivered') {
+              handleTripCompleted();
+            }
           }
         }
       )
@@ -332,6 +340,45 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
     } catch (error) {
       console.error('Error calculating ETA:', error);
     }
+  };
+
+  const handleTripCompleted = () => {
+    if (!trip || !driverInfo) return;
+    
+    // Show completion alert with rating option
+    Alert.alert(
+      'Trip Completed! 🎉',
+      'Your delivery has been completed successfully. Would you like to rate your driver?',
+      [
+        {
+          text: 'Rate Later',
+          style: 'cancel',
+          onPress: () => {
+            // Navigate back to order history
+            onBack();
+          }
+        },
+        {
+          text: 'Rate Driver',
+          onPress: () => {
+            // Navigate to rating screen
+            if (navigation && navigation.navigate) {
+              navigation.navigate('CustomerRating', {
+                tripId: trip.id,
+                driverName: `${driverInfo.first_name} ${driverInfo.last_name}`,
+                driverPhoto: driverInfo.profile_image_url,
+                pickupLocation: trip.pickup_address?.formatted_address,
+                deliveryLocation: trip.delivery_address?.formatted_address,
+                completedAt: new Date().toISOString(),
+              });
+            } else {
+              // Fallback: navigate back for now
+              onBack();
+            }
+          }
+        }
+      ]
+    );
   };
 
   const startPulseAnimation = () => {

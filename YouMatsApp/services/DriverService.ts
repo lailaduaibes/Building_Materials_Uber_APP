@@ -6,6 +6,7 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
+import { ProfessionalPricingService, PricingParams } from '../shared/services/ProfessionalPricingService';
 import { driverLocationService, LocationCoordinates } from './DriverLocationService';
 import { enhancedNotificationService } from './EnhancedNotificationService';
 
@@ -29,6 +30,7 @@ export interface Driver {
   lastName: string;
   fullName: string;
   phone: string;
+  email: string;
   years_experience: number;
   specializations: any;
   // Vehicle information
@@ -108,6 +110,11 @@ export interface OrderAssignment {
   estimatedEarnings: number;
   estimatedDuration: number; // in minutes
   distanceKm: number;
+  // 🚀 Professional Pricing Fields
+  isPremiumTrip?: boolean; // Whether this is a premium ASAP trip
+  earningsBreakdown?: any; // Detailed breakdown of earnings calculation
+  earningsSummary?: string; // Human-readable earnings summary
+  originalQuotedPrice?: number; // Original quoted price before driver commission
   specialInstructions?: string;
   pickupTimePreference?: 'asap' | 'scheduled'; // ASAP or scheduled pickup
   scheduledPickupTime?: string; // ISO date string for scheduled pickups
@@ -220,7 +227,9 @@ class DriverService {
       console.log('📋 Driver profile query result:', { 
         found: !!driverData, 
         error: driverError?.code, 
-        message: driverError?.message 
+        message: driverError?.message,
+        phoneInDriverData: driverData?.phone,
+        fullDriverData: driverData
       });
 
       console.log('� Driver profile query result:', { 
@@ -332,7 +341,7 @@ class DriverService {
         lastName: userData.last_name,
         fullName: `${userData.first_name} ${userData.last_name}`,
         email: userData.email,
-        phone: '', // Will be filled if needed
+        phone: driverData.phone || '', // Use phone field from database
         status: driverData.is_available ? 'online' : 'offline',
         // Parse JSON fields
         specializations: this.parseJsonField(driverData.specializations, ['general']),
@@ -1763,13 +1772,16 @@ class DriverService {
     try {
       console.log('📊 Loading driver stats from database...');
       
+      // Calculate real average rating from all completed trips
+      const realRating = await this.calculateDriverRealRating();
+      
       // For now, use the driver profile data and return real zeros instead of mock data
       const stats: DriverStats = {
         today: {
           deliveries: 0, // Real data: no deliveries yet
           earnings: 0,   // Real data: no earnings yet
           hoursWorked: 0, // Real data: no hours worked yet
-          averageRating: this.currentDriver.rating || 0
+          averageRating: realRating
         },
         thisWeek: {
           deliveries: 0, // Real data: no deliveries yet
@@ -1784,16 +1796,62 @@ class DriverService {
         allTime: {
           totalDeliveries: this.currentDriver.total_trips || 0,
           totalEarnings: this.currentDriver.total_earnings || 0,
-          averageRating: this.currentDriver.rating || 0,
+          averageRating: realRating,
           completionRate: 100 // Real data: perfect record so far
         }
       };
 
-      console.log('✅ Driver stats loaded');
+      console.log('✅ Driver stats loaded with real rating:', realRating);
       return stats;
     } catch (error) {
       console.error('Error getting driver stats:', error);
       return null;
+    }
+  }
+
+  // Calculate driver's real average rating from customer feedback
+  async calculateDriverRealRating(): Promise<number> {
+    if (!this.currentDriver) return 0;
+
+    try {
+      console.log('🌟 Calculating real driver rating from customer feedback...');
+      
+      // Query all completed trips with customer ratings for this driver
+      const { data: tripRatings, error } = await supabase
+        .from('trip_requests')
+        .select('customer_rating')
+        .eq('assigned_driver_id', this.currentDriver.user_id)
+        .eq('status', 'completed')
+        .not('customer_rating', 'is', null);
+
+      if (error) {
+        console.error('❌ Error fetching trip ratings:', error);
+        return 0;
+      }
+
+      // Calculate average rating
+      if (!tripRatings || tripRatings.length === 0) {
+        console.log('📊 No customer ratings found yet');
+        return 0;
+      }
+
+      const validRatings = tripRatings
+        .map(trip => trip.customer_rating)
+        .filter(rating => rating !== null && rating > 0);
+
+      if (validRatings.length === 0) {
+        console.log('📊 No valid customer ratings found');
+        return 0;
+      }
+
+      const averageRating = validRatings.reduce((sum, rating) => sum + rating, 0) / validRatings.length;
+      const roundedRating = Math.round(averageRating * 10) / 10; // Round to 1 decimal place
+
+      console.log(`✅ Calculated real rating: ${roundedRating} from ${validRatings.length} customer reviews`);
+      return roundedRating;
+    } catch (error) {
+      console.error('❌ Exception calculating driver rating:', error);
+      return 0;
     }
   }
 
@@ -1827,7 +1885,7 @@ class DriverService {
           // Update other fields that might have changed
           firstName: freshDriverData.first_name,
           lastName: freshDriverData.last_name,
-          phone: freshDriverData.phone_number
+          phone: freshDriverData.phone
         };
         console.log('✅ Driver profile refreshed with latest approval status:', freshDriverData.approval_status);
       }
@@ -1912,6 +1970,20 @@ class DriverService {
     try {
       console.log('🔍 Fetching available trip requests from database...');
       
+      // 🧹 Simple cleanup: Mark expired trips based on pickup time
+      console.log('🧹 Running simple trip expiration cleanup...');
+      await this.simpleCleanupExpiredTrips();
+      
+      // 🔍 Debug: Check total pending trips (no complex filtering)
+      const { data: allTrips, error: countError } = await supabase
+        .from('trip_requests')
+        .select('id, status, pickup_time_preference, scheduled_pickup_time, created_at')
+        .eq('status', 'pending');
+        
+      if (!countError && allTrips) {
+        console.log(`🔍 [DriverService] Found ${allTrips.length} pending trips (simple check)`);
+      }
+      
       // ✅ NEW: First check if driver is approved
       const approvalStatus = await this.checkDriverApprovalStatus();
       
@@ -1972,14 +2044,13 @@ class DriverService {
           customer_id,
           status,
           assigned_driver_id,
-          acceptance_deadline,
           users!trip_requests_customer_id_fkey (
             first_name,
             last_name,
             phone
           )
         `)
-        .eq('status', 'pending')
+        .eq('status', 'pending') // Simple: just get pending trips
         .or(`assigned_driver_id.is.null,assigned_driver_id.eq.${driverId || 'none'}`)
         .order('created_at', { ascending: false })
         .limit(20);
@@ -2028,14 +2099,13 @@ class DriverService {
             customer_id,
             status,
             assigned_driver_id,
-            acceptance_deadline,
             users!trip_requests_customer_id_fkey (
               first_name,
               last_name,
               phone
             )
           `)
-          .eq('status', 'pending')
+          .eq('status', 'pending') // Simple: just get pending trips
           .or(`assigned_driver_id.is.null,assigned_driver_id.eq.${driverId || 'none'}`)
           .order('created_at', { ascending: false })
           .limit(20);
@@ -2059,8 +2129,21 @@ class DriverService {
         // Convert to OrderAssignment format with flexible distance calculation
         const assignments: OrderAssignment[] = [];
         const maxDistanceKm = 500; // Increased to 500km for regional coverage
+        const tripVisibilityLog: any[] = [];
         
         for (const trip of finalTrips) {
+          // 🔍 Debug: Check trip visibility
+          const visibilityCheck = this.shouldTripBeVisible(trip);
+          tripVisibilityLog.push({
+            id: trip.id.substring(0, 8),
+            visible: visibilityCheck.visible,
+            reason: visibilityCheck.reason
+          });
+          
+          if (!visibilityCheck.visible) {
+            console.log(`⚠️ [DriverService] Trip ${trip.id.substring(0, 8)} filtered out: ${visibilityCheck.reason}`);
+            continue;
+          }
           // Calculate distance from driver to pickup location
           let distanceToPickupKm = 0;
           let shouldInclude = true; // Default to include unless distance check fails
@@ -2129,7 +2212,8 @@ class DriverService {
             console.log('⚠️ No users object found for trip:', trip.id);
           }
           
-          const assignment = {
+          // 🚀 Create assignment with professional earnings calculation
+          let assignment = {
             id: trip.id,
             orderId: trip.id,
             customerId: trip.customer_id || '',
@@ -2159,7 +2243,7 @@ class DriverService {
               quantity: Number(trip.estimated_weight_tons || 1),
               weight: Number(trip.estimated_weight_tons || 1),
             }],
-            estimatedEarnings: Number(trip.quoted_price || 0),
+            estimatedEarnings: Number(trip.quoted_price || 0), // Will be enhanced below
             estimatedDuration: Number(trip.estimated_duration_minutes || 30),
             distanceKm: driverLocation ? distanceToPickupKm : Number(trip.estimated_distance_km || 0),
             specialInstructions: trip.special_requirements ? 
@@ -2167,7 +2251,7 @@ class DriverService {
             pickupTimePreference: trip.pickup_time_preference || 'asap',
             scheduledPickupTime: trip.scheduled_pickup_time,
             assignedAt: new Date().toISOString(),
-            acceptDeadline: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes
+            acceptDeadline: this.calculateAcceptDeadline(trip.pickup_time_preference),
             status: 'pending' as const,
             // Add coordinate for map markers
             coordinate: {
@@ -2175,8 +2259,27 @@ class DriverService {
               longitude: Number(trip.pickup_longitude),
             },
           };
+
+          // 💰 Enhance with professional earnings calculation  
+          try {
+            assignment = await this.enhanceTripEarnings(assignment);
+            console.log(`💰 [DriverService] Enhanced earnings for trip ${trip.id.substring(0, 8)}: ₪${assignment.estimatedEarnings} ${(assignment as any).isPremiumTrip ? '(Premium)' : ''}`);
+          } catch (error) {
+            console.warn(`⚠️ [DriverService] Could not enhance earnings for trip ${trip.id.substring(0, 8)}, using quoted price`);
+          }
           
           assignments.push(assignment);
+        }
+
+        // 🔍 Debug: Log trip visibility summary
+        const visibleCount = tripVisibilityLog.filter(t => t.visible).length;
+        const hiddenCount = tripVisibilityLog.filter(t => !t.visible).length;
+        console.log(`🔍 [DriverService] Trip visibility summary: ${visibleCount} visible, ${hiddenCount} hidden`);
+        
+        if (hiddenCount > 0) {
+          console.log(`🔍 [DriverService] Hidden trip reasons:`, 
+            tripVisibilityLog.filter(t => !t.visible).map(t => `${t.id}: ${t.reason}`)
+          );
         }
 
         // Sort by distance (closest first)
@@ -2389,7 +2492,7 @@ class DriverService {
         error: error?.message, 
         tripCount: trips?.length,
         driverUserId: driver.user_id,
-        statuses: trips?.map(t => t.status) || []
+        statuses: trips?.map((t: any) => t.status) || []
       });
 
       if (error) {
@@ -3462,11 +3565,11 @@ class DriverService {
       const updatedDriver = {
         ...driver,
         is_available: isAvailable,
-        status: isAvailable ? 'online' : 'offline'
+        status: (isAvailable ? 'online' : 'offline') as 'online' | 'offline' | 'busy' | 'on_break'
       };
       
       await AsyncStorage.setItem('currentDriver', JSON.stringify(updatedDriver));
-      this.currentDriver = updatedDriver;
+      this.currentDriver = updatedDriver as Driver;
 
       console.log(`✅ Driver availability successfully updated to: ${isAvailable ? 'ONLINE' : 'OFFLINE'}`);
       return true;
@@ -3654,6 +3757,122 @@ class DriverService {
         completionRate: 0,
         averageRating: 0,
         onlineHours: 0
+      };
+    }
+  }
+
+  /**
+   * 🚀 Professional Earnings Calculation with ASAP Premium
+   * Enhanced earnings calculation using the shared pricing service
+   */
+  async calculateProfessionalEarnings(trip: any): Promise<{ 
+    earnings: number; 
+    breakdown: any; 
+    isPremium: boolean; 
+    summary: string 
+  }> {
+    try {
+      console.log('💰 [DriverService] Calculating professional earnings for trip:', trip.id?.substring(0, 8));
+
+      // Extract trip data
+      const pricingParams: PricingParams = {
+        pickupLat: trip.pickup_latitude || trip.pickupLocation?.latitude,
+        pickupLng: trip.pickup_longitude || trip.pickupLocation?.longitude,
+        deliveryLat: trip.delivery_latitude || trip.deliveryLocation?.latitude,
+        deliveryLng: trip.delivery_longitude || trip.deliveryLocation?.longitude,
+        truckTypeId: trip.required_truck_type_id || 'default',
+        estimatedWeight: trip.estimated_weight_tons,
+        pickupTimePreference: trip.pickup_time_preference || trip.pickupTimePreference || 'asap',
+        scheduledTime: trip.scheduled_pickup_time ? new Date(trip.scheduled_pickup_time) : undefined,
+        isHighDemand: false // Future: determine from real-time data
+      };
+
+      console.log('📊 [DriverService] Pricing params:', {
+        preference: pricingParams.pickupTimePreference,
+        weight: pricingParams.estimatedWeight || 'N/A',
+        truckType: pricingParams.truckTypeId
+      });
+
+      // Get truck rates from Supabase (if needed)
+      let truckRates = undefined;
+      if (trip.required_truck_type_id) {
+        try {
+          const { data: truckType } = await supabase
+            .from('truck_types')
+            .select('base_rate_per_km, base_rate_per_hour')
+            .eq('id', trip.required_truck_type_id)
+            .single();
+
+          if (truckType) {
+            truckRates = {
+              base_rate_per_km: Number(truckType.base_rate_per_km),
+              base_rate_per_hour: Number(truckType.base_rate_per_hour)
+            };
+          }
+        } catch (error) {
+          console.warn('⚠️ [DriverService] Could not fetch truck rates:', error instanceof Error ? error.message : 'Unknown error');
+        }
+      }
+
+      // Calculate using professional pricing service
+      const pricingResult = await ProfessionalPricingService.calculatePrice(pricingParams, truckRates);
+
+      const isPremium = pricingResult.pricing.isASAP && pricingResult.asapMultiplier > 1.0;
+      const summary = ProfessionalPricingService.getPricingSummary(pricingResult);
+
+      console.log('✅ [DriverService] Professional earnings calculated:');
+      console.log(`   Driver Earnings: ₪${pricingResult.driverEarnings}`);
+      console.log(`   Premium: ${isPremium ? 'Yes' : 'No'} (${pricingResult.pricing.premiumType})`);
+      console.log(`   Summary: ${summary}`);
+
+      return {
+        earnings: pricingResult.driverEarnings,
+        breakdown: pricingResult.breakdown,
+        isPremium,
+        summary
+      };
+
+    } catch (error) {
+      console.error('❌ [DriverService] Professional earnings calculation error:', error);
+      
+      // Fallback to quoted_price with ASAP bonus
+      const fallbackEarnings = Number(trip.quoted_price || 0) * 0.85; // 85% to driver
+      const isASAP = trip.pickup_time_preference === 'asap' || trip.pickupTimePreference === 'asap';
+      const adjustedEarnings = isASAP ? fallbackEarnings * 1.3 : fallbackEarnings;
+
+      return {
+        earnings: Math.round(adjustedEarnings * 100) / 100,
+        breakdown: null,
+        isPremium: isASAP,
+        summary: `₪${adjustedEarnings.toFixed(2)} ${isASAP ? '(ASAP Premium)' : ''}`
+      };
+    }
+  }
+
+  /**
+   * 💸 Enhanced Trip Earnings Display
+   * Updates estimatedEarnings field with professional calculation
+   */
+  async enhanceTripEarnings(trip: any): Promise<any> {
+    try {
+      const earningsResult = await this.calculateProfessionalEarnings(trip);
+      
+      return {
+        ...trip,
+        estimatedEarnings: earningsResult.earnings,
+        earningsBreakdown: earningsResult.breakdown,
+        isPremiumTrip: earningsResult.isPremium,
+        earningsSummary: earningsResult.summary,
+        originalQuotedPrice: trip.quoted_price
+      };
+    } catch (error) {
+      console.error('❌ [DriverService] Error enhancing trip earnings:', error);
+      // Return original trip with fallback earnings
+      return {
+        ...trip,
+        estimatedEarnings: Number(trip.quoted_price || 0) * 0.85,
+        isPremiumTrip: false,
+        earningsSummary: `₪${(Number(trip.quoted_price || 0) * 0.85).toFixed(2)}`
       };
     }
   }
@@ -4214,6 +4433,365 @@ class DriverService {
     } catch (error) {
       console.error('💥 [DriverService] Error declining ASAP trip:', error);
       return { success: false, message: 'Failed to decline trip' };
+    }
+  }
+
+  /**
+   * Calculate appropriate acceptance deadline based on trip type
+   * ASAP trips: 3 minutes (urgent)
+   * Scheduled trips: 15 minutes (more time to plan)
+   */
+  private calculateAcceptDeadline(pickupTimePreference?: string): string {
+    const now = Date.now();
+    
+    if (pickupTimePreference === 'asap') {
+      // ASAP trips get 3 minutes to accept (urgent)
+      return new Date(now + 3 * 60 * 1000).toISOString();
+    } else {
+      // Scheduled trips get 15 minutes to accept (more planning time)
+      return new Date(now + 15 * 60 * 1000).toISOString();
+    }
+  }
+
+  /**
+   * Check if a trip should be visible to drivers
+   * This is a safety check to prevent wrongly hiding valid trips
+   */
+  private shouldTripBeVisible(trip: any): { visible: boolean; reason: string } {
+    const now = new Date();
+    
+    // Must be pending status
+    if (trip.status !== 'pending') {
+      return { visible: false, reason: `Status is ${trip.status}` };
+    }
+    
+    // Check acceptance deadline
+    const deadline = new Date(trip.acceptance_deadline);
+    if (!trip.acceptance_deadline || deadline <= now) {
+      const minutesLate = trip.acceptance_deadline ? 
+        Math.round((now.getTime() - deadline.getTime()) / 60000) : 
+        'unknown (null deadline)';
+      return { visible: false, reason: `Deadline expired ${minutesLate} minutes ago` };
+    }
+    
+    // Check scheduled pickup time (if scheduled)
+    if (trip.pickup_time_preference === 'scheduled' && trip.scheduled_pickup_time) {
+      const scheduledTime = new Date(trip.scheduled_pickup_time);
+      const hoursLate = (now.getTime() - scheduledTime.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursLate > 2) {
+        return { visible: false, reason: `Scheduled pickup was ${hoursLate.toFixed(1)} hours ago` };
+      }
+    }
+    
+    return { visible: true, reason: 'Valid trip' };
+  }
+
+  
+  // Simple trip expiration - just based on pickup time
+  private async simpleCleanupExpiredTrips(): Promise<void> {
+    try {
+      console.log('🧹 Simple cleanup: marking expired trips based on pickup time...');
+      
+      // Mark old ASAP trips as expired (older than 1 hour)
+      const { data: asapUpdated, error: asapError } = await supabase
+        .from('trip_requests')
+        .update({ status: 'expired' })
+        .eq('status', 'pending')
+        .eq('pickup_time_preference', 'asap')
+        .lt('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString()); // 1 hour ago
+      
+      // Mark scheduled trips as expired if their pickup time has passed
+      const { data: scheduledUpdated, error: scheduledError } = await supabase
+        .from('trip_requests')
+        .update({ status: 'expired' })
+        .eq('status', 'pending')
+        .eq('pickup_time_preference', 'scheduled')
+        .lt('scheduled_pickup_time', new Date().toISOString());
+      
+      if (!asapError && !scheduledError) {
+        console.log('✅ Simple cleanup completed successfully');
+      } else {
+        console.error('❌ Simple cleanup had errors:', { asapError, scheduledError });
+      }
+    } catch (error) {
+      console.error('❌ Error during simple trip cleanup:', error);
+    }
+  }
+
+  private async cleanupExpiredTrips(): Promise<number> {
+    try {
+      console.log('🧹 Cleaning up expired trip requests...');
+      
+      // Call the database function to clean up expired trips
+      const { data, error } = await supabase.rpc('cleanup_expired_trip_requests');
+      
+      if (error) {
+        console.error('❌ Failed to cleanup expired trips:', error.message);
+        
+        // Fallback: manual cleanup
+        const { data: manualCleanup, error: manualError } = await supabase
+          .from('trip_requests')
+          .update({ status: 'expired' })
+          .eq('status', 'pending')
+          .lt('acceptance_deadline', new Date().toISOString());
+          
+        if (manualError) {
+          console.error('❌ Manual cleanup also failed:', manualError.message);
+          return 0;
+        }
+        
+        console.log('✅ Manual cleanup completed');
+        return 0;
+      }
+      
+      const expiredCount = data || 0;
+      if (expiredCount > 0) {
+        console.log(`✅ Cleaned up ${expiredCount} expired trip requests`);
+      }
+      
+      return expiredCount;
+    } catch (error) {
+      console.error('❌ Error during trip cleanup:', error);
+      return 0;
+    }
+  }
+
+  // ==========================================
+  // Rating & Feedback System
+  // ==========================================
+
+  /**
+   * Submit rating and feedback for a completed trip
+   */
+  async submitRating(params: {
+    tripId: string;
+    rating: number;
+    feedback: string;
+    ratingType: 'customer' | 'driver';
+  }): Promise<{ success: boolean; message: string }> {
+    try {
+      const { tripId, rating, feedback, ratingType } = params;
+
+      // Validate rating
+      if (rating < 1 || rating > 5) {
+        return { success: false, message: 'Rating must be between 1 and 5 stars' };
+      }
+
+      // Prepare update object
+      const updateData: any = {};
+      if (ratingType === 'customer') {
+        updateData.customer_rating = rating;
+        updateData.customer_feedback = feedback;
+      } else {
+        updateData.driver_rating = rating;
+        updateData.driver_feedback = feedback;
+      }
+
+      // Update the trip with rating
+      const { data, error } = await supabase
+        .from('trip_requests')
+        .update(updateData)
+        .eq('id', tripId)
+        .eq('status', 'delivered')
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error submitting rating:', error);
+        return { success: false, message: 'Failed to submit rating' };
+      }
+
+      if (!data) {
+        return { success: false, message: 'Trip not found or not completed' };
+      }
+
+      console.log('✅ Rating submitted successfully:', {
+        tripId,
+        ratingType,
+        rating,
+        feedbackLength: feedback.length
+      });
+
+      // If this is a driver rating (customer rating the driver), update driver's overall rating
+      if (ratingType === 'driver' && data.assigned_driver_id) {
+        await this.updateDriverOverallRating(data.assigned_driver_id);
+      }
+
+      return { success: true, message: 'Rating submitted successfully' };
+    } catch (error) {
+      console.error('❌ Error in submitRating:', error);
+      return { success: false, message: 'An error occurred while submitting rating' };
+    }
+  }
+
+  /**
+   * Update driver's overall rating based on all driver ratings from customers
+   */
+  private async updateDriverOverallRating(driverId: string): Promise<void> {
+    try {
+      // Get all driver ratings from customers (customers rating the driver)
+      const { data: ratings, error } = await supabase
+        .from('trip_requests')
+        .select('driver_rating')
+        .eq('assigned_driver_id', driverId)
+        .not('driver_rating', 'is', null);
+
+      if (error) {
+        console.error('❌ Error fetching driver ratings:', error);
+        return;
+      }
+
+      if (!ratings || ratings.length === 0) {
+        console.log('📊 No ratings found for driver:', driverId);
+        return;
+      }
+
+      // Calculate average rating
+      const totalRating = ratings.reduce((sum, trip) => sum + trip.driver_rating, 0);
+      const averageRating = totalRating / ratings.length;
+      const roundedRating = Math.round(averageRating * 100) / 100; // Round to 2 decimal places
+
+      // Update driver's overall rating
+      const { error: updateError } = await supabase
+        .from('driver_profiles')
+        .update({ 
+          rating: roundedRating,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', driverId);
+
+      if (updateError) {
+        console.error('❌ Error updating driver rating:', updateError);
+      } else {
+        console.log('✅ Updated driver overall rating:', {
+          driverId,
+          newRating: roundedRating,
+          basedOnTrips: ratings.length
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error in updateDriverOverallRating:', error);
+    }
+  }
+
+  /**
+   * Get trips that need rating from the driver
+   */
+  async getTripsNeedingRating(): Promise<any[]> {
+    try {
+      const currentDriver = await this.getCurrentDriver();
+      if (!currentDriver) {
+        return [];
+      }
+
+      const { data, error } = await supabase
+        .from('trip_requests')
+        .select(`
+          id,
+          pickup_location,
+          delivery_location,
+          completed_at,
+          customer_rating,
+          driver_rating,
+          created_at
+        `)
+        .eq('assigned_driver_id', currentDriver.id)
+        .eq('status', 'delivered')
+        .is('driver_rating', null) // Driver hasn't rated the customer yet
+        .order('completed_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('❌ Error fetching trips needing rating:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ Error in getTripsNeedingRating:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get driver's rating statistics
+   */
+  async getDriverRatingStats(): Promise<{
+    overallRating: number;
+    totalRatings: number;
+    ratingBreakdown: { [key: number]: number };
+    recentFeedback: string[];
+  }> {
+    try {
+      const currentDriver = await this.getCurrentDriver();
+      if (!currentDriver) {
+        return {
+          overallRating: 0,
+          totalRatings: 0,
+          ratingBreakdown: {},
+          recentFeedback: []
+        };
+      }
+
+      // Get all customer ratings for this driver
+      const { data: ratings, error } = await supabase
+        .from('trip_requests')
+        .select('customer_rating, customer_feedback')
+        .eq('assigned_driver_id', currentDriver.id)
+        .not('customer_rating', 'is', null)
+        .order('completed_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error fetching rating stats:', error);
+        return {
+          overallRating: 0,
+          totalRatings: 0,
+          ratingBreakdown: {},
+          recentFeedback: []
+        };
+      }
+
+      if (!ratings || ratings.length === 0) {
+        return {
+          overallRating: 0,
+          totalRatings: 0,
+          ratingBreakdown: {},
+          recentFeedback: []
+        };
+      }
+
+      // Calculate overall rating
+      const totalRating = ratings.reduce((sum, trip) => sum + trip.customer_rating, 0);
+      const overallRating = Math.round((totalRating / ratings.length) * 100) / 100;
+
+      // Create rating breakdown
+      const ratingBreakdown: { [key: number]: number } = {};
+      ratings.forEach(trip => {
+        const rating = trip.customer_rating;
+        ratingBreakdown[rating] = (ratingBreakdown[rating] || 0) + 1;
+      });
+
+      // Get recent feedback (non-empty)
+      const recentFeedback = ratings
+        .filter(trip => trip.customer_feedback && trip.customer_feedback.trim().length > 0)
+        .slice(0, 5)
+        .map(trip => trip.customer_feedback);
+
+      return {
+        overallRating,
+        totalRatings: ratings.length,
+        ratingBreakdown,
+        recentFeedback
+      };
+    } catch (error) {
+      console.error('❌ Error in getDriverRatingStats:', error);
+      return {
+        overallRating: 0,
+        totalRatings: 0,
+        ratingBreakdown: {},
+        recentFeedback: []
+      };
     }
   }
 }

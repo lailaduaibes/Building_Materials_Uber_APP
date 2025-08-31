@@ -385,6 +385,10 @@ const UberStyleDashboard: React.FC<DashboardScreenProps> = ({ onNavigate, onLogo
       case 'assigned':
       case 'picked_up':
         return { backgroundColor: '#FFF3E0' };
+      case 'cancelled':
+        return { backgroundColor: '#FFEBEE' };
+      case 'expired':
+        return { backgroundColor: '#F5F5F5' };
       default:
         return { backgroundColor: '#F5F5F5' };
     }
@@ -400,6 +404,10 @@ const UberStyleDashboard: React.FC<DashboardScreenProps> = ({ onNavigate, onLogo
       case 'assigned':
       case 'picked_up':
         return { color: '#F57C00' };
+      case 'cancelled':
+        return { color: '#D32F2F' };
+      case 'expired':
+        return { color: '#95a5a6' };
       default:
         return { color: '#666666' };
     }

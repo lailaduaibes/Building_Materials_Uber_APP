@@ -19,6 +19,7 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { authService, AuthResponse } from './AuthServiceSupabase';
 import { Colors } from './theme/colors';
 
@@ -140,8 +141,8 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
 
   const renderLoginScreen = () => (
     <View style={styles.formContainer}>
-      <Text style={styles.title}>Driver Sign In</Text>
-      <Text style={styles.subtitle}>Access your YouMats driver dashboard</Text>
+      <Text style={styles.title}>Driver Portal</Text>
+      <Text style={styles.subtitle}>Sign in to your driver account</Text>
 
       {renderInput('email', 'Email Address', false, 'email-address')}
       {renderInput('password', 'Password', true)}
@@ -165,16 +166,11 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
         <Text style={styles.linkText}>Forgot Password?</Text>
       </TouchableOpacity>
 
-      <View style={styles.divider} />
-
-      <Text style={styles.infoText}>
-        Don't have a driver account?
-      </Text>
       <TouchableOpacity
-        style={styles.button}
+        style={styles.secondaryButton}
         onPress={onNavigateToRegister}
       >
-        <Text style={styles.buttonText}>Register as Driver</Text>
+        <Text style={styles.secondaryButtonText}>Get Started as Driver</Text>
       </TouchableOpacity>
     </View>
   );
@@ -214,7 +210,12 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.gradient}>
+      <LinearGradient
+        colors={['#0056D6', '#4A90E2', '#87CEEB']}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -222,7 +223,6 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
         >
           <View style={styles.header}>
             <Text style={styles.appName}>YouMats</Text>
-            <Text style={styles.tagline}>Building Materials Delivery</Text>
           </View>
 
           <View style={styles.formWrapper}>
@@ -230,7 +230,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
             {currentScreen === 'forgot' && renderForgotScreen()}
           </View>
         </ScrollView>
-      </View>
+      </LinearGradient>
     </KeyboardAvoidingView>
   );
 };
@@ -238,129 +238,138 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
   },
   gradient: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: 40,
+    justifyContent: 'center',
+    minHeight: Dimensions.get('window').height - (Platform.OS === 'ios' ? 100 : 80),
   },
   header: {
     alignItems: 'center',
     marginBottom: 40,
     paddingVertical: 20,
-    backgroundColor: Colors.primary,
-    borderRadius: 15,
-    marginHorizontal: -10,
-    paddingHorizontal: 10,
   },
   appName: {
-    fontSize: isTablet ? 48 : 36,
+    fontSize: isTablet ? 48 : 42,
     fontWeight: 'bold',
-    color: Colors.text.white,
+    color: '#FFFFFF',
     marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   tagline: {
-    fontSize: isTablet ? 20 : 16,
-    color: Colors.text.white,
+    fontSize: isTablet ? 20 : 18,
+    color: '#FFFFFF',
     textAlign: 'center',
     opacity: 0.9,
+    fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   formWrapper: {
-    backgroundColor: Colors.text.white,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: Colors.border.light,
-    shadowColor: Colors.primary,
+    padding: 30,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 10,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 10,
   },
   formContainer: {
     width: '100%',
   },
   title: {
-    fontSize: isTablet ? 32 : 24,
+    fontSize: isTablet ? 32 : 28,
     fontWeight: 'bold',
-    color: Colors.text.primary,
+    color: '#0056D6',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: isTablet ? 18 : 14,
-    color: Colors.text.secondary,
+    fontSize: isTablet ? 18 : 16,
+    color: '#666666',
     textAlign: 'center',
     marginBottom: 32,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   input: {
-    backgroundColor: Colors.background.secondary,
-    borderWidth: 1,
-    borderColor: Colors.border.light,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E1E5E9',
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: isTablet ? 16 : 12,
+    paddingVertical: isTablet ? 18 : 14,
     fontSize: isTablet ? 18 : 16,
-    color: Colors.text.primary,
+    color: '#333333',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   inputError: {
-    borderColor: Colors.status.cancelled,
+    borderColor: '#FF4757',
   },
   errorText: {
-    color: Colors.status.cancelled,
+    color: '#FF4757',
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
   },
   button: {
-    backgroundColor: Colors.primary,
+    backgroundColor: '#0056D6',
     borderRadius: 12,
-    paddingVertical: isTablet ? 18 : 14,
+    paddingVertical: isTablet ? 18 : 16,
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: Colors.primary,
+    shadowColor: '#0056D6',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 6,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
   },
   buttonText: {
-    color: Colors.text.white,
-    fontSize: isTablet ? 20 : 16,
+    color: '#FFFFFF',
+    fontSize: isTablet ? 20 : 18,
     fontWeight: '600',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: Colors.primary,
+    borderColor: '#0056D6',
     borderRadius: 12,
-    paddingVertical: isTablet ? 18 : 14,
+    paddingVertical: isTablet ? 18 : 16,
     alignItems: 'center',
     marginTop: 16,
   },
   secondaryButtonText: {
-    color: Colors.primary,
-    fontSize: isTablet ? 20 : 16,
+    color: '#0056D6',
+    fontSize: isTablet ? 20 : 18,
     fontWeight: '600',
   },
   linkButton: {
@@ -369,17 +378,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   linkText: {
-    color: Colors.primary,
+    color: '#0056D6',
     fontSize: isTablet ? 16 : 14,
     fontWeight: '500',
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.border.light,
+    backgroundColor: '#E1E5E9',
     marginVertical: 24,
   },
   infoText: {
-    color: Colors.text.secondary,
+    color: '#666666',
     fontSize: isTablet ? 16 : 14,
     textAlign: 'center',
     lineHeight: 20,

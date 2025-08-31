@@ -21,6 +21,7 @@ import * as FileSystem from 'expo-file-system';
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { driverService } from '../services/DriverService';
+import { responsive } from '../utils/ResponsiveUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -91,6 +92,7 @@ interface VehicleDocumentsScreenProps {
 export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocumentsScreenProps) {
   const [documents, setDocuments] = useState<VehicleDocument[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [viewerModalVisible, setViewerModalVisible] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<VehicleDocument | null>(null);
   const [documentImageUrl, setDocumentImageUrl] = useState<string | null>(null);
@@ -223,9 +225,16 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
   };
 
   const handleUploadDocument = async () => {
+    // Get current driver ID first
+    const currentDriver = driverService.getCurrentDriver();
+    if (!currentDriver) {
+      Alert.alert('Error', 'Please log in to upload documents');
+      return;
+    }
+
     Alert.alert(
-      'Upload Document - Testing Fix',
-      'A fix has been applied for the file upload issue. Please test uploading a document to see if it works properly now.',
+      'Upload Document',
+      'Choose how you want to add your document:',
       [
         {
           text: 'Take Photo',
@@ -239,9 +248,8 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
                 quality: 0.8,
               });
               
-              if (!result.canceled) {
-                // TODO: Implement actual upload with driverService.uploadDocument
-                Alert.alert('Success', 'Photo captured! Testing the fixed upload system...');
+              if (!result.canceled && result.assets[0]) {
+                await uploadDocumentFile(result.assets[0]);
               }
             } else {
               Alert.alert('Permission Required', 'Camera permission is needed to take photos.');
@@ -257,8 +265,8 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
                 copyToCacheDirectory: true,
               });
               
-              if (!result.canceled) {
-                Alert.alert('Success', `File selected: ${result.assets[0].name}. Note: Due to a current issue, the file may not display properly until our upload system is fixed.`);
+              if (!result.canceled && result.assets[0]) {
+                await uploadDocumentFile(result.assets[0]);
               }
             } catch (error) {
               Alert.alert('Error', 'Failed to select document');
@@ -273,13 +281,60 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
     );
   };
 
+  const uploadDocumentFile = async (file: any) => {
+    try {
+      setUploading(true);
+      
+      const currentDriver = driverService.getCurrentDriver();
+      if (!currentDriver) {
+        Alert.alert('Error', 'Please log in to upload documents');
+        return;
+      }
+
+      // For now, let's use a default document type - in a real app you'd let user choose
+      const documentType = 'vehicle_registration'; // or 'insurance', 'license', etc.
+      
+      const uploadResult = await driverService.uploadDocument(
+        currentDriver.id,
+        documentType,
+        {
+          uri: file.uri,
+          name: file.name || 'document.jpg',
+          type: file.mimeType || 'image/jpeg',
+          size: file.size
+        }
+      );
+
+      if (uploadResult.success) {
+        Alert.alert('Success', 'Document uploaded successfully!');
+        // Refresh documents list
+        loadDocuments();
+      } else {
+        Alert.alert('Upload Failed', uploadResult.message || 'Failed to upload document');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', 'Failed to upload document');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleViewDocument = (document: VehicleDocument) => {
     setSelectedDocument(document);
     setViewerModalVisible(true);
+    // Automatically load the document preview when modal opens
+    handleViewFullDocument(document);
   };
 
   const handleDownloadDocument = async (document: VehicleDocument) => {
     try {
+      Alert.alert(
+        'Download Started',
+        'The document download will begin shortly...',
+        [{ text: 'OK' }]
+      );
+
       if (!document.file_url) {
         Alert.alert('Error', 'Document URL not found');
         return;
@@ -354,7 +409,7 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
             }
           },
           {
-            text: 'Open to Share',
+            text: 'Open Document',
             onPress: () => handleDownloadDocument(document)
           }
         ]
@@ -369,7 +424,7 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
   const handleReplaceDocument = (document: VehicleDocument) => {
     Alert.alert(
       'Replace Document',
-      `Do you want to replace ${getDocumentName(document.document_type)}?`,
+      `Are you sure you want to replace this ${getDocumentName(document.document_type)}? This action cannot be undone.`,
       [
         {
           text: 'Cancel',
@@ -377,10 +432,13 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
         },
         {
           text: 'Replace',
+          style: 'destructive',
           onPress: () => {
             setViewerModalVisible(false);
-            // Use the existing upload functionality
-            handleUploadDocument();
+            // Small delay to allow modal to close gracefully
+            setTimeout(() => {
+              handleUploadDocument();
+            }, 300);
           }
         }
       ]
@@ -419,6 +477,7 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
           });
           
           if (response.ok && response.headers.get('content-length') !== '0') {
+            console.log('✅ Setting documentImageUrl to:', document.file_url);
             setDocumentImageUrl(document.file_url);
             setImageLoading(false);
             return;
@@ -674,101 +733,159 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
                   <Text style={styles.modalTitle}>
                     {getDocumentName(selectedDocument.document_type)}
                   </Text>
-                  <TouchableOpacity onPress={handleCloseViewer}>
+                  <TouchableOpacity 
+                    onPress={handleCloseViewer}
+                    style={styles.closeButton}
+                  >
                     <Ionicons name="close" size={24} color={theme.text} />
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.documentDetailsContainer}>
-                  <View style={styles.documentDetail}>
-                    <Text style={styles.detailLabel}>File Name:</Text>
-                    <Text style={styles.detailValue}>{selectedDocument.file_name}</Text>
-                  </View>
-                  
-                  <View style={styles.documentDetail}>
-                    <Text style={styles.detailLabel}>Size:</Text>
-                    <Text style={styles.detailValue}>
-                      {(selectedDocument.file_size / 1024 / 1024).toFixed(2)} MB
-                    </Text>
-                  </View>
-
-                  <View style={styles.documentDetail}>
-                    <Text style={styles.detailLabel}>Uploaded:</Text>
-                    <Text style={styles.detailValue}>
-                      {new Date(selectedDocument.uploaded_at).toLocaleDateString()}
-                    </Text>
-                  </View>
-
-                  <View style={styles.documentDetail}>
-                    <Text style={styles.detailLabel}>Status:</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedDocument.status) }]}>
-                      <Text style={styles.statusText}>{getStatusText(selectedDocument.status)}</Text>
-                    </View>
-                  </View>
-
-                  {selectedDocument.reviewed_at && (
+                <ScrollView 
+                  style={styles.modalScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
+                >
+                  <View style={styles.documentDetailsContainer}>
                     <View style={styles.documentDetail}>
-                      <Text style={styles.detailLabel}>Reviewed:</Text>
+                      <Text style={styles.detailLabel}>File Name:</Text>
+                      <Text style={styles.detailValue} numberOfLines={2}>
+                        {selectedDocument.file_name}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.documentDetail}>
+                      <Text style={styles.detailLabel}>Size:</Text>
                       <Text style={styles.detailValue}>
-                        {new Date(selectedDocument.reviewed_at).toLocaleDateString()}
+                        {(selectedDocument.file_size / 1024 / 1024).toFixed(2)} MB
+                      </Text>
+                    </View>
+
+                    <View style={styles.documentDetail}>
+                      <Text style={styles.detailLabel}>Uploaded:</Text>
+                      <Text style={styles.detailValue}>
+                        {new Date(selectedDocument.uploaded_at).toLocaleDateString()}
+                      </Text>
+                    </View>
+
+                    <View style={styles.documentDetail}>
+                      <Text style={styles.detailLabel}>Status:</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedDocument.status) }]}>
+                        <Text style={styles.statusText}>{getStatusText(selectedDocument.status)}</Text>
+                      </View>
+                    </View>
+
+                    {selectedDocument.reviewed_at && (
+                      <View style={styles.documentDetail}>
+                        <Text style={styles.detailLabel}>Reviewed:</Text>
+                        <Text style={styles.detailValue}>
+                          {new Date(selectedDocument.reviewed_at).toLocaleDateString()}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Image Viewer */}
+                  {documentImageUrl && (
+                    <View style={styles.imageContainer}>
+                      <Text style={styles.imageTitle}>Document Preview:</Text>
+                      <Text style={{ fontSize: 12, color: 'gray', marginBottom: 8 }}>
+                        URL: {documentImageUrl.substring(0, 50)}...
+                      </Text>
+                      {/* Use a TouchableOpacity to open the image in browser as fallback */}
+                      <TouchableOpacity 
+                        style={[styles.documentImage, { 
+                          borderWidth: 2, 
+                          borderColor: 'blue',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }]}
+                        onPress={() => {
+                          Alert.alert(
+                            'Open Document',
+                            'Would you like to open this document in your browser?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { 
+                                text: 'Open', 
+                                onPress: () => Linking.openURL(documentImageUrl)
+                              }
+                            ]
+                          );
+                        }}
+                      >
+                        <Ionicons name="document-text" size={80} color={theme.primary} />
+                        <Text style={{ 
+                          marginTop: 16, 
+                          fontSize: 16, 
+                          fontWeight: '600',
+                          color: theme.primary,
+                          textAlign: 'center'
+                        }}>
+                          Tap to Open Document
+                        </Text>
+                        <Text style={{ 
+                          marginTop: 8, 
+                          fontSize: 12, 
+                          color: theme.lightText,
+                          textAlign: 'center',
+                          paddingHorizontal: 20
+                        }}>
+                          Document will open in your browser
+                        </Text>
+                      </TouchableOpacity>
+                      <Text style={{ fontSize: 10, color: 'blue', marginTop: 8, textAlign: 'center' }}>
+                        Image component is rendered ✓
                       </Text>
                     </View>
                   )}
-                </View>
 
-                {/* Image Viewer */}
-                {documentImageUrl && (
-                  <View style={styles.imageContainer}>
-                    <Text style={styles.imageTitle}>Document Preview:</Text>
-                    <Image
-                      source={{ uri: documentImageUrl }}
-                      style={styles.documentImage}
-                      resizeMode="contain"
-                      onLoad={() => console.log('✅ Image loaded successfully')}
-                      onError={(error) => {
-                        console.error('❌ Image load error:', error);
-                        // Show fallback message
-                        setDocumentImageUrl(null);
-                        Alert.alert(
-                          'Image Load Error', 
-                          'The document image could not be loaded. The file may be corrupted or missing from storage.\n\nTry using the Download button to save the file instead.',
-                          [{ text: 'OK' }]
-                        );
-                      }}
-                    />
-                  </View>
-                )}
-
-                {imageLoading && (
-                  <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>Loading image...</Text>
-                  </View>
-                )}
-
-                {!documentImageUrl && !imageLoading && (
-                  <View style={styles.imageContainer}>
-                    <Text style={styles.imageTitle}>Document Preview:</Text>
-                    <View style={styles.placeholderContainer}>
-                      <Ionicons name="document-outline" size={64} color={theme.lightText} />
-                      <Text style={styles.placeholderText}>
-                        Tap "View" to load document preview
-                      </Text>
+                  {imageLoading && (
+                    <View style={styles.loadingContainer}>
+                      <Text style={styles.loadingText}>Loading image...</Text>
                     </View>
-                  </View>
-                )}
+                  )}
+
+                  {!documentImageUrl && !imageLoading && (
+                    <View style={styles.imageContainer}>
+                      <Text style={styles.imageTitle}>Document Preview:</Text>
+                      <View style={styles.placeholderContainer}>
+                        <Ionicons name="document-outline" size={64} color={theme.lightText} />
+                        <Text style={styles.placeholderText}>
+                          Document preview will load automatically, or tap "View" to refresh
+                        </Text>
+                        <Text style={{ fontSize: 10, color: 'red', marginTop: 8 }}>
+                          Debug: imageUrl={documentImageUrl ? 'SET' : 'NULL'}, loading={imageLoading ? 'TRUE' : 'FALSE'}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </ScrollView>
 
                 <View style={styles.modalActions}>
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.viewButton]}
-                    onPress={() => handleViewFullDocument(selectedDocument)}
+                    onPress={() => {
+                      if (selectedDocument) {
+                        Linking.openURL(selectedDocument.file_url);
+                      } else {
+                        Alert.alert('Error', 'No document selected');
+                      }
+                    }}
                   >
-                    <Ionicons name="eye" size={20} color={theme.white} />
-                    <Text style={styles.actionButtonText}>View</Text>
+                    <Ionicons name="open" size={20} color={theme.white} />
+                    <Text style={styles.actionButtonText}>Open</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.downloadButton]}
-                    onPress={() => handleDownloadDocument(selectedDocument)}
+                    onPress={() => {
+                      if (selectedDocument) {
+                        handleDownloadDocument(selectedDocument);
+                      } else {
+                        Alert.alert('Error', 'No document selected');
+                      }
+                    }}
                   >
                     <Ionicons name="download" size={20} color={theme.white} />
                     <Text style={styles.actionButtonText}>Download</Text>
@@ -776,7 +893,13 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
 
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.shareButton]}
-                    onPress={() => handleShareDocument(selectedDocument)}
+                    onPress={() => {
+                      if (selectedDocument) {
+                        handleShareDocument(selectedDocument);
+                      } else {
+                        Alert.alert('Error', 'No document selected');
+                      }
+                    }}
                   >
                     <Ionicons name="share" size={20} color={theme.white} />
                     <Text style={styles.actionButtonText}>Share</Text>
@@ -784,10 +907,16 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
 
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.replaceButton]}
-                    onPress={() => handleReplaceDocument(selectedDocument)}
+                    onPress={() => {
+                      if (selectedDocument) {
+                        handleReplaceDocument(selectedDocument);
+                      } else {
+                        Alert.alert('Error', 'No document selected');
+                      }
+                    }}
                   >
-                    <Ionicons name="refresh" size={20} color={theme.white} />
-                    <Text style={styles.actionButtonText}>Replace</Text>
+                    <Ionicons name="refresh" size={20} color={theme.primary} />
+                    <Text style={[styles.actionButtonText, { color: theme.primary }]}>Replace</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -1030,13 +1159,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: responsive.padding(20),
   },
   modalContent: {
     backgroundColor: theme.white,
     borderRadius: 12,
-    padding: 20,
-    width: width * 0.9,
-    maxHeight: '80%',
+    padding: responsive.padding(24),
+    width: '95%',
+    maxWidth: 600, // Increased max width for larger modal
+    maxHeight: '85%',
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1044,33 +1183,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
-    paddingBottom: 16,
-    marginBottom: 20,
+    paddingBottom: responsive.padding(16),
+    marginBottom: responsive.spacing(20),
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: responsive.fontSize(18),
     fontWeight: '600',
     color: theme.text,
+    flex: 1,
+    marginRight: responsive.spacing(10),
+  },
+  closeButton: {
+    padding: responsive.padding(4),
+    borderRadius: 4,
+  },
+  modalScrollContent: {
+    flex: 1,
   },
   documentDetailsContainer: {
-    marginBottom: 20,
+    marginBottom: responsive.spacing(20),
   },
   documentDetail: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: responsive.padding(8),
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
   },
   detailLabel: {
-    fontSize: 14,
+    fontSize: responsive.fontSize(14),
     fontWeight: '500',
     color: theme.text,
     flex: 1,
   },
   detailValue: {
-    fontSize: 14,
+    fontSize: responsive.fontSize(14),
     color: theme.lightText,
     flex: 2,
     textAlign: 'right',
@@ -1079,65 +1227,98 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: 10,
+    marginTop: responsive.spacing(20),
+    gap: responsive.spacing(12),
+    paddingTop: responsive.padding(20),
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: '45%',
-    gap: 8,
+    paddingHorizontal: responsive.padding(20),
+    paddingVertical: responsive.padding(16),
+    borderRadius: 10,
+    flex: 1,
+    minWidth: 120, // Minimum width for buttons
+    maxWidth: '48%', // Two buttons per row max
+    gap: responsive.spacing(8),
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   actionButtonText: {
     color: theme.white,
-    fontSize: 14,
+    fontSize: responsive.fontSize(14, 16),
     fontWeight: '600',
+    textAlign: 'center',
+    flexShrink: 1, // Allow text to shrink if needed
   },
+  // Blue theme button styles
   viewButton: {
-    backgroundColor: theme.primary,
+    backgroundColor: theme.primary, // Primary blue
   },
   downloadButton: {
-    backgroundColor: theme.success,
+    backgroundColor: '#2563EB', // Slightly darker blue
   },
   shareButton: {
-    backgroundColor: '#6366F1', // Indigo color
+    backgroundColor: '#1D4ED8', // Even darker blue
   },
   replaceButton: {
-    backgroundColor: theme.warning,
+    backgroundColor: theme.white,
+    borderWidth: 2,
+    borderColor: theme.primary,
   },
   imageContainer: {
-    marginVertical: 16,
-    backgroundColor: theme.cardBackground,
+    marginVertical: responsive.spacing(20),
+    backgroundColor: theme.white, // Ensure white background
     borderRadius: 12,
-    padding: 16,
+    padding: responsive.padding(20),
+    borderWidth: 2,
+    borderColor: theme.primary, // Blue border to make it stand out
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   imageTitle: {
-    fontSize: 16,
+    fontSize: responsive.fontSize(16),
     fontWeight: '600',
     color: theme.text,
-    marginBottom: 12,
+    marginBottom: responsive.spacing(12),
   },
   documentImage: {
     width: '100%',
-    height: 300,
+    height: responsive.scale(300), // Increased height
+    minHeight: 200, // Minimum height
+    maxHeight: 400, // Maximum height
     borderRadius: 8,
-    backgroundColor: theme.background,
+    backgroundColor: '#f5f5f5', // Light gray background to see image bounds
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   loadingContainer: {
-    padding: 20,
+    padding: responsive.padding(20),
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: responsive.fontSize(16),
     color: theme.lightText,
   },
   placeholderContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 200,
+    height: responsive.scale(150),
     backgroundColor: theme.background,
     borderRadius: 8,
     borderWidth: 1,
@@ -1145,9 +1326,10 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   placeholderText: {
-    fontSize: 14,
+    fontSize: responsive.fontSize(14),
     color: theme.lightText,
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: responsive.spacing(12),
+    paddingHorizontal: responsive.padding(16),
   },
 });

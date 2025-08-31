@@ -51,13 +51,18 @@ class AuthService {
       console.log('Auth state changed:', event, session?.user?.email);
       
       if (session?.user) {
-        // Validate user type before setting session
-        const isValidUser = await this.validateUserAccountType(session.user.id);
-        
-        if (!isValidUser) {
-          console.log('🚫 Invalid user type detected, signing out');
-          await this.supabase.auth.signOut();
-          return;
+        // Only validate user type for initial sign-in, not for profile updates
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          console.log('🔍 Validating user type for event:', event);
+          const isValidUser = await this.validateUserAccountType(session.user.id);
+          
+          if (!isValidUser) {
+            console.log('🚫 Invalid user type detected, signing out');
+            await this.supabase.auth.signOut();
+            return;
+          }
+        } else if (event === 'USER_UPDATED') {
+          console.log('⚡ Skipping validation for USER_UPDATED event (performance optimization)');
         }
         
         this.currentSession = session;
@@ -118,6 +123,22 @@ class AuthService {
       createdAt: supabaseUser.created_at,
       lastSignIn: supabaseUser.last_sign_in_at,
     };
+  }
+
+  // Cache management methods for performance
+  clearUserCache(): void {
+    console.log('🗑️ Clearing user cache');
+    this.currentUser = null;
+  }
+
+  clearValidationCache(): void {
+    console.log('🗑️ Clearing validation cache');
+    this.userValidationCache.clear();
+  }
+
+  async refreshUserCache(): Promise<User | null> {
+    console.log('🔄 Force refreshing user cache');
+    return await this.getCurrentUser(true);
   }
 
   async register(
@@ -360,19 +381,72 @@ class AuthService {
     }
   }
 
-  async getCurrentUser(): Promise<User | null> {
-    if (this.currentUser) {
-      return this.currentUser;
-    }
-
+  async getCurrentUser(forceRefresh: boolean = false): Promise<User | null> {
     try {
-      const { data: { session } } = await this.supabase.auth.getSession();
-      if (session?.user) {
-        this.currentUser = this.mapSupabaseUserToUser(session.user);
+      // 1. Return cached user if available and not forcing refresh
+      if (!forceRefresh && this.currentUser) {
+        console.log('⚡ Using cached user data (fast path)');
         return this.currentUser;
       }
+
+      // 2. Check if we have a valid session
+      const { data: { session } } = await this.supabase.auth.getSession();
+      if (!session?.user) {
+        console.log('❌ No active session found');
+        this.currentUser = null;
+        return null;
+      }
+
+      // 3. If we have cached user and same session user, only refresh if forced or profile might be stale
+      if (this.currentUser && this.currentUser.id === session.user.id && !forceRefresh) {
+        console.log('⚡ Using cached user for same session (performance optimized)');
+        return this.currentUser;
+      }
+
+      // 4. Fetch fresh data from database (only when necessary)
+      console.log('🔍 Fetching fresh user data for ID:', session.user.id);
+      const { data: userData, error } = await this.supabase
+        .from('users')
+        .select('first_name, last_name, phone, role, created_at, updated_at, is_active, user_type')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error) {
+        console.error('❌ Database query error in getCurrentUser:', error);
+        // Fallback to Auth metadata if database query fails
+        console.log('🔄 Using Auth metadata as fallback');
+        this.currentUser = this.mapSupabaseUserToUser(session.user);
+      } else if (userData) {
+        console.log('✅ Successfully fetched fresh user data from database');
+        // Merge Auth data with database data (database takes priority for profile fields)
+        this.currentUser = {
+          id: session.user.id,
+          email: session.user.email || '',
+          firstName: userData.first_name || session.user.user_metadata?.first_name || '',
+          lastName: userData.last_name || session.user.user_metadata?.last_name || '',
+          phone: userData.phone || session.user.user_metadata?.phone || '',
+          role: userData.role || session.user.user_metadata?.role || 'customer',
+          emailConfirmed: !!session.user.email_confirmed_at,
+          createdAt: session.user.created_at,
+          lastSignIn: session.user.last_sign_in_at,
+        };
+      } else {
+        // No user data found, fallback to Auth metadata
+        console.warn('⚠️ No user data found in database, using Auth metadata');
+        this.currentUser = this.mapSupabaseUserToUser(session.user);
+      }
+      
+      // Store the updated user data
+      await this.storeUserData(this.currentUser);
+      return this.currentUser;
+      
     } catch (error) {
-      console.error('Error getting current user:', error);
+      console.error('❌ Error getting current user:', error);
+      // Return cached user as fallback if available
+      if (this.currentUser) {
+        console.log('🔄 Returning cached user due to error');
+        return this.currentUser;
+      }
     }
 
     return null;
@@ -491,8 +565,8 @@ class AuthService {
         };
       }
 
-      // Update user profile in the users table
-      const { error } = await this.supabase
+      // 1. Update user profile in the users table
+      const { error: dbError } = await this.supabase
         .from('users')
         .update({
           first_name: profileData.firstName,
@@ -502,16 +576,35 @@ class AuthService {
         })
         .eq('id', this.currentSession.user.id);
 
-      if (error) {
-        console.error('❌ Profile update error:', error);
+      if (dbError) {
+        console.error('❌ Profile update error:', dbError);
         return {
           success: false,
-          message: error.message || 'Failed to update profile',
-          error: error.message,
+          message: dbError.message || 'Failed to update profile',
+          error: dbError.message,
         };
       }
 
-      // Update local user data
+      // 2. Update Supabase Auth user metadata to keep Auth and DB in sync
+      const { error: authError } = await this.supabase.auth.updateUser({
+        data: {
+          first_name: profileData.firstName,
+          last_name: profileData.lastName,
+          full_name: `${profileData.firstName} ${profileData.lastName}`,
+          phone: profileData.phone || null,
+          updated_at: new Date().toISOString(),
+        }
+      });
+
+      if (authError) {
+        console.warn('⚠️ Auth metadata update warning:', authError.message);
+        // Don't fail the whole operation, just log the warning
+        // The database update succeeded, which is the main thing
+      } else {
+        console.log('✅ Auth metadata updated successfully');
+      }
+
+      // 3. Update local user data
       if (this.currentUser) {
         this.currentUser = {
           ...this.currentUser,
@@ -520,6 +613,27 @@ class AuthService {
           phone: profileData.phone || '',
         };
         await this.storeUserData(this.currentUser);
+      }
+
+      // 4. Refresh current session to get updated metadata
+      try {
+        const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+        if (!sessionError && session) {
+          this.currentSession = session;
+          console.log('✅ Session refreshed with updated metadata');
+        }
+      } catch (sessionError) {
+        console.warn('⚠️ Could not refresh session:', sessionError);
+        // Don't fail the operation for this
+      }
+
+      // 5. Force refresh of current user data to ensure UI updates
+      try {
+        await this.getCurrentUser(true); // Force refresh from database
+        console.log('✅ Current user data refreshed after profile update');
+      } catch (refreshError) {
+        console.warn('⚠️ Could not refresh current user data:', refreshError);
+        // Don't fail the operation for this
       }
 
       console.log('✅ Profile updated successfully');
@@ -573,32 +687,55 @@ class AuthService {
   }
 
   // Validate user account type - only customers allowed in customer app
+  // Cache for user validation to avoid repeated DB calls
+  private userValidationCache = new Map<string, boolean>();
+
   private async validateUserAccountType(userId: string): Promise<boolean> {
+    // Check cache first
+    if (this.userValidationCache.has(userId)) {
+      console.log('⚡ Using cached user validation result');
+      return this.userValidationCache.get(userId)!;
+    }
+
     try {
       console.log('🔍 Validating user type for user:', userId);
       
-      const { data: userData, error } = await this.supabase
+      // Add timeout to prevent hanging
+      const validationPromise = this.supabase
         .from('users')
-        .select('user_type, role, id, email')
+        .select('user_type, role')
         .eq('id', userId)
         .single();
 
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Validation timeout')), 5000)
+      );
+
+      const { data: userData, error } = await Promise.race([
+        validationPromise,
+        timeoutPromise
+      ]) as any;
+
       if (error) {
         console.error('❌ Error checking user type:', error);
-        // If we can't check the user type, allow access (fail open for now)
+        // Cache and allow access (fail open for now)
+        this.userValidationCache.set(userId, true);
         console.log('✅ Allowing access due to database error (fail open)');
         return true;
       }
 
-      console.log('👤 User data found:', { 
-        id: userData.id, 
-        email: userData.email, 
+      console.log('👤 User validation result:', { 
         user_type: userData.user_type,
         role: userData.role
       });
 
       // ONLY block if explicitly marked as 'driver' in user_type
-      if (userData.user_type === 'driver') {
+      const isValid = userData.user_type !== 'driver';
+      
+      // Cache the result
+      this.userValidationCache.set(userId, isValid);
+      
+      if (!isValid) {
         console.log('🚫 Blocking driver account');
         return false;
       }
@@ -609,7 +746,8 @@ class AuthService {
       
     } catch (error) {
       console.error('💥 Error validating user type:', error);
-      // If validation fails, allow access (fail open)
+      // Cache and allow access (fail open)
+      this.userValidationCache.set(userId, true);
       console.log('✅ Allowing access due to validation error (fail open)');
       return true;
     }

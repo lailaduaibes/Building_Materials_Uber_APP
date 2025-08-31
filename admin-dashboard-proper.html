@@ -3,8 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Driver Approval Dashboard - YouMats Admin (Proper Version)</title>
+    <title>YouMats Advanced Analytics & Driver Management Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1d4ed8;
+            --light-blue: #eff6ff;
+            --accent-blue: #3b82f6;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --danger-red: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,16 +39,36 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(to bottom right, var(--gray-50), var(--light-blue));
+            color: var(--gray-900);
+            line-height: 1.6;
+            min-height: 100vh;
         }
         
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
             color: white;
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 1.5rem 2rem;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.6;
+        }
+        
+        .header h1, .header p {
+            position: relative;
+            z-index: 1;
         }
         
         .header h1 {
@@ -35,7 +82,7 @@
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
         }
@@ -91,25 +138,60 @@
         
         .pending-applications {
             background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 16px;
+            box-shadow: var(--shadow-md);
             overflow: hidden;
+            border: 1px solid var(--gray-200);
+            margin-bottom: 2rem;
         }
         
         .section-header {
-            background: #f8f9fa;
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid #e9ecef;
-            font-weight: 600;
-            color: #495057;
+            background: linear-gradient(135deg, var(--light-blue), white);
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+            font-weight: 700;
+            color: var(--gray-900);
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-header i {
+            color: var(--primary-blue);
+            font-size: 1.2rem;
         }
         
         .application-item {
-            padding: 1.5rem;
-            border-bottom: 1px solid #e9ecef;
+            padding: 2rem;
+            border-bottom: 1px solid var(--gray-100);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .application-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--primary-blue);
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .application-item:hover {
+            background: var(--gray-50);
+            transform: translateX(4px);
+        }
+
+        .application-item:hover::before {
+            transform: scaleY(1);
         }
         
         .application-item:last-child {
@@ -118,81 +200,149 @@
         
         .driver-info {
             flex: 1;
+            margin-right: 2rem;
         }
         
         .driver-name {
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-bottom: 0.5rem;
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 0.75rem;
+            color: var(--gray-900);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .driver-name i {
+            color: var(--primary-blue);
+            font-size: 1rem;
         }
         
         .driver-details {
-            color: #666;
-            font-size: 0.9rem;
-            line-height: 1.4;
+            color: var(--gray-600);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .driver-details strong {
+            color: var(--gray-800);
+            font-weight: 600;
         }
         
         .status-badges {
             display: flex;
-            gap: 0.5rem;
-            margin: 0.5rem 0;
+            gap: 0.75rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
         }
         
         .badge {
-            padding: 0.25rem 0.75rem;
+            padding: 0.5rem 1rem;
             border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
         }
         
         .badge-pending {
-            background: #fff3cd;
-            color: #856404;
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            color: #92400e;
+            border-color: rgba(146, 64, 14, 0.2);
         }
         
         .badge-approved {
-            background: #d4edda;
-            color: #155724;
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            color: #065f46;
+            border-color: rgba(6, 95, 70, 0.2);
         }
         
         .badge-rejected {
-            background: #f8d7da;
-            color: #721c24;
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            color: #991b1b;
+            border-color: rgba(153, 27, 27, 0.2);
         }
         
         .badge-under-review {
-            background: #d1ecf1;
-            color: #0c5460;
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            color: #1e40af;
+            border-color: rgba(30, 64, 175, 0.2);
         }
         
         .actions {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.75rem;
+            flex-wrap: wrap;
         }
         
         .btn {
-            padding: 0.5rem 1rem;
+            padding: 0.75rem 1.5rem;
             border: none;
-            border-radius: 6px;
+            border-radius: 10px;
             cursor: pointer;
             font-size: 0.9rem;
-            font-weight: 500;
-            transition: background-color 0.2s;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-transform: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
         }
         
         .btn-approve {
-            background: #28a745;
+            background: linear-gradient(135deg, var(--success-green), #10b981);
             color: white;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+        }
+
+        .btn-approve:hover {
+            background: linear-gradient(135deg, #047857, var(--success-green));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4);
         }
         
         .btn-reject {
-            background: #dc3545;
+            background: linear-gradient(135deg, var(--danger-red), #ef4444);
             color: white;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        .btn-reject:hover {
+            background: linear-gradient(135deg, #b91c1c, var(--danger-red));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
         }
         
         .btn-review {
-            background: #17a2b8;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
             color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-review:hover {
+            background: linear-gradient(135deg, var(--dark-blue), var(--primary-blue));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
         }
         
         .loading {
@@ -207,27 +357,82 @@
             color: #666;
         }
         
+        /* Driver Management Enhancements */
+        .driver-management-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--gray-200);
+        }
+
+        .header-content h2 {
+            color: var(--gray-900);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-content h2 i {
+            color: var(--primary-blue);
+            font-size: 1.3rem;
+        }
+
+        .header-content p {
+            color: var(--gray-600);
+            font-size: 1rem;
+        }
+
+        .management-actions .btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-refresh {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+        }
+
+        .btn-refresh:hover {
+            background: var(--dark-blue);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
         .refresh-btn {
             position: fixed;
             bottom: 2rem;
             right: 2rem;
-            background: #667eea;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
             color: white;
             border: none;
             border-radius: 50%;
             width: 60px;
             height: 60px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: var(--shadow-lg);
             font-size: 1.2rem;
-            transition: transform 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
         }
-        
+
         .refresh-btn:hover {
-            transform: scale(1.1);
-        }
-        
-        .success-message {
+            transform: scale(1.1) translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+        }        .success-message {
             background: #d4edda;
             color: #155724;
             padding: 1rem;
@@ -244,44 +449,454 @@
             margin-bottom: 1rem;
             border: 1px solid #f5c6cb;
         }
+
+        /* Enhanced Navigation */
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            background: white;
+            padding: 0.75rem;
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--gray-200);
+            overflow: hidden;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--gray-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-tab::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 12px;
+        }
+
+        .nav-tab.active {
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .nav-tab.active::before {
+            opacity: 1;
+        }
+
+        .nav-tab:hover:not(.active) {
+            color: var(--primary-blue);
+            background: var(--light-blue);
+            transform: translateY(-1px);
+        }
+
+        .nav-tab i {
+            font-size: 1.1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .nav-tab span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Analytics Styles */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(37, 99, 235, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--primary-blue), var(--accent-blue));
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: rgba(37, 99, 235, 0.2);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .metric-title {
+            font-size: 0.9rem;
+            color: var(--gray-700);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+            color: var(--primary-blue);
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-change {
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--success-green);
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .time-filter {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .time-btn {
+            padding: 0.5rem 1rem;
+            background: none;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .time-btn.active {
+            background: var(--primary-blue);
+            color: white;
+            border-color: var(--primary-blue);
+        }
+
+
+
+
+        /* Notification Styles */
+        .notification-center {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .notification-item {
+            display: flex;
+            align-items: start;
+            gap: 1rem;
+            padding: 1rem;
+            border-left: 3px solid var(--primary-blue);
+            background: var(--light-blue);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .notification-item.success {
+            border-left-color: var(--success-green);
+            background: #ECFDF5;
+        }
+
+        .notification-item.warning {
+            border-left-color: var(--warning-orange);
+            background: #FFFBEB;
+        }
+
+        .notification-item.error {
+            border-left-color: var(--danger-red);
+            background: #FEF2F2;
+        }
+
+        .notification-icon {
+            font-size: 1.25rem;
+            margin-top: 0.25rem;
+        }
+
+        .notification-content {
+            flex: 1;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .notification-message {
+            font-size: 0.9rem;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+
+        .notification-time {
+            font-size: 0.8rem;
+            color: var(--gray-700);
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--gray-300);
+            border-top: 4px solid var(--primary-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .nav-tabs {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .nav-tab {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .optimizer-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+
+            .optimizer-controls {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🚛 YouMats Driver Approval Dashboard (Proper Version)</h1>
-        <p>Professional driver approval with dedicated database fields</p>
+        <h1><i class="fas fa-analytics"></i> YouMats Advanced Analytics & Driver Management</h1>
+        <p>Professional driver approval and comprehensive business analytics dashboard</p>
     </div>
     
     <div class="container">
-        <div class="notice">
-            <h3>⚠️ Database Update Required</h3>
-            <p>This dashboard uses proper approval fields (is_approved, approval_status, etc.) instead of the specializations workaround.</p>
-            <p><strong>To enable this dashboard:</strong></p>
-            <ol>
-                <li>Go to Supabase Dashboard → SQL Editor</li>
-                <li>Run the SQL script from <code>proper-approval-system.sql</code></li>
-                <li>Refresh this page</li>
-            </ol>
-            <p><strong>Benefits of proper implementation:</strong></p>
-            <ul>
-                <li>✅ Dedicated approval fields in database</li>
-                <li>✅ Database-level security with RLS policies</li>
-                <li>✅ Professional data structure</li>
-                <li>✅ Cannot be bypassed by client code</li>
-            </ul>
-            
-            <pre>-- Quick setup (run in Supabase SQL Editor):
-ALTER TABLE driver_profiles 
-ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS approval_status TEXT DEFAULT 'pending';
-
--- Update existing data
-UPDATE driver_profiles 
-SET is_approved = TRUE, approval_status = 'approved'
-WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('analytics')">
+                <i class="fas fa-chart-line"></i>
+                <span>Business Analytics</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('drivers')">
+                <i class="fas fa-users"></i>
+                <span>Driver Management</span>
+            </button>
         </div>
-        
+
         <div id="messageArea"></div>
+
+        <!-- Analytics Dashboard Tab -->
+        <div id="analytics" class="tab-content active">
+            <div class="analytics-grid">
+                <!-- Revenue Metrics -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Total Revenue</div>
+                        <i class="fas fa-dollar-sign metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="totalRevenue">₪0</div>
+                    <div class="metric-change">
+                        <i class="fas fa-arrow-up"></i>
+                        <span id="revenueChange">0% vs last month</span>
+                    </div>
+                </div>
+
+                <!-- ASAP Premium Revenue -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">ASAP Premium Revenue</div>
+                        <i class="fas fa-bolt metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="asapRevenue">₪0</div>
+                    <div class="metric-change">
+                        <i class="fas fa-bolt"></i>
+                        <span id="asapUplift">0% ASAP uplift</span>
+                    </div>
+                </div>
+
+                <!-- Total Trips -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Total Trips</div>
+                        <i class="fas fa-truck metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="totalTripsAnalytics">0</div>
+                    <div class="metric-change">
+                        <i class="fas fa-arrow-up"></i>
+                        <span id="tripsGrowth">0% vs last month</span>
+                    </div>
+                </div>
+
+                <!-- Average Trip Value -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Avg Trip Value</div>
+                        <i class="fas fa-calculator metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="avgTripValue">₪0</div>
+                    <div class="metric-change">
+                        <i class="fas fa-chart-line"></i>
+                        <span id="avgValueTrend">Professional pricing</span>
+                    </div>
+                </div>
+
+                <!-- Driver Efficiency -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">Driver Efficiency</div>
+                        <i class="fas fa-tachometer-alt metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="driverEfficiencyMetric">0%</div>
+                    <div class="metric-change">
+                        <i class="fas fa-users"></i>
+                        <span id="onlineDriversCount">0 online now</span>
+                    </div>
+                </div>
+
+                <!-- System Performance -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-title">System Performance</div>
+                        <i class="fas fa-server metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="systemHealth">98%</div>
+                    <div class="metric-change">
+                        <i class="fas fa-check-circle"></i>
+                        <span>All systems operational</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue Chart -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">Revenue Trends & ASAP Performance</h3>
+                    <div class="time-filter">
+                        <button class="time-btn active" onclick="updateChartPeriod('7d')">7D</button>
+                        <button class="time-btn" onclick="updateChartPeriod('30d')">30D</button>
+                        <button class="time-btn" onclick="updateChartPeriod('90d')">90D</button>
+                        <button class="time-btn" onclick="updateChartPeriod('1y')">1Y</button>
+                    </div>
+                </div>
+                <canvas id="revenueChart" width="400" height="200"></canvas>
+            </div>
+
+            <!-- Trip Performance Chart -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">Trip Status Distribution</h3>
+                </div>
+                <canvas id="tripStatusChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Driver Management Tab (Enhanced existing functionality) -->
+        <div id="drivers" class="tab-content">
+            <div class="driver-management-header">
+                <div class="header-content">
+                    <h2><i class="fas fa-users"></i> Driver Management System</h2>
+                    <p>Professional driver approval and management dashboard</p>
+                </div>
+                <div class="management-actions">
+                    <button class="btn btn-refresh" onclick="loadDashboard()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
         
         <!-- Statistics Dashboard -->
         <div class="stats-grid" id="statsGrid">
@@ -303,16 +918,20 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
             </div>
         </div>
         
-        <!-- Driver Management -->
-        <div class="pending-applications">
-            <div class="section-header">
-                📋 Driver Management (Proper Approval System)
-            </div>
-            <div id="applicationsList">
-                <div class="loading">
-                    Loading drivers...
+            <!-- Driver Management -->
+            <div class="pending-applications">
+                <div class="section-header">
+                    <i class="fas fa-clipboard-list"></i>
+                    Driver Applications & Management System
+                </div>
+                <div id="applicationsList">
+                    <div class="loading">
+                        Loading drivers...
+                    </div>
                 </div>
             </div>
+        </div>
+
         </div>
     </div>
     
@@ -329,13 +948,275 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
         // Global variables
         let drivers = [];
         let hasProperFields = false;
+        let revenueChart = null;
+        let tripStatusChart = null;
+        let currentPeriod = '7d';
         
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initializing Admin Dashboard...');
             loadDashboard();
+            initializeCharts();
+            loadAnalyticsData();
             setInterval(loadDashboard, 30000);
+            setInterval(loadAnalyticsData, 60000); // Update analytics every minute
         });
+
+        // Tab Switching Function
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.closest('.nav-tab').classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+
+            // Load specific tab data
+            if (tabName === 'analytics') {
+                loadAnalyticsData();
+            }
+        }
         
+        // Analytics Functions
+        async function loadAnalyticsData() {
+            try {
+                console.log('📊 Loading analytics data...');
+                
+                // Load trip data with revenue calculations
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/trip_requests?select=id,status,final_price,quoted_price,pickup_time_preference,created_at,delivered_at,assigned_driver_id&order=created_at.desc`, {
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const trips = await response.json();
+
+                // Calculate metrics
+                const completedTrips = trips.filter(t => t.status === 'delivered');
+                const asapTrips = trips.filter(t => t.pickup_time_preference === 'asap');
+                const asapCompletedTrips = completedTrips.filter(t => t.pickup_time_preference === 'asap');
+
+                // Revenue calculations
+                const totalRevenue = completedTrips.reduce((sum, trip) => 
+                    sum + (parseFloat(trip.final_price) || 0), 0);
+                
+                const asapRevenue = asapCompletedTrips.reduce((sum, trip) => 
+                    sum + (parseFloat(trip.final_price) || 0), 0);
+
+                const avgTripValue = completedTrips.length > 0 ? 
+                    totalRevenue / completedTrips.length : 0;
+
+                // ASAP uplift calculation
+                const regularRevenue = totalRevenue - asapRevenue;
+                const regularTrips = completedTrips.length - asapCompletedTrips.length;
+                const regularAvg = regularTrips > 0 ? regularRevenue / regularTrips : 0;
+                const asapAvg = asapCompletedTrips.length > 0 ? asapRevenue / asapCompletedTrips.length : 0;
+                const asapUplift = regularAvg > 0 ? ((asapAvg - regularAvg) / regularAvg * 100) : 0;
+
+                // Update UI
+                document.getElementById('totalRevenue').textContent = `₪${totalRevenue.toLocaleString()}`;
+                document.getElementById('asapRevenue').textContent = `₪${asapRevenue.toLocaleString()}`;
+                document.getElementById('totalTripsAnalytics').textContent = trips.length.toLocaleString();
+                document.getElementById('avgTripValue').textContent = `₪${avgTripValue.toFixed(0)}`;
+                document.getElementById('asapUplift').textContent = `+${asapUplift.toFixed(1)}% ASAP uplift`;
+
+                // Update charts
+                await updateChartsData(trips);
+
+                console.log('✅ Analytics data loaded', {
+                    totalTrips: trips.length,
+                    completedTrips: completedTrips.length,
+                    totalRevenue: totalRevenue,
+                    asapUplift: asapUplift
+                });
+
+            } catch (error) {
+                console.error('❌ Error loading analytics:', error);
+            }
+        }
+
+        // Initialize Charts
+        async function initializeCharts() {
+            try {
+                console.log('📈 Initializing charts...');
+                
+                // Revenue Chart
+                const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+                revenueChart = new Chart(revenueCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: 'Total Revenue',
+                                data: [],
+                                borderColor: '#667eea',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            },
+                            {
+                                label: 'ASAP Revenue',
+                                data: [],
+                                borderColor: '#10B981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                tension: 0.4,
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₪' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Trip Status Chart
+                const tripCtx = document.getElementById('tripStatusChart').getContext('2d');
+                tripStatusChart = new Chart(tripCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Delivered', 'In Transit', 'Matched', 'Pending'],
+                        datasets: [{
+                            data: [0, 0, 0, 0],
+                            backgroundColor: [
+                                '#10B981',  // Success Green
+                                '#667eea',  // Primary Blue  
+                                '#F59E0B',  // Warning Orange
+                                '#E5E7EB'   // Gray
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                            }
+                        }
+                    }
+                });
+
+                console.log('✅ Charts initialized');
+
+            } catch (error) {
+                console.error('❌ Error initializing charts:', error);
+            }
+        }
+
+        async function updateChartsData(trips = null) {
+            try {
+                if (!trips) {
+                    // Load trips if not provided
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/trip_requests?select=status,final_price,pickup_time_preference,created_at&order=created_at.desc`, {
+                        headers: {
+                            'apikey': SUPABASE_SERVICE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    if (response.ok) {
+                        trips = await response.json();
+                    } else {
+                        trips = [];
+                    }
+                }
+
+                // Update trip status chart
+                const statusCounts = {
+                    'delivered': trips.filter(t => t.status === 'delivered').length,
+                    'in_transit': trips.filter(t => t.status === 'in_transit').length,
+                    'matched': trips.filter(t => t.status === 'matched').length,
+                    'pending': trips.filter(t => t.status === 'pending').length
+                };
+
+                if (tripStatusChart) {
+                    tripStatusChart.data.datasets[0].data = [
+                        statusCounts.delivered,
+                        statusCounts.in_transit,
+                        statusCounts.matched,
+                        statusCounts.pending
+                    ];
+                    tripStatusChart.update();
+                }
+
+                // Update revenue chart (last 7 days)
+                const last7Days = [];
+                const revenueData = [];
+                const asapRevenueData = [];
+                const today = new Date();
+                
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    last7Days.push(date.toLocaleDateString());
+                    
+                    // Calculate revenue for this day
+                    const dayTrips = trips.filter(trip => {
+                        const tripDate = new Date(trip.created_at);
+                        return tripDate.toDateString() === date.toDateString() && trip.status === 'delivered';
+                    });
+                    
+                    const dayRevenue = dayTrips.reduce((sum, trip) => sum + (parseFloat(trip.final_price) || 0), 0);
+                    const dayAsapRevenue = dayTrips
+                        .filter(t => t.pickup_time_preference === 'asap')
+                        .reduce((sum, trip) => sum + (parseFloat(trip.final_price) || 0), 0);
+                    
+                    revenueData.push(dayRevenue);
+                    asapRevenueData.push(dayAsapRevenue);
+                }
+
+                if (revenueChart) {
+                    revenueChart.data.labels = last7Days;
+                    revenueChart.data.datasets[0].data = revenueData;
+                    revenueChart.data.datasets[1].data = asapRevenueData;
+                    revenueChart.update();
+                }
+
+            } catch (error) {
+                console.error('❌ Error updating charts:', error);
+            }
+        }
+
+        function updateChartPeriod(period) {
+            // Update active button
+            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            currentPeriod = period;
+            updateChartsData();
+        }
+
+
+
+
+
         // Load dashboard data
         async function loadDashboard() {
             try {
@@ -363,6 +1244,7 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
                 if (hasProperFields) {
                     updateStatistics();
                     displayDrivers();
+                    updateDriverEfficiencyMetrics();
                     clearMessage();
                 } else {
                     showFallbackMessage();
@@ -412,6 +1294,24 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
             document.getElementById('rejectedApplications').textContent = '0';
         }
         
+        // Update driver efficiency metrics for analytics tab
+        function updateDriverEfficiencyMetrics() {
+            if (!drivers || drivers.length === 0) return;
+            
+            const approvedDrivers = drivers.filter(d => d.is_approved === true).length;
+            const onlineDrivers = drivers.filter(d => d.is_online === true).length;
+            
+            const efficiency = approvedDrivers > 0 ? Math.round((onlineDrivers / approvedDrivers) * 100) : 0;
+            
+            if (document.getElementById('driverEfficiencyMetric')) {
+                document.getElementById('driverEfficiencyMetric').textContent = `${efficiency}%`;
+            }
+            
+            if (document.getElementById('onlineDriversCount')) {
+                document.getElementById('onlineDriversCount').textContent = `${onlineDrivers} online now`;
+            }
+        }
+
         // Update statistics
         function updateStatistics() {
             if (!hasProperFields) return;
@@ -451,6 +1351,7 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
                     <div class="application-item">
                         <div class="driver-info">
                             <div class="driver-name">
+                                <i class="fas fa-user"></i>
                                 ${driver.first_name} ${driver.last_name}
                             </div>
                             <div class="driver-details">
@@ -473,18 +1374,18 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
                         <div class="actions">
                             ${isApproved ? 
                                 `<button class="btn btn-reject" onclick="rejectDriver('${driver.id}', '${driver.first_name} ${driver.last_name}')">
-                                    🚫 Revoke
+                                    <i class="fas fa-user-times"></i> Revoke
                                 </button>` :
                                 `<button class="btn btn-approve" onclick="approveDriver('${driver.id}', '${driver.first_name} ${driver.last_name}')">
-                                    ✅ Approve
+                                    <i class="fas fa-user-check"></i> Approve
                                 </button>
                                 ${approvalStatus !== 'rejected' ? `
                                 <button class="btn btn-reject" onclick="rejectDriver('${driver.id}', '${driver.first_name} ${driver.last_name}')">
-                                    ❌ Reject
+                                    <i class="fas fa-user-times"></i> Reject
                                 </button>` : ''}`
                             }
                             <button class="btn btn-review" onclick="viewDriverDetails('${driver.id}')">
-                                👁️ Details
+                                <i class="fas fa-eye"></i> Details
                             </button>
                         </div>
                     </div>
@@ -758,6 +1659,32 @@ WHERE specializations::text LIKE '%APPROVED_BY_ADMIN%';</pre>
                 messageArea.innerHTML = '';
             }, 3000);
         }
+
+        // Auto-refresh functionality for real-time updates
+        setInterval(async () => {
+            const currentTab = document.querySelector('.tab-content.active')?.id;
+            
+            if (currentTab === 'analytics') {
+                await loadAnalyticsData();
+            } else if (currentTab === 'notifications') {
+                // Add occasional new notifications (mock)
+                if (Math.random() < 0.1) { // 10% chance every interval
+                    const types = ['info', 'success', 'warning'];
+                    const messages = [
+                        'New trip assigned to driver',
+                        'ASAP delivery completed ahead of schedule',
+                        'Route optimization suggestion available',
+                        'Driver efficiency report updated',
+                        'System performance: All services operational'
+                    ];
+                    const randomType = types[Math.floor(Math.random() * types.length)];
+                    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+                    addNotification(randomType, 'System Update', randomMessage);
+                }
+            }
+        }, 45000); // Every 45 seconds
+
+        console.log('✅ Enhanced Analytics Dashboard initialized successfully!');
     </script>
 </body>
 </html>

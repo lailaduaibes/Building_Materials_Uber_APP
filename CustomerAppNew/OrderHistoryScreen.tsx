@@ -23,20 +23,38 @@ interface OrderHistoryScreenProps {
   onBack: () => void;
   onOrderSelect: (orderId: string) => void;
   orderTypeFilter?: string;
+  onNavigateToRating?: (ratingData: any) => void;
 }
 
 export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
   onBack,
   onOrderSelect,
   orderTypeFilter,
+  onNavigateToRating,
 }) => {
   const [orders, setOrders] = useState<TripOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    loadOrders();
+    initializeScreen();
   }, [orderTypeFilter]);
+
+  const initializeScreen = async () => {
+    await getCurrentUser();
+    await loadOrders();
+  };
+
+  const getCurrentUser = async () => {
+    try {
+      const user = await TripService.getCurrentUser();
+      setCurrentUser(user);
+    } catch (error) {
+      console.error('Error getting current user:', error);
+    }
+  };
 
   const loadOrders = async () => {
     try {
@@ -53,7 +71,14 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadOrders();
+    setRefreshTrigger(prev => prev + 1); // Trigger pending ratings refresh
     setRefreshing(false);
+  };
+
+  const handleRateTrip = (ratingData: any) => {
+    if (onNavigateToRating) {
+      onNavigateToRating(ratingData);
+    }
   };
 
   const getStatusColor = (status: string): string => {
@@ -74,6 +99,8 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
         return '#27ae60';
       case 'cancelled':
         return '#e74c3c';
+      case 'expired':
+        return '#95a5a6';
       default:
         return '#95a5a6';
     }
@@ -97,6 +124,8 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
         return 'Delivered';
       case 'cancelled':
         return 'Cancelled';
+      case 'expired':
+        return 'Expired';
       default:
         return 'Unknown';
     }
@@ -179,6 +208,43 @@ export const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({
         <View style={styles.driverInfo}>
           <MaterialIcons name="local-shipping" size={16} color={Theme.colors.text.secondary} />
           <Text style={styles.driverText}>Driver: {item.driverName}</Text>
+        </View>
+      )}
+
+      {/* Rating Button for Delivered Trips */}
+      {item.status === 'delivered' && !item.customer_rating && item.assigned_driver_id && (
+        <TouchableOpacity
+          style={styles.rateButton}
+          onPress={(e) => {
+            e.stopPropagation(); // Prevent triggering the card press
+            handleRateTrip({
+              tripId: item.id,
+              driverName: item.driverName || 'Driver',
+              pickupLocation: item.pickupAddress?.city || 'Pickup Location',
+              deliveryLocation: item.deliveryAddress?.city || 'Delivery Location',
+              completedAt: item.orderDate
+            });
+          }}
+        >
+          <MaterialIcons name="star-outline" size={16} color="#fff" />
+          <Text style={styles.rateButtonText}>Rate Driver</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Show Rating if Already Rated */}
+      {item.status === 'delivered' && item.customer_rating && (
+        <View style={styles.ratedContainer}>
+          <View style={styles.ratingStars}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <MaterialIcons
+                key={star}
+                name="star"
+                size={14}
+                color={star <= (item.customer_rating || 0) ? '#FFD700' : '#E0E0E0'}
+              />
+            ))}
+          </View>
+          <Text style={styles.ratedText}>You rated this trip</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -465,6 +531,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  rateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  rateButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  ratedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  ratingStars: {
+    flexDirection: 'row',
+    marginRight: 6,
+  },
+  ratedText: {
+    fontSize: 12,
+    color: Theme.colors.text.secondary,
+    fontWeight: '500',
   },
 });
 

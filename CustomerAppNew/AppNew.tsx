@@ -39,6 +39,7 @@ import OrderHistoryScreen from './OrderHistoryScreen';
 import ActivityScreen from './screens/ActivityScreen';
 import EnhancedAccountSettingsScreen from './screens/EnhancedAccountSettingsScreen';
 import WorkingSupportScreen from './screens/WorkingSupportScreen';
+import CustomerRatingScreen from './screens/CustomerRatingScreen';
 import PaymentHistoryScreen from './screens/PaymentHistoryScreen';
 import LiveTrackingScreenTrip from './LiveTrackingScreenTrip';
 
@@ -53,7 +54,7 @@ import { setupAndroidStatusBar } from './utils/AndroidFixes';
 const { width } = Dimensions.get('window');
 
 type AuthFlow = 'welcome' | 'login' | 'signup';
-type MainScreen = 'dashboard' | 'locationPicker' | 'mapPicker' | 'requestTruck' | 'trackTrip' | 'tripHistory' | 'activity' | 'settings' | 'support' | 'paymentHistory';
+type MainScreen = 'dashboard' | 'locationPicker' | 'mapPicker' | 'requestTruck' | 'trackTrip' | 'tripHistory' | 'activity' | 'settings' | 'support' | 'paymentHistory' | 'customerRating';
 
 // Use Supabase User interface (CORRECT ARCHITECTURE)
 import { User } from './AuthServiceSupabase';
@@ -61,11 +62,19 @@ import { User } from './AuthServiceSupabase';
 interface NavigationState {
   screen: MainScreen;
   tripId?: string;
+  // Add source tracking for proper back navigation
+  source?: MainScreen;
   // Add location picker state
   pickupLocation?: string;
   destinationLocation?: string;
   // Add order type filtering
   orderType?: string;
+  // Add rating screen properties
+  driverName?: string;
+  driverPhoto?: string;
+  completedAt?: string;
+  estimatedDeliveryTime?: string;
+  actualDeliveryTime?: string;
 }
 
 export default function App() {
@@ -211,7 +220,7 @@ export default function App() {
   const handleNavigate = (screen: string) => {
     if (screen.startsWith('TrackTrip:')) {
       const tripId = screen.split(':')[1];
-      setNavigationState({ screen: 'trackTrip', tripId });
+      setNavigationState({ screen: 'trackTrip', tripId, source: navigationState.screen });
     } else {
       // Handle main navigation screens
       switch (screen) {
@@ -242,6 +251,9 @@ export default function App() {
         case 'paymentHistory':
           setNavigationState({ screen: 'paymentHistory' });
           break;
+        case 'customerRating':
+          setNavigationState({ screen: 'customerRating' });
+          break;
         default:
           console.log(`Navigation to ${screen} - feature coming soon!`);
       }
@@ -267,8 +279,17 @@ export default function App() {
     setNavigationState({ screen: 'dashboard' });
   };
 
-  const handleTrackTrip = (tripId: string) => {
-    setNavigationState({ screen: 'trackTrip', tripId });
+  const handleSmartBack = () => {
+    const source = navigationState.source;
+    if (source && source !== 'trackTrip') {
+      setNavigationState({ screen: source });
+    } else {
+      setNavigationState({ screen: 'dashboard' });
+    }
+  };
+
+  const handleTrackTrip = (tripId: string, source?: MainScreen) => {
+    setNavigationState({ screen: 'trackTrip', tripId, source: source || navigationState.screen });
   };
 
   const handleTripCreated = (tripId: string) => {
@@ -299,22 +320,69 @@ export default function App() {
       return (
         <LiveTrackingScreenTrip
           tripId={navigationState.tripId || 'unknown'}
-          onBack={handleBackToDashboard}
+          onBack={handleSmartBack}
+          navigation={{
+            navigate: (screen: string, params: any) => {
+              if (screen === 'CustomerRating') {
+                setNavigationState({ screen: 'customerRating', ...params });
+              } else if (screen === 'OrderHistory') {
+                setNavigationState({ screen: 'tripHistory' });
+              }
+            }
+          }}
+        />
+      );
+    case 'customerRating':
+      return (
+        <CustomerRatingScreen
+          route={{ 
+            params: {
+              tripId: navigationState.tripId || '',
+              driverName: navigationState.driverName,
+              driverPhoto: navigationState.driverPhoto,
+              pickupLocation: navigationState.pickupLocation,
+              deliveryLocation: navigationState.destinationLocation,
+              completedAt: navigationState.completedAt,
+              estimatedDeliveryTime: navigationState.estimatedDeliveryTime,
+              actualDeliveryTime: navigationState.actualDeliveryTime,
+            }
+          }}
+          navigation={{
+            navigate: (screen: string) => {
+              if (screen === 'OrderHistory') {
+                setNavigationState({ screen: 'tripHistory' });
+              } else {
+                handleBackToDashboard();
+              }
+            },
+            goBack: () => setNavigationState({ screen: 'tripHistory' })
+          }}
         />
       );
     case 'tripHistory':
       return (
         <OrderHistoryScreen
           onBack={handleBackToDashboard}
-          onOrderSelect={(tripId: string) => setNavigationState({ screen: 'trackTrip', tripId })}
+          onOrderSelect={(tripId: string) => setNavigationState({ screen: 'trackTrip', tripId, source: 'tripHistory' })}
           orderTypeFilter={navigationState.orderType}
+          onNavigateToRating={(ratingData: any) => {
+            setNavigationState({ 
+              screen: 'customerRating',
+              tripId: ratingData.tripId,
+              driverName: ratingData.driverName,
+              driverPhoto: ratingData.driverPhoto,
+              pickupLocation: ratingData.pickupLocation,
+              destinationLocation: ratingData.deliveryLocation,
+              completedAt: ratingData.completedAt,
+            });
+          }}
         />
       );
     case 'activity':
       return (
         <ActivityScreen
           onBack={handleBackToDashboard}
-          onNavigateToOrder={(orderId: string) => setNavigationState({ screen: 'trackTrip', tripId: orderId })}
+          onNavigateToOrder={(orderId: string) => setNavigationState({ screen: 'trackTrip', tripId: orderId, source: 'activity' })}
         />
       );
     case 'settings':

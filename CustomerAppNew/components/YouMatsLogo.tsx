@@ -104,25 +104,26 @@ export const YouMatsLogo: React.FC<YouMatsLogoProps> = ({
           }
         ]}
       >
-        {/* Fallback logo design until real image is added */}
-        <View style={[styles.fallbackLogo, {
+        {/* Real YouMats Logo */}
+        <Image
+          source={require('../assets/images/youmatlogo2.webp')}
+          style={[styles.logoImage, {
+            width: currentSize.logo.width,
+            height: currentSize.logo.height,
+            backgroundColor: 'transparent',
+          }]}
+          resizeMode="contain"
+        />
+        
+        {/* Fallback logo design - keeping as backup */}
+        {/* <View style={[styles.fallbackLogo, {
           width: currentSize.logo.width,
           height: currentSize.logo.height,
         }]}>
           <Text style={[styles.fallbackText, { fontSize: currentSize.logo.width * 0.3 }]}>
             YM
           </Text>
-        </View>
-        
-        {/* Uncomment this when you add the real logo image */}
-        {/* <Image
-          source={require('../assets/images/youmats-logo.png')}
-          style={[styles.logoImage, {
-            width: currentSize.logo.width,
-            height: currentSize.logo.height,
-          }]}
-          resizeMode="contain"
-        /> */}
+        </View> */}
       </Animated.View>
       
       {/* Company Name */}

@@ -282,7 +282,7 @@ export const AuthScreens: React.FC<AuthScreensProps> = ({
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.formContainer}>
-            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.title}>Driver Portal</Text>
             <Text style={styles.subtitle}>Sign in to your YouMats account</Text>
 
             <View style={styles.inputContainer}>

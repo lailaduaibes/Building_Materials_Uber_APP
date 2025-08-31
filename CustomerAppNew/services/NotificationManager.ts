@@ -60,14 +60,14 @@ class NotificationManager {
   // Send order status update notification
   async sendOrderUpdateNotification(data: OrderNotificationData): Promise<void> {
     try {
-      // Check if user wants order update notifications
+      // Check if user wants push notifications
       const shouldSend = await userPreferencesService.shouldSendNotification(
-        'orderUpdates',
+        'pushNotifications',
         this.currentUserId || undefined
       );
 
       if (!shouldSend) {
-        console.log('User disabled order update notifications');
+        console.log('User disabled push notifications');
         return;
       }
 
@@ -84,34 +84,6 @@ class NotificationManager {
       console.log(`Order notification sent for ${data.orderId}: ${data.status}`);
     } catch (error) {
       console.error('Failed to send order notification:', error);
-    }
-  }
-
-  // Send promotional notification
-  async sendPromotionalNotification(title: string, message: string): Promise<void> {
-    try {
-      const shouldSend = await userPreferencesService.shouldSendNotification(
-        'promotions',
-        this.currentUserId || undefined
-      );
-
-      if (!shouldSend) {
-        console.log('User disabled promotional notifications');
-        return;
-      }
-
-      await notificationService.scheduleLocalNotification(title, message, {
-        type: 'promotion',
-        message,
-      });
-        await enhancedNotificationService.scheduleLocalNotification(title, message, {
-          type: 'promotion',
-          message,
-        });
-
-      console.log('Promotional notification sent:', title);
-    } catch (error) {
-      console.error('Failed to send promotional notification:', error);
     }
   }
 
@@ -169,6 +141,17 @@ class NotificationManager {
   // Update current user (call when user logs in/out)
   updateCurrentUser(userId: string | null): void {
     this.currentUserId = userId;
+  }
+
+  // Update notification configuration
+  async updateConfiguration(config: { enablePushNotifications: boolean; enableSound: boolean; enableVibration: boolean; enableBadge: boolean; }): Promise<void> {
+    try {
+      await enhancedNotificationService.updateConfiguration(config);
+      console.log('Notification configuration updated:', config);
+    } catch (error) {
+      console.error('Failed to update notification configuration:', error);
+      throw error;
+    }
   }
 
   // Reset notification system

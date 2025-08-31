@@ -45,18 +45,23 @@ class AuthServiceSupabase {
       },
     });
 
-    // Set up auth state listener
+    // Set up auth state listener  
     this.supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
       
       if (session?.user) {
-        // Validate user type before setting session
-        const isValidUser = await this.validateUserTypeForDriver(session.user.id);
-        
-        if (!isValidUser) {
-          console.log('🚫 Invalid user type detected for driver app, signing out');
-          await this.supabase.auth.signOut();
-          return;
+        // Only validate user type for initial sign-in, not for profile updates
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          console.log('🔍 Validating user type for driver app, event:', event);
+          const isValidUser = await this.validateUserTypeForDriver(session.user.id);
+          
+          if (!isValidUser) {
+            console.log('🚫 Invalid user type detected for driver app, signing out');
+            await this.supabase.auth.signOut();
+            return;
+          }
+        } else if (event === 'USER_UPDATED') {
+          console.log('⚡ Skipping validation for USER_UPDATED event (performance optimization)');
         }
         
         this.currentSession = session;
@@ -74,33 +79,56 @@ class AuthServiceSupabase {
     this.initializeUser();
   }
 
+  // Cache for user validation to avoid repeated DB calls
+  private userValidationCache = new Map<string, boolean>();
+
   // Validate user type - only drivers allowed in driver app
   private async validateUserTypeForDriver(userId: string): Promise<boolean> {
+    // Check cache first
+    if (this.userValidationCache.has(userId)) {
+      console.log('⚡ Using cached driver validation result');
+      return this.userValidationCache.get(userId)!;
+    }
+
     try {
       console.log('🔍 Validating user type for driver app, user:', userId);
       
-      const { data: userData, error } = await this.supabase
+      // Add timeout to prevent hanging
+      const validationPromise = this.supabase
         .from('users')
-        .select('user_type, role, id, email')
+        .select('user_type, role')
         .eq('id', userId)
         .single();
 
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Validation timeout')), 5000)
+      );
+
+      const { data: userData, error } = await Promise.race([
+        validationPromise,
+        timeoutPromise
+      ]) as any;
+
       if (error) {
         console.error('❌ Error checking user type:', error);
-        // If we can't check the user type, allow access (fail open for now)
+        // Cache and allow access (fail open for now)
+        this.userValidationCache.set(userId, true);
         console.log('✅ Allowing access due to database error (fail open)');
         return true;
       }
 
-      console.log('👤 User data found:', { 
-        id: userData.id, 
-        email: userData.email, 
+      console.log('👤 Driver validation result:', { 
         user_type: userData.user_type,
         role: userData.role
       });
 
       // ONLY allow if explicitly marked as 'driver' in user_type
-      if (userData.user_type === 'driver') {
+      const isValidDriver = userData.user_type === 'driver';
+      
+      // Cache the result
+      this.userValidationCache.set(userId, isValidDriver);
+      
+      if (isValidDriver) {
         console.log('✅ Allowing driver access');
         return true;
       }
@@ -111,7 +139,8 @@ class AuthServiceSupabase {
       
     } catch (error) {
       console.error('💥 Error validating user type:', error);
-      // If validation fails, allow access (fail open)
+      // Cache and allow access (fail open)
+      this.userValidationCache.set(userId, true);
       console.log('✅ Allowing access due to validation error (fail open)');
       return true;
     }
@@ -552,7 +581,19 @@ class AuthServiceSupabase {
   }
 
   getCurrentUser(): User | null {
+    console.log('⚡ Returning cached user data (optimized)');
     return this.currentUser;
+  }
+
+  // Cache management methods for performance
+  clearUserCache(): void {
+    console.log('🗑️ Clearing user cache');
+    this.currentUser = null;
+  }
+
+  clearValidationCache(): void {
+    console.log('🗑️ Clearing validation cache');
+    this.userValidationCache.clear();
   }
 
   getCurrentSession(): Session | null {

@@ -42,7 +42,7 @@ interface User {
 interface RecentOrder {
   id: string;
   orderNumber: string;
-  status: 'pending' | 'assigned' | 'picked_up' | 'in_transit' | 'delivered';
+  status: 'pending' | 'assigned' | 'picked_up' | 'in_transit' | 'delivered' | 'cancelled' | 'expired';
   materials: string[];
   deliveryDate: string;
   totalAmount: number;
@@ -93,7 +93,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, onLogout 
       const formattedOrders: RecentOrder[] = recentTrips.map((trip: any) => ({
         id: trip.id,
         orderNumber: trip.id.substring(0, 8), // Use trip ID as order number
-        status: (trip.status as 'pending' | 'assigned' | 'picked_up' | 'in_transit' | 'delivered'),
+        status: (trip.status as 'pending' | 'assigned' | 'picked_up' | 'in_transit' | 'delivered' | 'cancelled' | 'expired'),
         materials: [trip.material_type || 'Building Materials'],
         deliveryDate: trip.created_at ? 
           new Date(trip.created_at).toLocaleDateString() : 
@@ -124,6 +124,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, onLogout 
       case 'picked_up': return theme.secondary;
       case 'in_transit': return theme.primary;
       case 'delivered': return theme.success;
+      case 'cancelled': return theme.error;
+      case 'expired': return '#95a5a6';
       default: return theme.lightText;
     }
   };
@@ -135,6 +137,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, onLogout 
       case 'picked_up': return 'Picked Up';
       case 'in_transit': return 'In Transit';
       case 'delivered': return 'Delivered';
+      case 'cancelled': return 'Cancelled';
+      case 'expired': return 'Expired';
       default: return 'Unknown';
     }
   };
