@@ -45,13 +45,14 @@ export interface Driver {
   approved_by?: string;
   rejection_reason?: string;
   admin_notes?: string;
+  // Profile image
+  profile_image_url?: string;
   // Existing fields
   rating: number;
   total_trips: number;
   total_earnings: number;
   is_available: boolean;
   current_truck_id?: string;
-  profile_image_url?: string; // ✅ Added: Profile image URL from driver_profiles table
   preferred_truck_types: any;
   max_distance_km: number;
   status: 'online' | 'offline' | 'busy' | 'on_break';

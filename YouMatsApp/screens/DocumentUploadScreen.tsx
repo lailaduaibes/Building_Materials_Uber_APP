@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { driverService } from '../services/DriverService'; // Use DriverService instead of direct Supabase
+import { useLanguage } from '../src/contexts/LanguageContext';
 
 const { width } = Dimensions.get('window');
 
@@ -106,6 +107,7 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
   onDocumentsUploaded,
   onBack,
 }) => {
+  const { t } = useLanguage();
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
   const [uploadingDocuments, setUploadingDocuments] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -398,7 +400,7 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
           {isUploading ? (
             <View style={styles.uploadingContainer}>
               <ActivityIndicator size="small" color={theme.primary} />
-              <Text style={styles.uploadingText}>Uploading...</Text>
+              <Text style={styles.uploadingText}>{t('common.uploading')}</Text>
             </View>
           ) : (
             <>

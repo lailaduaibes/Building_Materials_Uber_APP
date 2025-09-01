@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { OrderAssignment, driverService } from '../services/DriverService';
 import { driverLocationService } from '../services/DriverLocationService';
 import { Colors, theme } from '../theme/colors';
+import { useLanguage } from '../src/contexts/LanguageContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -34,6 +35,7 @@ const DriverNavigationScreen: React.FC<Props> = ({
   onBack,
   onCompleteDelivery,
 }) => {
+  const { t } = useLanguage();
   const [currentStep, setCurrentStep] = useState<'heading_to_pickup' | 'arrived_at_pickup' | 'heading_to_delivery' | 'arrived_at_delivery'>('heading_to_pickup');
   const [estimatedArrival, setEstimatedArrival] = useState('8 min');
   const [distanceRemaining, setDistanceRemaining] = useState('2.1 km');
@@ -152,24 +154,24 @@ const DriverNavigationScreen: React.FC<Props> = ({
     try {
       const success = await driverService.updateTripStatus(order.id, 'start_trip');
       if (!success) {
-        Alert.alert('Error', 'Failed to update trip status. Please try again.');
+        Alert.alert(t('common.error'), t('common.failed_update_trip'));
         setCurrentStep('heading_to_pickup'); // Revert on error
         return;
       }
     } catch (error) {
       console.error('Error updating trip status to in_transit:', error);
-      Alert.alert('Error', 'Failed to update trip status. Please try again.');
+      Alert.alert(t('common.error'), t('common.failed_update_trip'));
       setCurrentStep('heading_to_pickup'); // Revert on error
       return;
     }
 
     Alert.alert(
-      'Pickup Confirmation',
-      'Have you picked up the materials?',
+      t('navigation.pickupConfirmation'),
+      t('navigation.pickupQuestion'),
       [
-        { text: 'Not Yet', style: 'cancel' },
+        { text: t('navigation.notYet'), style: 'cancel' },
         { 
-          text: 'Picked Up', 
+          text: t('navigation.pickedUp'), 
           onPress: async () => {
             try {
               // Update database to mark pickup as completed
@@ -178,11 +180,11 @@ const DriverNavigationScreen: React.FC<Props> = ({
                 setCurrentStep('heading_to_delivery');
                 updateNavigationInfo();
               } else {
-                Alert.alert('Error', 'Failed to update pickup status. Please try again.');
+                Alert.alert(t('common.error'), t('common.failed_update_pickup'));
               }
             } catch (error) {
               console.error('Error updating pickup status:', error);
-              Alert.alert('Error', 'Failed to update pickup status. Please try again.');
+              Alert.alert(t('common.error'), t('common.failed_update_pickup'));
             }
           }
         }
@@ -199,12 +201,12 @@ const DriverNavigationScreen: React.FC<Props> = ({
       .catch(error => console.error('⚠️ Failed to send delivery arrival notification:', error));
     
     Alert.alert(
-      'Delivery Confirmation',
-      'Have you completed the delivery?',
+      t('navigation.deliveryConfirmation'),
+      t('navigation.deliveryQuestion'),
       [
-        { text: 'Not Yet', style: 'cancel' },
+        { text: t('navigation.notYet'), style: 'cancel' },
         { 
-          text: 'Delivered', 
+          text: t('navigation.delivered'), 
           onPress: async () => {
             try {
               // Update trip status to delivered in the database
@@ -212,7 +214,7 @@ const DriverNavigationScreen: React.FC<Props> = ({
               onCompleteDelivery();
             } catch (error) {
               console.error('Error completing delivery:', error);
-              Alert.alert('Error', 'Failed to complete delivery. Please try again.');
+              Alert.alert(t('common.error'), t('common.failed_complete_delivery'));
             }
           }
         }
@@ -252,7 +254,7 @@ const DriverNavigationScreen: React.FC<Props> = ({
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={24} color={theme.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Navigation</Text>
+        <Text style={styles.headerTitle}>{t('navigation.navigation')}</Text>
         <TouchableOpacity style={styles.menuButton} onPress={handleOpenMaps}>
           <Ionicons name="map" size={24} color={theme.white} />
         </TouchableOpacity>
@@ -267,16 +269,16 @@ const DriverNavigationScreen: React.FC<Props> = ({
           <View style={styles.estimatesRow}>
             <View style={styles.estimateItem}>
               <Text style={styles.estimateValue}>{estimatedArrival}</Text>
-              <Text style={styles.estimateLabel}>ETA</Text>
+              <Text style={styles.estimateLabel}>{t('navigation.eta')}</Text>
             </View>
             <View style={styles.estimateItem}>
               <Text style={styles.estimateValue}>{distanceRemaining}</Text>
-              <Text style={styles.estimateLabel}>Distance</Text>
+              <Text style={styles.estimateLabel}>{t('navigation.distance')}</Text>
             </View>
             {trafficDelay > 0 && (
               <View style={styles.estimateItem}>
                 <Text style={[styles.estimateValue, { color: theme.warning }]}>+{trafficDelay} min</Text>
-                <Text style={styles.estimateLabel}>Traffic</Text>
+                <Text style={styles.estimateLabel}>{t('navigation.traffic')}</Text>
               </View>
             )}
           </View>
@@ -297,12 +299,12 @@ const DriverNavigationScreen: React.FC<Props> = ({
           <View style={styles.communicationButtons}>
             <TouchableOpacity style={styles.commButton} onPress={handleCallCustomer}>
               <Ionicons name="call" size={20} color={theme.success} />
-              <Text style={styles.commButtonText}>Call</Text>
+              <Text style={styles.commButtonText}>{t('navigation.call')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.commButton} onPress={handleTextCustomer}>
               <Ionicons name="chatbubble" size={20} color={theme.primary} />
-              <Text style={styles.commButtonText}>Message</Text>
+              <Text style={styles.commButtonText}>{t('navigation.message')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -310,7 +312,7 @@ const DriverNavigationScreen: React.FC<Props> = ({
 
       {/* Materials Info */}
       <View style={styles.materialsSection}>
-        <Text style={styles.sectionTitle}>Materials to Deliver</Text>
+        <Text style={styles.sectionTitle}>{t('navigation.materialsToDeliver')}</Text>
         <ScrollView style={styles.materialsList}>
           {order.materials.map((material, index) => (
             <View key={index} style={styles.materialItem}>
@@ -330,7 +332,7 @@ const DriverNavigationScreen: React.FC<Props> = ({
       {/* Special Instructions */}
       {order.specialInstructions && (
         <View style={styles.instructionsSection}>
-          <Text style={styles.sectionTitle}>Special Instructions</Text>
+          <Text style={styles.sectionTitle}>{t('navigation.specialInstructions')}</Text>
           <Text style={styles.instructionsText}>{order.specialInstructions}</Text>
         </View>
       )}

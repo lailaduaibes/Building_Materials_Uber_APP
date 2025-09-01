@@ -224,32 +224,6 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
     }
   };
 
-  // Document Update via Upload - Security compliant approach using existing driver_documents table
-  // Following industry standards (Uber/Lyft), drivers upload new documents with 'pending' status
-  // Admin reviews and approves/rejects through the dashboard. If approved, old document becomes inactive.
-  const handleRequestDocumentUpdate = async (documentType: string) => {
-    const currentDriver = driverService.getCurrentDriver();
-    if (!currentDriver) {
-      Alert.alert('Error', 'Please log in to upload documents');
-      return;
-    }
-
-    Alert.alert(
-      'Update Document',
-      `To update your ${getDocumentName(documentType)}, you can upload a new version.\n\nThe new document will be reviewed by the admin team. If approved, it will replace your current document.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Upload New Version',
-          onPress: () => {
-            // Use existing upload functionality - it creates pending documents
-            handleUploadDocument();
-          }
-        }
-      ]
-    );
-  };
-
   const handleUploadDocument = async () => {
     // Get current driver ID first
     const currentDriver = driverService.getCurrentDriver();
@@ -447,21 +421,21 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
     }
   };
 
-  // Security Compliant: Upload new document for admin review
   const handleReplaceDocument = (document: VehicleDocument) => {
     Alert.alert(
-      'Update Document',
-      `To update your ${getDocumentName(document.document_type)}, you can upload a new version.\n\nThe new document will be marked as "pending" and reviewed by the admin team. If approved, it will replace your current document.`,
+      'Replace Document',
+      `Are you sure you want to replace this ${getDocumentName(document.document_type)}? This action cannot be undone.`,
       [
         {
           text: 'Cancel',
           style: 'cancel'
         },
         {
-          text: 'Upload New Version',
+          text: 'Replace',
+          style: 'destructive',
           onPress: () => {
             setViewerModalVisible(false);
-            // Call the existing upload function - it will create a new pending document
+            // Small delay to allow modal to close gracefully
             setTimeout(() => {
               handleUploadDocument();
             }, 300);
@@ -692,7 +666,9 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
           <Text style={styles.headerTitle}>Vehicle Documents</Text>
           <Text style={styles.headerSubtitle}>{vehicle.license_plate}</Text>
         </View>
-        {/* Upload functionality removed for security - documents are view-only */}
+        <TouchableOpacity onPress={handleUploadDocument} style={styles.uploadButton}>
+          <Ionicons name="add" size={24} color={theme.primary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
@@ -712,10 +688,17 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="document-outline" size={48} color={theme.lightText} />
-              <Text style={styles.emptyStateTitle}>No Documents Available</Text>
+              <Text style={styles.emptyStateTitle}>No Documents Uploaded</Text>
               <Text style={styles.emptyStateText}>
-                Documents are managed during the registration process. Contact support if you need to update your documents.
+                Upload your vehicle documents to get started. Required documents include vehicle registration, insurance certificate, and driver license.
               </Text>
+              <TouchableOpacity 
+                style={styles.uploadEmptyButton} 
+                onPress={handleUploadDocument}
+              >
+                <Ionicons name="cloud-upload-outline" size={20} color={theme.white} />
+                <Text style={styles.uploadEmptyButtonText}>Upload First Document</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -723,15 +706,15 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
         {/* Required Documents Checklist */}
         {renderRequiredDocuments()}
 
-        {/* Upload Actions Removed - Documents are view-only for security */}
+        {/* Upload Actions */}
         <View style={styles.uploadSection}>
-          <View style={styles.uploadCard}>
-            <Ionicons name="information-circle-outline" size={32} color={theme.primary} />
-            <Text style={styles.uploadTitle}>Documents are View-Only</Text>
+          <TouchableOpacity style={styles.uploadCard} onPress={handleUploadDocument}>
+            <Ionicons name="cloud-upload-outline" size={32} color={theme.primary} />
+            <Text style={styles.uploadTitle}>Upload New Document</Text>
             <Text style={styles.uploadSubtitle}>
-              To update or add documents, please contact support or use the registration process.
+              Take a photo or select a file to upload
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -932,8 +915,8 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
                       }
                     }}
                   >
-                    <Ionicons name="cloud-upload" size={20} color={theme.primary} />
-                    <Text style={[styles.actionButtonText, { color: theme.primary }]}>Upload New Version</Text>
+                    <Ionicons name="refresh" size={20} color={theme.primary} />
+                    <Text style={[styles.actionButtonText, { color: theme.primary }]}>Replace</Text>
                   </TouchableOpacity>
                 </View>
               </>

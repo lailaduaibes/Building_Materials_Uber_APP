@@ -198,6 +198,92 @@ router.post('/tickets/:ticketId/messages', authenticate, [
 
 /**
  * @swagger
+ * /api/v1/support/tickets/{ticketId}/staff-reply:
+ *   post:
+ *     summary: Add staff reply to ticket (Admin only)
+ *     tags: [Support]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: ticketId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 2000
+ *     responses:
+ *       201:
+ *         description: Staff reply added successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Ticket not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/tickets/:ticketId/staff-reply', authenticate, [
+  body('message')
+    .isLength({ min: 1, max: 2000 })
+    .withMessage('Message must be between 1 and 2000 characters')
+], supportController.addStaffReply);
+
+/**
+ * @swagger
+ * /api/v1/support/tickets/{ticketId}/admin-reply:
+ *   post:
+ *     summary: Add admin reply to support ticket
+ *     tags: [Support]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: ticketId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - message
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 2000
+ *     responses:
+ *       201:
+ *         description: Admin reply added successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Ticket not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/tickets/:ticketId/admin-reply', authenticate, [
+  body('message')
+    .isLength({ min: 1, max: 2000 })
+    .withMessage('Message must be between 1 and 2000 characters')
+], supportController.addStaffReply);
+
+/**
+ * @swagger
  * /api/v1/support/tickets/{ticketId}/close:
  *   patch:
  *     summary: Close a support ticket

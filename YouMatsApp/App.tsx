@@ -1,7 +1,7 @@
 /**
  * YouMats Driver App - Modern Professional Interface
  * Professional building materials delivery platform for drivers
- * Updated to match YouMats Brand Blue Theme
+ * Updated to match YouMats Brand Blue Theme with Multi-Language Support
  */
 
 import React, { useState, useEffect } from 'react';
@@ -17,8 +17,14 @@ import {
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Import i18n configuration
+import './src/i18n';
+
 // Import the new YouMats theme system
 import { Colors, theme } from './theme/colors';
+
+// Import Language Provider
+import { LanguageProvider } from './src/contexts/LanguageContext';
 
 // Import modern services
 import { driverService, Driver, OrderAssignment } from './services/DriverService';
@@ -373,16 +379,17 @@ const App: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
-      <ExpoStatusBar style="dark" />
+    <LanguageProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
+        <ExpoStatusBar style="dark" />
 
-      {currentScreen === 'welcome' && (
-        <WelcomeScreen 
-          onGetStarted={handleGetStarted} 
-          onLogin={handleLoginFromWelcome}
-        />
-      )}
+        {currentScreen === 'welcome' && (
+          <WelcomeScreen 
+            onGetStarted={handleGetStarted} 
+            onLogin={handleLoginFromWelcome}
+          />
+        )}
 
       {currentScreen === 'auth' && (
         <AuthScreensSupabase
@@ -504,12 +511,11 @@ const App: React.FC = () => {
           onDecline={handleOrderDeclined}
           onClose={() => setShowOrderAssignment(false)}
         />
-      )}
-    </SafeAreaView>
+        )}
+      </SafeAreaView>
+    </LanguageProvider>
   );
-};
-
-const styles = StyleSheet.create({
+};const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,

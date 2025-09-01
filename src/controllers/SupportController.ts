@@ -308,4 +308,76 @@ export class SupportController {
       next(error);
     }
   }
+
+  /**
+   * Add staff reply to ticket (Admin only)
+   */
+  async addStaffReply(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw createError('Validation failed', 400);
+      }
+
+      const { ticketId } = req.params;
+      const { message } = req.body;
+      const staffUserId = req.user?.id;
+
+      if (!staffUserId) {
+        throw createError('Staff not authenticated', 401);
+      }
+
+      const supabase = getDB();
+      
+      // Verify ticket exists (no user restriction for staff)
+      const { data: ticket, error: ticketError } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .eq('id', ticketId)
+        .single();
+      
+      if (ticketError || !ticket) {
+        throw createError('Ticket not found', 404);
+      }
+
+      // Add staff reply
+      const { data: newMessage, error: messageError } = await supabase
+        .from('support_messages')
+        .insert({
+          ticket_id: ticketId,
+          user_id: staffUserId,
+          message: message,
+          is_staff_reply: true
+        })
+        .select()
+        .single();
+
+      if (messageError) {
+        throw createError(`Failed to add staff reply: ${messageError.message}`, 500);
+      }
+
+      // Update ticket status to in_progress if it's open
+      if (ticket.status === 'open') {
+        const { error: updateError } = await supabase
+          .from('support_tickets')
+          .update({ 
+            status: 'in_progress',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', ticketId);
+
+        if (updateError) {
+          console.warn('Failed to update ticket status:', updateError.message);
+        }
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Staff reply added successfully',
+        data: newMessage
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

@@ -19,6 +19,10 @@ import VehicleDocumentsScreen from './VehicleDocumentsScreen';
 import SpecializationsManagementScreen from './SpecializationsManagementScreen';
 import { createClient } from '@supabase/supabase-js';
 
+// Import language components
+import { useLanguage } from '../src/contexts/LanguageContext';
+import LanguageSelector from '../src/components/LanguageSelector';
+
 const supabase = createClient(
   'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28'
@@ -80,6 +84,9 @@ interface DriverProfile {
 }
 
 export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileScreenProps) {
+  // Language support
+  const { t, isRTL } = useLanguage();
+  
   const [driverProfile, setDriverProfile] = useState<DriverProfile | null>(null);
   const [driverTrucks, setDriverTrucks] = useState<any[]>([]); // NEW: Store actual truck data
   const [loading, setLoading] = useState(true);
@@ -150,7 +157,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         name: currentDriver.fullName || `${currentDriver.firstName} ${currentDriver.lastName}`.trim() || 'Driver',
         email: currentDriver.email,
         phone: currentDriver.phone || 'Not provided',
-        profileImage: currentDriver.profile_image_url || undefined, // ✅ Fixed: Load from database
+        profileImage: currentDriver.profile_image_url || undefined, // Profile image from registration
         rating: tripStats?.allTime?.averageRating || 0, // Use real rating from customer feedback
         totalTrips: currentDriver.total_trips || 0,
         totalEarnings: currentDriver.total_earnings || 0,
@@ -238,7 +245,6 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
     
     return (
       <View style={styles.profileHeader}>
-        {/* Profile image - display only, no edit functionality */}
         <View style={styles.profileImageContainer}>
           {driverProfile.profileImage ? (
             <Image source={{ uri: driverProfile.profileImage }} style={styles.profileImage} />
@@ -247,6 +253,16 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
               <Ionicons name="person" size={50} color={theme.white} />
             </View>
           )}
+          <TouchableOpacity 
+            style={styles.editImageButton}
+            onPress={() => Alert.alert(
+              t('profile.photoTitle'),
+              t('profile.photoCannotUpdate'),
+              [{ text: t('common.ok') }]
+            )}
+          >
+            <Ionicons name="camera" size={16} color={theme.white} />
+          </TouchableOpacity>
         </View>
         
         <View style={styles.profileInfo}>
@@ -277,7 +293,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <Text style={styles.sectionTitle}>{t('profile.personalInfo')}</Text>
           <TouchableOpacity onPress={() => Alert.alert('Edit', 'Contact support to update personal information')}>
             <Ionicons name="pencil" size={20} color={theme.primary} />
           </TouchableOpacity>
@@ -287,7 +303,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
           <View style={styles.vehicleRow}>
             <Ionicons name="person-outline" size={20} color={theme.primary} />
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={styles.vehicleLabel}>Full Name</Text>
+              <Text style={styles.vehicleLabel}>{t('profile.fullName')}</Text>
               <Text style={styles.vehicleValue}>{driverProfile.name}</Text>
             </View>
           </View>
@@ -295,7 +311,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
           <View style={styles.vehicleRow}>
             <Ionicons name="mail-outline" size={20} color={theme.primary} />
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={styles.vehicleLabel}>Email</Text>
+              <Text style={styles.vehicleLabel}>{t('profile.email')}</Text>
               <Text style={styles.vehicleValue}>{driverProfile.email}</Text>
             </View>
           </View>
@@ -303,7 +319,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
           <View style={styles.vehicleRow}>
             <Ionicons name="call-outline" size={20} color={theme.primary} />
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={styles.vehicleLabel}>Phone</Text>
+              <Text style={styles.vehicleLabel}>{t('profile.phone')}</Text>
               <Text style={styles.vehicleValue}>{driverProfile.phone}</Text>
             </View>
           </View>
@@ -311,7 +327,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
           <View style={styles.vehicleRow}>
             <Ionicons name="time-outline" size={20} color={theme.primary} />
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={styles.vehicleLabel}>Years of Experience</Text>
+              <Text style={styles.vehicleLabel}>{t('profile.yearsExperience')}</Text>
               <Text style={styles.vehicleValue}>{driverProfile.yearsExperience} years</Text>
             </View>
           </View>
@@ -334,7 +350,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Vehicle Information</Text>
+          <Text style={styles.sectionTitle}>{t('profile.vehicleInfo')}</Text>
           {/* Removed Manage button - functionality simplified */}
         </View>
         
@@ -475,7 +491,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Specializations</Text>
+          <Text style={styles.sectionTitle}>{t('profile.specializations')}</Text>
           <TouchableOpacity onPress={() => setShowSpecializationsManagement(true)}>
             <Ionicons name="pencil" size={20} color={theme.primary} />
           </TouchableOpacity>
@@ -506,8 +522,23 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
 
   const renderSettings = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Settings</Text>
+      <Text style={styles.sectionTitle}>{t('profile.settings')}</Text>
       
+      {/* Language Selector */}
+      <View style={styles.settingItem}>
+        <Text style={styles.settingLabel}>{t('profile.language')}</Text>
+        <View style={styles.languageSelectorContainer}>
+          <LanguageSelector 
+            style={styles.languageSelector}
+            buttonStyle={styles.languageSelectorButton}
+            textStyle={styles.languageSelectorText}
+            showFlag={true}
+            showNativeName={true}
+          />
+        </View>
+      </View>
+      
+      {/* Existing Settings */}
       {Object.entries(settings).map(([key, value]) => (
         <View key={key} style={styles.settingItem}>
           <Text style={styles.settingLabel}>
@@ -822,6 +853,26 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
+    color: theme.text,
+  },
+  languageSelectorContainer: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  languageSelector: {
+    // Additional styling if needed
+  },
+  languageSelectorButton: {
+    backgroundColor: theme.cardBackground,
+    borderColor: theme.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 40,
+  },
+  languageSelectorText: {
+    fontSize: 14,
     color: theme.text,
   },
   actionButtons: {
