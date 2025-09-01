@@ -10,25 +10,26 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 
 const { width } = Dimensions.get('window');
 
-// Minimal Black & White Theme
+// Professional Blue & White Theme
 const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
+  primary: '#3B82F6',
+  secondary: '#FFFFFF',
+  accent: '#1E40AF',
+  background: '#F8FAFC',
   white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
+  text: '#1F2937',
+  lightText: '#6B7280',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  border: '#E5E7EB',
 };
 
 interface EmailVerificationScreenProps {
@@ -185,79 +186,86 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
         <Text style={styles.headerTitle}>Email Verification</Text>
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="mail-outline" size={80} color={theme.primary} />
-        </View>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="mail-outline" size={80} color={theme.primary} />
+          </View>
 
-        <Text style={styles.title}>Verify Your Email</Text>
-        <Text style={styles.subtitle}>
-          We've sent a 6-digit verification code to
-        </Text>
-        <Text style={styles.email}>{email}</Text>
+          <Text style={styles.title}>Verify Your Email</Text>
+          <Text style={styles.subtitle}>
+            We've sent a 6-digit verification code to
+          </Text>
+          <Text style={styles.email}>{email}</Text>
 
-        <View style={styles.otpContainer}>
-          {otp.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => {
-                inputRefs.current[index] = ref;
-              }}
-              style={[
-                styles.otpInput,
-                digit ? styles.otpInputFilled : styles.otpInputEmpty,
-              ]}
-              value={digit}
-              onChangeText={(value) => handleOtpChange(value, index)}
-              onKeyPress={(e) => handleKeyPress(e, index)}
-              keyboardType="numeric"
-              maxLength={1}
-              textAlign="center"
-              selectTextOnFocus
-              autoFocus={index === 0}
-            />
-          ))}
-        </View>
+          <View style={styles.otpContainer}>
+            {otp.map((digit, index) => (
+              <TextInput
+                key={index}
+                ref={(ref) => {
+                  inputRefs.current[index] = ref;
+                }}
+                style={[
+                  styles.otpInput,
+                  digit ? styles.otpInputFilled : styles.otpInputEmpty,
+                ]}
+                value={digit}
+                onChangeText={(value) => handleOtpChange(value, index)}
+                onKeyPress={(e) => handleKeyPress(e, index)}
+                keyboardType="numeric"
+                maxLength={1}
+                textAlign="center"
+                selectTextOnFocus
+                autoFocus={index === 0}
+              />
+            ))}
+          </View>
 
-        <TouchableOpacity
-          style={[styles.verifyButton, loading && styles.disabledButton]}
-          onPress={() => verifyOtp()}
-          disabled={loading || otp.some(digit => digit === '')}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color={theme.white} />
-          ) : (
-            <Text style={styles.verifyButtonText}>Verify Email</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.resendContainer}>
-          <Text style={styles.resendText}>Didn't receive the code?</Text>
           <TouchableOpacity
-            style={[styles.resendButton, !canResend && styles.disabledButton]}
-            onPress={resendCode}
-            disabled={!canResend || resendLoading}
+            style={[styles.verifyButton, loading && styles.disabledButton]}
+            onPress={() => verifyOtp()}
+            disabled={loading || otp.some(digit => digit === '')}
           >
-            {resendLoading ? (
-              <ActivityIndicator size="small" color={theme.primary} />
+            {loading ? (
+              <ActivityIndicator size="small" color={theme.white} />
             ) : (
-              <Text style={[
-                styles.resendButtonText,
-                !canResend && styles.disabledText
-              ]}>
-                {canResend ? 'Resend Code' : `Resend in ${formatCountdown(countdown)}`}
-              </Text>
+              <Text style={styles.verifyButtonText}>Verify Email</Text>
             )}
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.infoContainer}>
-          <Ionicons name="information-circle-outline" size={20} color={theme.accent} />
-          <Text style={styles.infoText}>
-            Check your spam folder if you don't see the email in your inbox.
-          </Text>
+          <View style={styles.resendContainer}>
+            <Text style={styles.resendText}>Didn't receive the code?</Text>
+            <TouchableOpacity
+              style={[styles.resendButton, !canResend && styles.disabledButton]}
+              onPress={resendCode}
+              disabled={!canResend || resendLoading}
+            >
+              {resendLoading ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <Text style={[
+                  styles.resendButtonText,
+                  !canResend && styles.disabledText
+                ]}>
+                  {canResend ? 'Resend Code' : `Resend in ${formatCountdown(countdown)}`}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.infoContainer}>
+            <Ionicons name="information-circle-outline" size={20} color={theme.accent} />
+            <Text style={styles.infoText}>
+              Check your spam folder if you don't see the email in your inbox.
+            </Text>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };
@@ -275,6 +283,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
+    backgroundColor: theme.white,
   },
   backButton: {
     padding: 8,
@@ -285,11 +294,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.text,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 30,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 30,
     paddingTop: 40,
     alignItems: 'center',
+    minHeight: 600, // Ensure minimum height for proper scrolling
   },
   iconContainer: {
     marginBottom: 30,
@@ -329,14 +346,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: theme.text,
+    backgroundColor: theme.white,
   },
   otpInputEmpty: {
     borderColor: theme.border,
-    backgroundColor: theme.white,
   },
   otpInputFilled: {
     borderColor: theme.primary,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#EBF4FF',
   },
   verifyButton: {
     backgroundColor: theme.primary,
@@ -347,6 +364,14 @@ const styles = StyleSheet.create({
     maxWidth: 300,
     alignItems: 'center',
     marginBottom: 30,
+    shadowColor: theme.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   verifyButtonText: {
     color: theme.white,
@@ -375,17 +400,19 @@ const styles = StyleSheet.create({
     color: theme.primary,
   },
   disabledText: {
-    color: theme.accent,
+    color: theme.lightText,
   },
   infoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#EBF4FF',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
     width: '100%',
     maxWidth: 300,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.primary,
   },
   infoText: {
     fontSize: 14,

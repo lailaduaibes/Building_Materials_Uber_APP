@@ -150,7 +150,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         name: currentDriver.fullName || `${currentDriver.firstName} ${currentDriver.lastName}`.trim() || 'Driver',
         email: currentDriver.email,
         phone: currentDriver.phone || 'Not provided',
-        profileImage: undefined, // Add profile image URL when available
+        profileImage: currentDriver.profile_image_url || undefined, // ✅ Fixed: Load from database
         rating: tripStats?.allTime?.averageRating || 0, // Use real rating from customer feedback
         totalTrips: currentDriver.total_trips || 0,
         totalEarnings: currentDriver.total_earnings || 0,
@@ -238,6 +238,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
     
     return (
       <View style={styles.profileHeader}>
+        {/* Profile image - display only, no edit functionality */}
         <View style={styles.profileImageContainer}>
           {driverProfile.profileImage ? (
             <Image source={{ uri: driverProfile.profileImage }} style={styles.profileImage} />
@@ -246,12 +247,6 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
               <Ionicons name="person" size={50} color={theme.white} />
             </View>
           )}
-          <TouchableOpacity 
-            style={styles.editImageButton}
-            onPress={() => Alert.alert('Photo', 'Update profile photo')}
-          >
-            <Ionicons name="camera" size={16} color={theme.white} />
-          </TouchableOpacity>
         </View>
         
         <View style={styles.profileInfo}>

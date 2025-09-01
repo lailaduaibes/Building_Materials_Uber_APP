@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Driver Documents Modal</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-btn { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        .test-btn:hover { background: #1d4ed8; }
+        .result { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; }
+        .error { background: #fee; color: #c00; }
+        .success { background: #efe; color: #060; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Driver Documents Test</h1>
+    
+    <button class="test-btn" onclick="testSupabaseConnection()">Test Supabase Connection</button>
+    <button class="test-btn" onclick="testFetchDrivers()">Test Fetch Drivers</button>
+    <button class="test-btn" onclick="testFetchDocuments()">Test Fetch Documents</button>
+    <button class="test-btn" onclick="testCompleteWorkflow()">Test Complete Workflow</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        const SUPABASE_URL = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
+        const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8';
+        
+        let supabaseClient;
+        let testDriver;
+        
+        function addResult(message, isError = false) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${isError ? 'error' : 'success'}`;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof supabase !== 'undefined') {
+                const { createClient } = supabase;
+                supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+                addResult('✅ Supabase client initialized successfully');
+            } else {
+                addResult('❌ Supabase library not loaded', true);
+            }
+        });
+        
+        async function testSupabaseConnection() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('driver_profiles')
+                    .select('count')
+                    .limit(1);
+                    
+                if (error) throw error;
+                addResult('✅ Supabase connection working');
+            } catch (error) {
+                addResult(`❌ Supabase connection failed: ${error.message}`, true);
+            }
+        }
+        
+        async function testFetchDrivers() {
+            try {
+                const { data: drivers, error } = await supabaseClient
+                    .from('driver_profiles')
+                    .select('*')
+                    .limit(1);
+                    
+                if (error) throw error;
+                
+                if (drivers && drivers.length > 0) {
+                    testDriver = drivers[0];
+                    addResult(`✅ Found test driver: ${testDriver.first_name} ${testDriver.last_name} (ID: ${testDriver.id})`);
+                } else {
+                    addResult('❌ No drivers found', true);
+                }
+            } catch (error) {
+                addResult(`❌ Failed to fetch drivers: ${error.message}`, true);
+            }
+        }
+        
+        async function testFetchDocuments() {
+            if (!testDriver) {
+                addResult('❌ No test driver available. Run "Test Fetch Drivers" first.', true);
+                return;
+            }
+            
+            try {
+                const { data: documents, error } = await supabaseClient
+                    .from('driver_documents')
+                    .select('*')
+                    .eq('driver_id', testDriver.id)
+                    .order('created_at', { ascending: false });
+                    
+                if (error) throw error;
+                
+                addResult(`✅ Found ${documents?.length || 0} documents for ${testDriver.first_name}`);
+                
+                if (documents && documents.length > 0) {
+                    documents.forEach((doc, index) => {
+                        addResult(`📄 Document ${index + 1}: ${doc.document_type} - ${doc.file_name} (${doc.status})`);
+                    });
+                }
+            } catch (error) {
+                addResult(`❌ Failed to fetch documents: ${error.message}`, true);
+            }
+        }
+        
+        function formatDocumentType(type) {
+            const typeMap = {
+                'drivers_license': 'Driver\'s License',
+                'vehicle_registration': 'Vehicle Registration',
+                'insurance_certificate': 'Insurance Certificate',
+                'profile_photo': 'Profile Photo',
+                'vehicle_photo': 'Vehicle Photo',
+                'commercial_license': 'Commercial License',
+                'background_check': 'Background Check'
+            };
+            return typeMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        
+        async function testCompleteWorkflow() {
+            if (!testDriver) {
+                await testFetchDrivers();
+                if (!testDriver) return;
+            }
+            
+            try {
+                addResult('🧪 Testing complete driver details workflow...');
+                
+                // Test the exact same code as the admin dashboard
+                const { data: documents, error: docsError } = await supabaseClient
+                    .from('driver_documents')
+                    .select('*')
+                    .eq('driver_id', testDriver.id)
+                    .order('created_at', { ascending: false });
+
+                if (docsError) {
+                    addResult(`❌ Document fetch error: ${docsError.message}`, true);
+                    return;
+                }
+
+                addResult(`✅ Document fetch successful: ${documents?.length || 0} documents`);
+                
+                // Test HTML generation (like in the modal)
+                if (documents && documents.length > 0) {
+                    const documentsHTML = documents.map(doc => `
+                        <div>
+                            <strong>${formatDocumentType(doc.document_type)}</strong><br>
+                            File: ${doc.file_name}<br>
+                            Status: ${(doc.status || 'pending').toUpperCase()}<br>
+                            Date: ${new Date(doc.created_at).toLocaleDateString()}
+                        </div>
+                    `).join('<hr>');
+                    
+                    addResult('✅ HTML generation successful');
+                    addResult(`📋 Generated HTML preview:<br>${documentsHTML}`);
+                } else {
+                    addResult('📭 No documents to display - would show "No documents uploaded yet"');
+                }
+                
+                addResult('🎉 Complete workflow test successful!');
+                
+            } catch (error) {
+                addResult(`❌ Workflow test failed: ${error.message}`, true);
+            }
+        }
+    </script>
+</body>
+</html>

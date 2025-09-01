@@ -335,6 +335,288 @@ export class EmailService {
     const template = this.generatePasswordResetEmail(firstName, resetToken);
     return this.sendEmail({ to, template });
   }
+
+  /**
+   * Generate driver application approved email template
+   */
+  generateDriverApprovedEmail(firstName: string, lastName: string): EmailTemplate {
+    const driverName = `${firstName} ${lastName}`;
+    const loginUrl = `${this.frontendUrl}/driver/login`;
+    
+    const subject = '🎉 Your YouMats Driver Application has been Approved!';
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Driver Application Approved - YouMats</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #10b981; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .button { 
+            display: inline-block; 
+            background: #10b981; 
+            color: white; 
+            padding: 12px 30px; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            margin: 20px 0;
+          }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+          .success-box { background: #d1fae5; border: 1px solid #10b981; padding: 20px; border-radius: 6px; margin: 20px 0; }
+          .highlight { background: #fef3c7; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🎉 Congratulations!</h1>
+            <h2>You're Now a YouMats Driver!</h2>
+          </div>
+          <div class="content">
+            <div class="success-box">
+              <h2>✅ Application Status: APPROVED</h2>
+              <p><strong>Welcome to the YouMats driver network, ${driverName}!</strong></p>
+            </div>
+            
+            <p>Great news! Your driver application has been reviewed and approved. You can now start accepting delivery orders and earning money with YouMats.</p>
+            
+            <div class="highlight">
+              <h3>🚛 Your Vehicle Status:</h3>
+              <p>✅ Vehicle information verified and added to our fleet<br>
+              ✅ Insurance documents approved<br>
+              ✅ Driver credentials validated<br>
+              ✅ Ready to accept delivery requests</p>
+            </div>
+            
+            <div style="text-align: center;">
+              <a href="${loginUrl}" class="button">Start Driving Now!</a>
+            </div>
+            
+            <h3>📱 Next Steps:</h3>
+            <ol>
+              <li><strong>Download the YouMats Driver App</strong> (if you haven't already)</li>
+              <li><strong>Log in</strong> with your approved credentials</li>
+              <li><strong>Go online</strong> to start receiving delivery requests</li>
+              <li><strong>Complete your first delivery</strong> and start earning!</li>
+            </ol>
+            
+            <h3>💰 Earnings & Payments:</h3>
+            <ul>
+              <li>Competitive rates for all delivery types</li>
+              <li>Weekly automatic payments</li>
+              <li>Track your earnings in real-time</li>
+              <li>Bonus opportunities for peak hours</li>
+            </ul>
+            
+            <h3>📞 Driver Support:</h3>
+            <p>Our driver support team is here to help you succeed:</p>
+            <ul>
+              <li>📧 Email: driver-support@youmats.com</li>
+              <li>📱 Driver hotline: Available in the app</li>
+              <li>💬 In-app chat support</li>
+            </ul>
+            
+            <p>Welcome to the team! We're excited to have you as part of the YouMats family.</p>
+            
+            <p>Safe driving,<br>The YouMats Team</p>
+          </div>
+          <div class="footer">
+            <p>YouMats Building Materials Delivery<br>
+            Email: support@youmats.com<br>
+            This email was sent to ${driverName} regarding driver application approval.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      Congratulations! Your YouMats Driver Application has been Approved!
+      
+      Hi ${driverName},
+      
+      Great news! Your driver application has been reviewed and approved. You can now start accepting delivery orders and earning money with YouMats.
+      
+      Your Vehicle Status:
+      ✅ Vehicle information verified and added to our fleet
+      ✅ Insurance documents approved  
+      ✅ Driver credentials validated
+      ✅ Ready to accept delivery requests
+      
+      Next Steps:
+      1. Download the YouMats Driver App (if you haven't already)
+      2. Log in with your approved credentials: ${loginUrl}
+      3. Go online to start receiving delivery requests
+      4. Complete your first delivery and start earning!
+      
+      Earnings & Payments:
+      - Competitive rates for all delivery types
+      - Weekly automatic payments
+      - Track your earnings in real-time
+      - Bonus opportunities for peak hours
+      
+      Driver Support:
+      - Email: driver-support@youmats.com
+      - Driver hotline: Available in the app
+      - In-app chat support
+      
+      Welcome to the team! We're excited to have you as part of the YouMats family.
+      
+      Safe driving,
+      The YouMats Team
+      
+      YouMats Building Materials Delivery
+      Email: support@youmats.com
+    `;
+
+    return { subject, html, text };
+  }
+
+  /**
+   * Generate driver application rejected email template
+   */
+  generateDriverRejectedEmail(firstName: string, lastName: string, rejectionReason?: string): EmailTemplate {
+    const driverName = `${firstName} ${lastName}`;
+    const reapplyUrl = `${this.frontendUrl}/driver/register`;
+    
+    const subject = 'YouMats Driver Application Update';
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Driver Application Update - YouMats</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #ef4444; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .button { 
+            display: inline-block; 
+            background: #2563eb; 
+            color: white; 
+            padding: 12px 30px; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            margin: 20px 0;
+          }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+          .info-box { background: #fef3c7; border: 1px solid #f59e0b; padding: 20px; border-radius: 6px; margin: 20px 0; }
+          .reason-box { background: #fee2e2; border: 1px solid #ef4444; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Driver Application Update</h1>
+          </div>
+          <div class="content">
+            <h2>Dear ${driverName},</h2>
+            
+            <p>Thank you for your interest in becoming a YouMats driver. After careful review of your application, we are unable to approve it at this time.</p>
+            
+            ${rejectionReason ? `
+            <div class="reason-box">
+              <h3>📋 Reason for Decision:</h3>
+              <p>${rejectionReason}</p>
+            </div>
+            ` : ''}
+            
+            <div class="info-box">
+              <h3>🔄 Reapplication Process:</h3>
+              <p>You may reapply for a driver position after addressing any concerns mentioned above. We encourage you to:</p>
+              <ul>
+                <li>Review our driver requirements</li>
+                <li>Ensure all documents are current and valid</li>
+                <li>Update any outdated information</li>
+                <li>Submit a new application when ready</li>
+              </ul>
+            </div>
+            
+            <div style="text-align: center;">
+              <a href="${reapplyUrl}" class="button">Apply Again</a>
+            </div>
+            
+            <h3>📞 Questions or Appeals:</h3>
+            <p>If you have questions about this decision or believe there was an error, please contact our driver recruitment team:</p>
+            <ul>
+              <li>📧 Email: driver-recruitment@youmats.com</li>
+              <li>📱 Phone: Available Monday-Friday, 9 AM - 5 PM</li>
+            </ul>
+            
+            <p>We appreciate your interest in YouMats and wish you the best in your endeavors.</p>
+            
+            <p>Sincerely,<br>The YouMats Recruitment Team</p>
+          </div>
+          <div class="footer">
+            <p>YouMats Building Materials Delivery<br>
+            Email: support@youmats.com<br>
+            This email was sent to ${driverName} regarding driver application status.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      YouMats Driver Application Update
+      
+      Dear ${driverName},
+      
+      Thank you for your interest in becoming a YouMats driver. After careful review of your application, we are unable to approve it at this time.
+      
+      ${rejectionReason ? `Reason for Decision: ${rejectionReason}\n\n` : ''}
+      
+      Reapplication Process:
+      You may reapply for a driver position after addressing any concerns mentioned above. We encourage you to:
+      - Review our driver requirements
+      - Ensure all documents are current and valid  
+      - Update any outdated information
+      - Submit a new application when ready
+      
+      Apply again at: ${reapplyUrl}
+      
+      Questions or Appeals:
+      If you have questions about this decision or believe there was an error, please contact our driver recruitment team:
+      - Email: driver-recruitment@youmats.com
+      - Phone: Available Monday-Friday, 9 AM - 5 PM
+      
+      We appreciate your interest in YouMats and wish you the best in your endeavors.
+      
+      Sincerely,
+      The YouMats Recruitment Team
+      
+      YouMats Building Materials Delivery
+      Email: support@youmats.com
+    `;
+
+    return { subject, html, text };
+  }
+
+  /**
+   * Send driver approval email
+   */
+  async sendDriverApprovalEmail(to: string, firstName: string, lastName: string): Promise<boolean> {
+    const template = this.generateDriverApprovedEmail(firstName, lastName);
+    return this.sendEmail({ to, template });
+  }
+
+  /**
+   * Send driver rejection email
+   */
+  async sendDriverRejectionEmail(to: string, firstName: string, lastName: string, rejectionReason?: string): Promise<boolean> {
+    const template = this.generateDriverRejectedEmail(firstName, lastName, rejectionReason);
+    return this.sendEmail({ to, template });
+  }
 }
 
 export const emailService = new EmailService();

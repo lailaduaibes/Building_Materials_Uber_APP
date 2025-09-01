@@ -18,19 +18,19 @@ import { driverService } from '../services/DriverService'; // Use DriverService 
 
 const { width } = Dimensions.get('window');
 
-// Minimal Black & White Theme
+// Professional Blue & White Theme
 const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
+  primary: '#3B82F6',
+  secondary: '#FFFFFF',
+  accent: '#1E40AF',
+  background: '#F8FAFC',
   white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
+  text: '#1F2937',
+  lightText: '#6B7280',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  border: '#E5E7EB',
 };
 
 interface DocumentUploadScreenProps {
@@ -413,9 +413,12 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
                 <Ionicons 
                   name={isUploaded ? "refresh-outline" : "cloud-upload-outline"} 
                   size={16} 
-                  color={theme.white} 
+                  color={isUploaded ? theme.primary : theme.white} 
                 />
-                <Text style={styles.uploadButtonText}>
+                <Text style={[
+                  styles.uploadButtonText,
+                  isUploaded && styles.reuploadButtonText
+                ]}>
                   {isUploaded ? 'Replace' : 'Upload'}
                 </Text>
               </TouchableOpacity>
@@ -425,7 +428,8 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
                   style={[styles.actionButton, styles.deleteButton]}
                   onPress={() => deleteDocument(uploadedDoc.id)}
                 >
-                  <Ionicons name="trash-outline" size={16} color={theme.error} />
+                  <Ionicons name="trash-outline" size={18} color={theme.error} />
+                  <Text style={styles.deleteButtonText}>Delete</Text>
                 </TouchableOpacity>
               )}
             </>
@@ -510,6 +514,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
+    backgroundColor: theme.white,
+    shadowColor: theme.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   backButton: {
     width: 40,
@@ -528,7 +541,9 @@ const styles = StyleSheet.create({
   progressContainer: {
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.white,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
   },
   progressText: {
     fontSize: 14,
@@ -586,7 +601,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#EBF4FF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -609,10 +624,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   uploadedInfo: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#EBF4FF',
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.primary,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -643,7 +660,8 @@ const styles = StyleSheet.create({
   documentActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    marginTop: 4,
   },
   uploadingContainer: {
     flexDirection: 'row',
@@ -659,17 +677,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minHeight: 44,
   },
   uploadButton: {
     backgroundColor: theme.primary,
     flex: 1,
     marginRight: 8,
     justifyContent: 'center',
+    borderRadius: 8,
+    shadowColor: theme.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   reuploadButton: {
-    backgroundColor: theme.secondary,
+    backgroundColor: theme.white,
+    borderWidth: 1,
+    borderColor: theme.primary,
+    borderRadius: 8,
+    shadowColor: theme.primary,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   uploadButtonText: {
     color: theme.white,
@@ -677,14 +716,33 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 6,
   },
+  reuploadButtonText: {
+    color: theme.primary,
+  },
   deleteButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: '#FEF2F2',
     borderWidth: 1,
     borderColor: theme.error,
-    width: 36,
-    height: 36,
+    minWidth: 80,
+    height: 44,
+    borderRadius: 8,
     justifyContent: 'center',
-    marginRight: 0,
+    alignItems: 'center',
+    marginLeft: 8,
+    shadowColor: theme.error,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  deleteButtonText: {
+    color: theme.error,
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
   },
   loadingContainer: {
     flex: 1,

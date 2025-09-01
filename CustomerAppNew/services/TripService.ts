@@ -466,14 +466,15 @@ class TripService {
 
       // Find available drivers within 20km radius
       const { data: drivers, error } = await supabase
-        .from('users')
+        .from('driver_profiles')
         .select(`
-          id, first_name, last_name, phone, 
-          current_latitude, current_longitude,
+          id, user_id, first_name, last_name, phone, 
+          current_latitude, current_longitude, status, is_available,
+          users!inner(id, email),
           trucks!trucks_current_driver_id_fkey(id, truck_type_id, truck_types(name))
         `)
-        .eq('user_type', 'driver')
-        .eq('is_online', true)
+        .eq('is_available', true)
+        .eq('status', 'online')
         .not('current_latitude', 'is', null)
         .not('current_longitude', 'is', null);
 

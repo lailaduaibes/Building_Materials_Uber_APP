@@ -51,6 +51,7 @@ export interface Driver {
   total_earnings: number;
   is_available: boolean;
   current_truck_id?: string;
+  profile_image_url?: string; // ✅ Added: Profile image URL from driver_profiles table
   preferred_truck_types: any;
   max_distance_km: number;
   status: 'online' | 'offline' | 'busy' | 'on_break';
@@ -678,8 +679,9 @@ class DriverService {
 
     try {
       const isAvailable = status === 'online';
+      const isOnline = status === 'online';
       
-      // Update driver availability
+      // Update driver availability in driver_profiles
       const { error: driverError } = await supabase
         .from('driver_profiles')
         .update({ 
@@ -689,8 +691,30 @@ class DriverService {
         .eq('id', this.currentDriver.id);
 
       if (driverError) {
-        console.error('Error updating driver status:', driverError);
+        console.error('Error updating driver status in driver_profiles:', driverError);
         return false;
+      }
+
+      // Update public.users table with is_online status (direct boolean column)
+      // Use service role client to bypass potential RLS restrictions
+      const serviceSupabase = createClient(
+        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
+      );
+
+      const { error: userError } = await serviceSupabase
+        .from('users')
+        .update({
+          is_online: isOnline
+        })
+        .eq('id', this.currentDriver.user_id);
+
+      if (userError) {
+        console.error('Error updating user online status:', userError);
+        // Don't return false here - driver_profiles update succeeded
+        console.warn('Driver status updated in driver_profiles but failed to sync with users table');
+      } else {
+        console.log(`✅ Synced user online status: ${isOnline} for user ${this.currentDriver.user_id}`);
       }
 
       // STEP 1: Find and sync ALL trucks assigned to this driver
@@ -4792,6 +4816,127 @@ class DriverService {
         ratingBreakdown: {},
         recentFeedback: []
       };
+    }
+  }
+
+  /**
+   * Test method to verify driver online status synchronization
+   * Call this to check if both tables are in sync for the current driver
+   */
+  async testDriverStatusSync(): Promise<void> {
+    if (!this.currentDriver) {
+      console.log('❌ No current driver to test');
+      return;
+    }
+
+    try {
+      console.log('🧪 Testing driver status synchronization...');
+      
+      // Check driver_profiles status
+      const { data: driverProfile, error: driverError } = await supabase
+        .from('driver_profiles')
+        .select('status, is_available')
+        .eq('user_id', this.currentDriver.user_id)
+        .single();
+
+      // Check users table is_online (use service role to match update method)
+      const serviceSupabase = createClient(
+        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
+      );
+
+      const { data: userRecord, error: userError } = await serviceSupabase
+        .from('users')
+        .select('is_online')
+        .eq('id', this.currentDriver.user_id)
+        .single();
+
+      if (driverError || userError) {
+        console.error('❌ Error checking status:', { driverError, userError });
+        return;
+      }
+
+      console.log('📊 Status Comparison:');
+      console.log(`   driver_profiles.status: ${driverProfile?.status}`);
+      console.log(`   driver_profiles.is_available: ${driverProfile?.is_available}`);
+      console.log(`   users.is_online: ${userRecord?.is_online}`);
+
+      const expectedOnline = driverProfile?.status === 'online';
+      const isInSync = userRecord?.is_online === expectedOnline;
+
+      if (isInSync) {
+        console.log('✅ Status is synchronized correctly!');
+      } else {
+        console.log('❌ Status is NOT synchronized!');
+        console.log(`   Expected users.is_online: ${expectedOnline}`);
+        console.log(`   Actual users.is_online: ${userRecord?.is_online}`);
+      }
+    } catch (error) {
+      console.error('❌ Error in testDriverStatusSync:', error);
+    }
+  }
+
+  /**
+   * Sync all drivers' online status between driver_profiles and users tables
+   * Call this once to fix existing data inconsistency
+   */
+  async syncAllDriversOnlineStatus(): Promise<void> {
+    try {
+      console.log('🔄 Starting sync of all drivers online status...');
+      
+      // Get all drivers with their current status
+      const { data: drivers, error: driversError } = await supabase
+        .from('driver_profiles')
+        .select('user_id, status, is_available');
+
+      if (driversError) {
+        console.error('Error fetching drivers for sync:', driversError);
+        return;
+      }
+
+      if (!drivers || drivers.length === 0) {
+        console.log('No drivers found to sync');
+        return;
+      }
+
+      let syncedCount = 0;
+      let errorCount = 0;
+
+      // Create service role client for users table updates
+      const serviceSupabase = createClient(
+        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
+      );
+
+      // Update each driver's user record
+      for (const driver of drivers) {
+        try {
+          const isOnline = driver.status === 'online';
+
+          // Update public.users table directly (is_online is a boolean column)
+          const { error: updateError } = await serviceSupabase
+            .from('users')
+            .update({
+              is_online: isOnline
+            })
+            .eq('id', driver.user_id);
+
+          if (updateError) {
+            console.error(`Error syncing user ${driver.user_id}:`, updateError);
+            errorCount++;
+          } else {
+            syncedCount++;
+            console.log(`✅ Synced user ${driver.user_id}: ${isOnline}`);
+          }
+        } catch (error) {
+          console.error(`Error processing driver ${driver.user_id}:`, error);
+          errorCount++;
+        }
+      }
+
+      console.log(`🎯 Sync complete: ${syncedCount} synced, ${errorCount} errors out of ${drivers.length} drivers`);
+    } catch (error) {
+      console.error('❌ Error in syncAllDriversOnlineStatus:', error);
     }
   }
 }

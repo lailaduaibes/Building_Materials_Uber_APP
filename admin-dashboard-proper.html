@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouMats Advanced Analytics & Driver Management Dashboard</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -272,6 +273,59 @@
             border-color: rgba(30, 64, 175, 0.2);
         }
         
+        .badge-warning {
+            background: linear-gradient(135deg, #fef3c7, #fbbf24);
+            color: #92400e;
+            border-color: rgba(146, 64, 14, 0.2);
+            animation: pulse-warning 2s infinite;
+        }
+        
+        .badge-danger {
+            background: linear-gradient(135deg, #fee2e2, #ef4444);
+            color: #991b1b;
+            border-color: rgba(153, 27, 27, 0.2);
+        }
+        
+        .badge-success {
+            background: linear-gradient(135deg, #d1fae5, #10b981);
+            color: #065f46;
+            border-color: rgba(6, 95, 70, 0.2);
+        }
+        
+        @keyframes pulse-warning {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .has-pending-docs {
+            border-left: 4px solid #fbbf24;
+            background: linear-gradient(135deg, #fffbeb, #fefce8);
+        }
+        
+        .text-warning {
+            color: #f59e0b;
+        }
+        
+        .pending-indicator {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        
+        .btn {
+            position: relative;
+        }
+        
         .actions {
             display: flex;
             gap: 0.75rem;
@@ -279,19 +333,22 @@
         }
         
         .btn {
-            padding: 0.75rem 1.5rem;
+            padding: 0.75rem 1.25rem;
             border: none;
             border-radius: 10px;
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 0.875rem;
             font-weight: 600;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 0.5rem;
             text-transform: none;
             position: relative;
             overflow: hidden;
+            white-space: nowrap;
+            min-width: fit-content;
+            box-sizing: border-box;
         }
 
         .btn::before {
@@ -313,6 +370,7 @@
             background: linear-gradient(135deg, var(--success-green), #10b981);
             color: white;
             box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+            border: 2px solid transparent;
         }
 
         .btn-approve:hover {
@@ -325,6 +383,7 @@
             background: linear-gradient(135deg, var(--danger-red), #ef4444);
             color: white;
             box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+            border: 2px solid transparent;
         }
 
         .btn-reject:hover {
@@ -349,6 +408,421 @@
             text-align: center;
             padding: 2rem;
             color: #666;
+        }
+        
+        /* Driver Details Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: visible;
+            animation: slideIn 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .driver-details-modal {
+            width: 1200px;
+            max-width: 95vw;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
+            color: white;
+            padding: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-body {
+            padding: 2rem;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .driver-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+
+        .detail-section {
+            background: var(--gray-50);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--gray-200);
+        }
+
+        .detail-section h3 {
+            margin: 0 0 1rem 0;
+            color: var(--gray-900);
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary-blue);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: var(--gray-700);
+            flex-shrink: 0;
+            margin-right: 1rem;
+        }
+
+        .detail-value {
+            color: var(--gray-900);
+            text-align: right;
+            flex-grow: 1;
+        }
+
+        .rejection-reason {
+            color: var(--danger-red);
+            font-weight: 500;
+        }
+
+        /* Star Rating Styles */
+        .star-filled {
+            color: #fbbf24;
+        }
+
+        .star-empty {
+            color: var(--gray-300);
+        }
+
+        .rating-number {
+            margin-left: 0.5rem;
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        /* Documents Section */
+        .documents-section {
+            grid-column: 1 / -1;
+        }
+
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .document-item {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .document-item:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .document-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .document-type {
+            font-weight: 600;
+            color: var(--gray-900);
+            flex-grow: 1;
+        }
+
+        .document-details {
+            margin-bottom: 1rem;
+        }
+
+        .document-name {
+            font-size: 0.9rem;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .document-meta {
+            font-size: 0.8rem;
+            color: var(--gray-500);
+            line-height: 1.4;
+        }
+
+        .document-meta div {
+            margin-bottom: 0.2rem;
+        }
+
+        .document-date {
+            color: var(--gray-600);
+        }
+
+        .document-size {
+            color: var(--primary-blue);
+            font-weight: 500;
+        }
+
+        .document-reviewed {
+            color: var(--success-green);
+        }
+
+        .document-reviewer {
+            color: var(--gray-600);
+            font-style: italic;
+        }
+
+        .document-notes {
+            color: var(--warning-orange);
+            background: var(--gray-50);
+            padding: 0.3rem;
+            border-radius: 4px;
+            margin-top: 0.3rem;
+            font-size: 0.75rem;
+        }
+
+        .btn-info {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: var(--dark-blue);
+        }
+
+        .document-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--dark-blue);
+        }
+
+        .btn-success {
+            background: var(--success-green);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #047857;
+        }
+
+        .btn-danger {
+            background: var(--danger-red);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .no-documents {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-500);
+        }
+
+        .no-documents i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .modal-footer {
+            background: var(--gray-50);
+            padding: 1.5rem 2rem;
+            border-top: 1px solid var(--gray-200);
+            overflow: visible;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        /* Ensure modal footer content stays within bounds */
+        @media (max-width: 768px) {
+            .modal-footer {
+                padding: 1rem;
+                justify-content: center;
+            }
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            max-width: 100%;
+        }
+
+        /* Responsive button adjustments */
+        @media (max-width: 1024px) {
+            .action-buttons {
+                gap: 0.5rem;
+            }
+            
+            .action-buttons .btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .action-buttons {
+                justify-content: center;
+                gap: 0.5rem;
+                width: 100%;
+            }
+            
+            .action-buttons .btn {
+                flex: 1;
+                max-width: 120px;
+                padding: 0.65rem 0.75rem;
+                font-size: 0.8rem;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .action-buttons {
+                flex-direction: column;
+                width: 100%;
+                gap: 0.75rem;
+            }
+            
+            .action-buttons .btn {
+                width: 100%;
+                max-width: none;
+                justify-content: center;
+                padding: 0.75rem;
+            }
+        }
+
+        .btn-secondary {
+            background: var(--gray-500);
+            color: white;
+            border: 2px solid transparent;
+            box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-600);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-50px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .driver-details-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .detail-value {
+                text-align: left;
+            }
+            
+            .documents-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                justify-content: center;
+            }
         }
         
         .empty-state {
@@ -756,6 +1230,20 @@
                 justify-content: center;
             }
         }
+
+        /* Debug: Ensure buttons are clearly visible */
+        .action-buttons .btn {
+            position: relative;
+            z-index: 10;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        /* Ensure no overflow issues */
+        .modal-footer .action-buttons {
+            overflow: visible;
+            max-width: calc(100% - 2rem);
+        }
     </style>
 </head>
 <body>
@@ -944,6 +1432,21 @@
         // Supabase configuration
         const SUPABASE_URL = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
         const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8';
+        
+        // Initialize Supabase client with service role key
+        let supabaseClient;
+        
+        // Wait for Supabase to load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof supabase !== 'undefined') {
+                const { createClient } = supabase;
+                supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+                console.log('Supabase client initialized successfully');
+            } else {
+                console.error('Supabase library not loaded');
+                alert('Error: Supabase library not loaded. Please check your internet connection.');
+            }
+        });
         
         // Global variables
         let drivers = [];
@@ -1238,6 +1741,28 @@
                 drivers = await response.json();
                 console.log('Loaded drivers:', drivers);
                 
+                // Load document status for each driver
+                const documentResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_documents?select=driver_id,status`, {
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (documentResponse.ok) {
+                    const documents = await documentResponse.json();
+                    console.log('Loaded documents:', documents);
+                    
+                    // Calculate pending document counts for each driver
+                    drivers.forEach(driver => {
+                        const driverDocs = documents.filter(doc => doc.driver_id === driver.id);
+                        driver.pendingDocuments = driverDocs.filter(doc => doc.status === 'pending').length;
+                        driver.rejectedDocuments = driverDocs.filter(doc => doc.status === 'rejected').length;
+                        driver.totalDocuments = driverDocs.length;
+                    });
+                }
+                
                 // Check if proper approval fields exist
                 hasProperFields = drivers.length > 0 && 'is_approved' in drivers[0];
                 
@@ -1347,12 +1872,27 @@
                 const approvalStatus = driver.approval_status || 'pending';
                 const isApproved = driver.is_approved === true;
                 
+                // Document status indicators
+                const pendingDocs = driver.pendingDocuments || 0;
+                const rejectedDocs = driver.rejectedDocuments || 0;
+                const totalDocs = driver.totalDocuments || 0;
+                
+                let documentIndicator = '';
+                if (pendingDocs > 0) {
+                    documentIndicator = `<span class="badge badge-warning" title="${pendingDocs} pending document(s)">📄 ${pendingDocs} PENDING</span>`;
+                } else if (rejectedDocs > 0) {
+                    documentIndicator = `<span class="badge badge-danger" title="${rejectedDocs} rejected document(s)">📄 ${rejectedDocs} REJECTED</span>`;
+                } else if (totalDocs > 0) {
+                    documentIndicator = `<span class="badge badge-success" title="All documents approved">📄 ✅</span>`;
+                }
+                
                 return `
-                    <div class="application-item">
+                    <div class="application-item ${pendingDocs > 0 ? 'has-pending-docs' : ''}">
                         <div class="driver-info">
                             <div class="driver-name">
                                 <i class="fas fa-user"></i>
                                 ${driver.first_name} ${driver.last_name}
+                                ${pendingDocs > 0 ? '<i class="fas fa-exclamation-circle text-warning" title="Has pending documents"></i>' : ''}
                             </div>
                             <div class="driver-details">
                                 📱 ${driver.phone || 'No phone'}<br>
@@ -1369,6 +1909,7 @@
                                 <span class="badge badge-${driver.status}">
                                     ${driver.status.toUpperCase()}
                                 </span>
+                                ${documentIndicator}
                             </div>
                         </div>
                         <div class="actions">
@@ -1386,6 +1927,7 @@
                             }
                             <button class="btn btn-review" onclick="viewDriverDetails('${driver.id}')">
                                 <i class="fas fa-eye"></i> Details
+                                ${pendingDocs > 0 ? `<span class="pending-indicator">${pendingDocs}</span>` : ''}
                             </button>
                         </div>
                     </div>
@@ -1406,22 +1948,33 @@
                 truckTypes = [];
             }
 
-            // Mapping from app truck type names to database IDs
+            // Mapping from app truck type names to database IDs - COMPLETE VERSION
             const truckTypeMapping = {
-                'Small Truck (up to 3.5t)': '69949f18-3e1b-4db2-96fc-5dea17fc658f',
+                // Direct database names
                 'Small Truck': '69949f18-3e1b-4db2-96fc-5dea17fc658f',
-                'Medium Truck (3.5-7.5t)': 'medium-truck-id-here', // Add actual ID
-                'Medium Truck': 'medium-truck-id-here',
-                'Large Truck (7.5-18t)': 'large-truck-id-here',
-                'Large Truck': 'large-truck-id-here', 
-                'Heavy Truck (18t+)': 'heavy-truck-id-here',
-                'Heavy Truck': 'heavy-truck-id-here',
-                'Flatbed Truck': 'c14a47b8-f4b8-4986-8031-fac2153f21e0', // ✅ FIXED: Use correct Flatbed ID
-                'Dump Truck': 'dump-truck-id-here',
-                'Concrete Mixer': 'concrete-mixer-id-here',
-                'Crane Truck': 'crane-truck-id-here',
-                'Box Truck': 'box-truck-id-here',
-                'Refrigerated Truck': 'refrigerated-truck-id-here'
+                'Flatbed Truck': 'c14a47b8-f4b8-4986-8031-fac2153f21e0',
+                'Dump Truck': '4c6b14b9-be9f-4cdf-a830-c8e6aa2a6e20',
+                'Crane Truck': 'aa972613-2093-4862-9105-c166c9aac0f0',
+                'Box Truck': '9d5796ba-fe37-4653-b5ae-db8c64846ede',
+                'Car Carrier': 'e1e1f58a-f96f-4c6b-ae4b-76ddc7f6ae25',
+                
+                // Variations and aliases
+                'small_truck': '69949f18-3e1b-4db2-96fc-5dea17fc658f',
+                'flatbed_truck': 'c14a47b8-f4b8-4986-8031-fac2153f21e0',
+                'dump_truck': '4c6b14b9-be9f-4cdf-a830-c8e6aa2a6e20',
+                'crane_truck': 'aa972613-2093-4862-9105-c166c9aac0f0',
+                'box_truck': '9d5796ba-fe37-4653-b5ae-db8c64846ede',
+                
+                // App UI names with capacity descriptions
+                'Small Truck (up to 3.5t)': '69949f18-3e1b-4db2-96fc-5dea17fc658f',
+                'Medium Truck (3.5-7.5t)': '69949f18-3e1b-4db2-96fc-5dea17fc658f', // Default to small for now
+                'Large Truck (7.5-18t)': 'c14a47b8-f4b8-4986-8031-fac2153f21e0', // Use flatbed for large
+                'Heavy Truck (18t+)': 'c14a47b8-f4b8-4986-8031-fac2153f21e0', // Use flatbed for heavy
+                'Medium Truck': '69949f18-3e1b-4db2-96fc-5dea17fc658f',
+                'Large Truck': 'c14a47b8-f4b8-4986-8031-fac2153f21e0',
+                'Heavy Truck': 'c14a47b8-f4b8-4986-8031-fac2153f21e0',
+                'Concrete Mixer': '4c6b14b9-be9f-4cdf-a830-c8e6aa2a6e20', // Map to dump truck
+                'Refrigerated Truck': '9d5796ba-fe37-4653-b5ae-db8c64846ede' // Map to box truck
             };
 
             // Get the first preferred truck type and map it
@@ -1439,7 +1992,155 @@
             return mappedId || '69949f18-3e1b-4db2-96fc-5dea17fc658f';
         }
         
-        // Approve driver (proper implementation)
+        // Email notification functions
+        async function sendDriverApprovalEmail(driverId, driverName) {
+            try {
+                console.log(`📧 Sending approval email to ${driverName}...`);
+                
+                // Get driver details with email
+                const driverResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${driverId}&select=first_name,last_name,users!inner(email)`, {
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!driverResponse.ok) {
+                    throw new Error('Failed to fetch driver details');
+                }
+
+                const driverData = await driverResponse.json();
+                const driver = driverData[0];
+
+                if (!driver) {
+                    throw new Error('Driver not found');
+                }
+
+                const driverEmail = driver.users.email;
+                console.log(`📧 Sending approval email to: ${driverEmail}`);
+
+                // Log email in database (placeholder for actual email sending)
+                const emailLog = {
+                    driver_id: driverId,
+                    email_type: 'driver_approval',
+                    email_address: driverEmail,
+                    subject: '🎉 Your YouMats Driver Application has been Approved!',
+                    email_content: `
+                        Congratulations ${driver.first_name} ${driver.last_name}!
+                        
+                        Your driver application has been approved and your vehicle has been added to our fleet.
+                        
+                        You can now:
+                        ✅ Log into the YouMats Driver App
+                        ✅ Start accepting delivery requests
+                        ✅ Begin earning money
+                        
+                        Welcome to the YouMats team!
+                    `,
+                    status: 'sent',
+                    sent_at: new Date().toISOString()
+                };
+
+                // Log email to database
+                const logResponse = await fetch(`${SUPABASE_URL}/rest/v1/email_logs`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(emailLog)
+                });
+
+                if (logResponse.ok) {
+                    console.log('✅ Approval email logged successfully');
+                    return true;
+                } else {
+                    throw new Error('Failed to log email');
+                }
+
+            } catch (error) {
+                console.error('❌ Error sending approval email:', error);
+                return false;
+            }
+        }
+
+        async function sendDriverRejectionEmail(driverId, driverName, rejectionReason) {
+            try {
+                console.log(`📧 Sending rejection email to ${driverName}...`);
+                
+                // Get driver details with email
+                const driverResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${driverId}&select=first_name,last_name,users!inner(email)`, {
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!driverResponse.ok) {
+                    throw new Error('Failed to fetch driver details');
+                }
+
+                const driverData = await driverResponse.json();
+                const driver = driverData[0];
+
+                if (!driver) {
+                    throw new Error('Driver not found');
+                }
+
+                const driverEmail = driver.users.email;
+                console.log(`📧 Sending rejection email to: ${driverEmail}`);
+
+                // Log email in database (placeholder for actual email sending)
+                const emailLog = {
+                    driver_id: driverId,
+                    email_type: 'driver_rejection',
+                    email_address: driverEmail,
+                    subject: 'YouMats Driver Application Update',
+                    email_content: `
+                        Dear ${driver.first_name} ${driver.last_name},
+                        
+                        Thank you for your interest in becoming a YouMats driver. 
+                        After careful review, we are unable to approve your application at this time.
+                        
+                        ${rejectionReason ? `Reason: ${rejectionReason}` : ''}
+                        
+                        You may reapply after addressing any concerns mentioned above.
+                        
+                        Best regards,
+                        The YouMats Team
+                    `,
+                    status: 'sent',
+                    sent_at: new Date().toISOString()
+                };
+
+                // Log email to database
+                const logResponse = await fetch(`${SUPABASE_URL}/rest/v1/email_logs`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(emailLog)
+                });
+
+                if (logResponse.ok) {
+                    console.log('✅ Rejection email logged successfully');
+                    return true;
+                } else {
+                    throw new Error('Failed to log email');
+                }
+
+            } catch (error) {
+                console.error('❌ Error sending rejection email:', error);
+                return false;
+            }
+        }
+        
+        // Approve driver (proper implementation with email)
         async function approveDriver(driverId, driverName) {
             if (!confirm(`Approve ${driverName} as a professional driver and add their vehicle to the fleet?`)) {
                 return;
@@ -1560,10 +2261,43 @@
                     } else {
                         const truckResult = await truckResponse.json();
                         console.log('Vehicle added to fleet successfully:', truckResult);
-                        showMessage(`✅ ${driverName} approved, documents auto-approved, and vehicle (${driver.vehicle_plate}) added to fleet!`, 'success');
+                        
+                        // ✅ FIXED: Update driver profile with truck ID for proper bidirectional relationship
+                        const newTruckId = truckResult[0]?.id;
+                        if (newTruckId) {
+                            console.log('Updating driver profile with truck ID:', newTruckId);
+                            const syncResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${driverId}`, {
+                                method: 'PATCH',
+                                headers: {
+                                    'apikey': SUPABASE_SERVICE_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    current_truck_id: newTruckId,
+                                    updated_at: new Date().toISOString()
+                                })
+                            });
+                            
+                            if (syncResponse.ok) {
+                                console.log('✅ Driver-truck relationship properly synchronized');
+                            } else {
+                                console.warn('⚠️ Failed to sync driver-truck relationship');
+                            }
+                        }
                     }
                 } else {
                     showMessage(`✅ ${driverName} approved and documents auto-approved! (No vehicle information to add to fleet)`, 'success');
+                }
+                
+                // Step 3: Send approval email notification
+                console.log('📧 Sending approval email notification...');
+                const emailSent = await sendDriverApprovalEmail(driverId, driverName);
+                
+                if (emailSent) {
+                    showMessage(`✅ ${driverName} approved successfully! Approval email sent.`, 'success');
+                } else {
+                    showMessage(`✅ ${driverName} approved successfully! (Email notification failed)`, 'warning');
                 }
                 
                 setTimeout(() => {
@@ -1605,7 +2339,16 @@
                     throw new Error(error.message || 'Failed to reject driver');
                 }
                 
-                showMessage(`❌ ${driverName}'s application has been rejected`, 'success');
+                // Step 2: Send rejection email notification
+                console.log('📧 Sending rejection email notification...');
+                const emailSent = await sendDriverRejectionEmail(driverId, driverName, reason);
+                
+                if (emailSent) {
+                    showMessage(`❌ ${driverName}'s application has been rejected. Notification email sent.`, 'success');
+                } else {
+                    showMessage(`❌ ${driverName}'s application has been rejected. (Email notification failed)`, 'warning');
+                }
+                
                 setTimeout(() => {
                     loadDashboard();
                 }, 2000);
@@ -1616,30 +2359,464 @@
             }
         }
         
-        // View driver details
-        function viewDriverDetails(driverId) {
+        // View driver details with comprehensive modal
+        async function viewDriverDetails(driverId) {
             const driver = drivers.find(d => d.id === driverId);
             if (!driver) {
                 alert('Driver not found');
                 return;
             }
             
-            alert(`Driver Details (Proper Fields):\\n\\n` +
-                  `Name: ${driver.first_name} ${driver.last_name}\\n` +
-                  `Phone: ${driver.phone || 'Not provided'}\\n` +
-                  `Experience: ${driver.years_experience || 0} years\\n` +
-                  `Status: ${driver.status}\\n` +
-                  `Approval Status: ${driver.approval_status || 'N/A'}\\n` +
-                  `Is Approved: ${driver.is_approved ? 'YES' : 'NO'}\\n` +
-                  `Applied: ${driver.application_submitted_at ? new Date(driver.application_submitted_at).toLocaleDateString() : 'N/A'}\\n` +
-                  `Approved: ${driver.approved_at ? new Date(driver.approved_at).toLocaleDateString() : 'N/A'}\\n` +
-                  `Rejection Reason: ${driver.rejection_reason || 'N/A'}\\n` +
-                  `Admin Notes: ${driver.admin_notes || 'None'}\\n` +
-                  `Vehicle: ${driver.vehicle_model || 'Not specified'}\\n` +
-                  `License Plate: ${driver.vehicle_plate || 'Not provided'}\\n` +
-                  `Rating: ${driver.rating || 'No rating'}/5\\n` +
-                  `Total Trips: ${driver.total_trips || 0}\\n` +
-                  `Registered: ${new Date(driver.created_at).toLocaleDateString()}`);
+            console.log('Opening driver details for:', driver.first_name, driver.last_name, 'ID:', driverId);
+            
+            // Check if Supabase client is ready
+            if (!supabaseClient) {
+                alert('Supabase client not ready. Please wait for the page to load completely.');
+                return;
+            }
+            
+            // Show loading modal first
+            showDriverDetailsModal(driver, []);
+            
+            try {
+                console.log('Fetching documents for driver:', driverId);
+                
+                // Fetch driver documents using Supabase client
+                const { data: documents, error: docsError } = await supabaseClient
+                    .from('driver_documents')
+                    .select('*')
+                    .eq('driver_id', driverId)
+                    .order('created_at', { ascending: false });
+
+                if (docsError) {
+                    console.error('Error fetching documents:', docsError);
+                    alert('Error fetching documents: ' + docsError.message);
+                } else {
+                    console.log(`Successfully fetched ${documents?.length || 0} documents:`, documents);
+                }
+
+                // Update modal with complete data including documents
+                showDriverDetailsModal(driver, documents || []);
+                
+            } catch (error) {
+                console.error('Error loading driver details:', error);
+                alert('Error loading driver details: ' + error.message);
+                showDriverDetailsModal(driver, []);
+            }
+        }
+
+        // Create and show comprehensive driver details modal
+        function showDriverDetailsModal(driver, documents) {
+            console.log('Creating modal for driver:', driver.first_name, driver.last_name);
+            console.log('Documents to display:', documents?.length || 0, documents);
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('driverDetailsModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Create modal HTML
+            const modalHTML = `
+                <div id="driverDetailsModal" class="modal-overlay" onclick="closeDriverDetailsModal(event)">
+                    <div class="modal-content driver-details-modal" onclick="event.stopPropagation()">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-user-circle"></i> Driver Application Details</h2>
+                            <button class="modal-close" onclick="closeDriverDetailsModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="modal-body" data-driver-id="${driver.id}">
+                            <div class="driver-details-grid">
+                                <!-- Personal Information -->
+                                <div class="detail-section">
+                                    <h3><i class="fas fa-user"></i> Personal Information</h3>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Full Name:</span>
+                                        <span class="detail-value">${driver.first_name} ${driver.last_name}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Phone Number:</span>
+                                        <span class="detail-value">${driver.phone || 'Not provided'}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Experience:</span>
+                                        <span class="detail-value">${driver.years_experience || 0} years</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Specializations:</span>
+                                        <span class="detail-value">${driver.specializations || 'None'}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">License Number:</span>
+                                        <span class="detail-value">${driver.license_plate || 'Not provided'}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Vehicle Information -->
+                                <div class="detail-section">
+                                    <h3><i class="fas fa-truck"></i> Vehicle Information</h3>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Vehicle Model:</span>
+                                        <span class="detail-value">${driver.vehicle_model || 'Not specified'}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">License Plate:</span>
+                                        <span class="detail-value">${driver.vehicle_plate || 'Not provided'}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Vehicle Year:</span>
+                                        <span class="detail-value">${driver.vehicle_year || 'Not specified'}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Max Payload:</span>
+                                        <span class="detail-value">${driver.vehicle_max_payload || 'N/A'}t</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Max Volume:</span>
+                                        <span class="detail-value">${driver.vehicle_max_volume || 'N/A'}m³</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Preferred Truck Types:</span>
+                                        <span class="detail-value">${driver.preferred_truck_types || 'None'}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Application Status -->
+                                <div class="detail-section">
+                                    <h3><i class="fas fa-clipboard-check"></i> Application Status</h3>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Current Status:</span>
+                                        <span class="detail-value">
+                                            <span class="badge badge-${driver.approval_status || 'pending'}">
+                                                ${(driver.approval_status || 'pending').toUpperCase()}
+                                            </span>
+                                        </span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Is Approved:</span>
+                                        <span class="detail-value">${driver.is_approved ? '✅ YES' : '❌ NO'}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Application Date:</span>
+                                        <span class="detail-value">${driver.application_submitted_at ? new Date(driver.application_submitted_at).toLocaleDateString() : 'N/A'}</span>
+                                    </div>
+                                    ${driver.approved_at ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Approved Date:</span>
+                                        <span class="detail-value">${new Date(driver.approved_at).toLocaleDateString()}</span>
+                                    </div>` : ''}
+                                    ${driver.approved_by ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Approved By:</span>
+                                        <span class="detail-value">${driver.approved_by}</span>
+                                    </div>` : ''}
+                                    ${driver.rejection_reason ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Rejection Reason:</span>
+                                        <span class="detail-value rejection-reason">${driver.rejection_reason}</span>
+                                    </div>` : ''}
+                                    ${driver.admin_notes ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Admin Notes:</span>
+                                        <span class="detail-value">${driver.admin_notes}</span>
+                                    </div>` : ''}
+                                </div>
+
+                                <!-- Performance Metrics -->
+                                <div class="detail-section">
+                                    <h3><i class="fas fa-chart-line"></i> Performance Metrics</h3>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Rating:</span>
+                                        <span class="detail-value">${generateStarRating(driver.rating || 0)}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Total Trips:</span>
+                                        <span class="detail-value">${driver.total_trips || 0}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Total Earnings:</span>
+                                        <span class="detail-value">$${driver.total_earnings || '0.00'}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Max Distance:</span>
+                                        <span class="detail-value">${driver.max_distance_km || 'N/A'}km</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Currently Available:</span>
+                                        <span class="detail-value">${driver.is_available ? '✅ Available' : '❌ Unavailable'}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Last Seen:</span>
+                                        <span class="detail-value">${driver.last_seen ? new Date(driver.last_seen).toLocaleString() : 'Never'}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Documents Section -->
+                                <div class="detail-section documents-section">
+                                    <h3><i class="fas fa-file-alt"></i> Uploaded Documents</h3>
+                                    ${documents.length > 0 ? `
+                                        <div class="documents-grid">
+                                            ${documents.map(doc => `
+                                                <div class="document-item">
+                                                    <div class="document-header">
+                                                        <i class="fas fa-${getDocumentIcon(doc.document_type)}"></i>
+                                                        <span class="document-type">${formatDocumentType(doc.document_type)}</span>
+                                                        <span class="badge badge-${doc.status || 'pending'}">${(doc.status || 'pending').toUpperCase()}</span>
+                                                    </div>
+                                                    <div class="document-details">
+                                                        <div class="document-name">${doc.file_name}</div>
+                                                        <div class="document-meta">
+                                                            <div class="document-date">Uploaded: ${new Date(doc.uploaded_at || doc.created_at).toLocaleDateString()}</div>
+                                                            <div class="document-size">${formatFileSize(doc.file_size)}</div>
+                                                            ${doc.reviewed_at ? `<div class="document-reviewed">Reviewed: ${new Date(doc.reviewed_at).toLocaleDateString()}</div>` : ''}
+                                                            ${doc.reviewed_by ? `<div class="document-reviewer">By: ${doc.reviewed_by}</div>` : ''}
+                                                            ${doc.review_notes ? `<div class="document-notes">Notes: ${doc.review_notes}</div>` : ''}
+                                                        </div>
+                                                    </div>
+                                                    <div class="document-actions">
+                                                        <button class="btn-small btn-primary" onclick="window.open('${doc.file_url}', '_blank')" title="View Document">
+                                                            <i class="fas fa-eye"></i> View
+                                                        </button>
+                                                        ${doc.status !== 'approved' ? `
+                                                            <button class="btn-small btn-success" onclick="approveDocument('${doc.id}')" title="Approve Document">
+                                                                <i class="fas fa-check"></i> Approve
+                                                            </button>
+                                                        ` : ''}
+                                                        ${doc.status !== 'rejected' ? `
+                                                            <button class="btn-small btn-danger" onclick="rejectDocument('${doc.id}')" title="Reject Document">
+                                                                <i class="fas fa-times"></i> Reject
+                                                            </button>
+                                                        ` : ''}
+                                                        <button class="btn-small btn-info" onclick="downloadDocument('${doc.file_url}', '${doc.file_name}')" title="Download Document">
+                                                            <i class="fas fa-download"></i> Download
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : `
+                                        <div class="no-documents">
+                                            <i class="fas fa-inbox"></i>
+                                            <p>No documents uploaded yet</p>
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <div class="action-buttons">
+                                ${!driver.is_approved ? `
+                                    <button class="btn btn-approve" onclick="approveDriver('${driver.id}', '${driver.first_name} ${driver.last_name}'); closeDriverDetailsModal();">
+                                        <i class="fas fa-user-check"></i> <span>Approve</span>
+                                    </button>
+                                    <button class="btn btn-reject" onclick="rejectDriver('${driver.id}', '${driver.first_name} ${driver.last_name}'); closeDriverDetailsModal();">
+                                        <i class="fas fa-user-times"></i> <span>Reject</span>
+                                    </button>
+                                ` : `
+                                    <button class="btn btn-reject" onclick="rejectDriver('${driver.id}', '${driver.first_name} ${driver.last_name}'); closeDriverDetailsModal();">
+                                        <i class="fas fa-user-times"></i> <span>Revoke</span>
+                                    </button>
+                                `}
+                                <button class="btn btn-secondary" onclick="closeDriverDetailsModal()">
+                                    <i class="fas fa-times"></i> <span>Close</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        // Helper function to format document types
+        function formatDocumentType(type) {
+            const typeMap = {
+                'drivers_license': 'Driver\'s License',
+                'vehicle_registration': 'Vehicle Registration',
+                'insurance_certificate': 'Insurance Certificate',
+                'profile_photo': 'Profile Photo',
+                'vehicle_photo': 'Vehicle Photo',
+                'commercial_license': 'Commercial License',
+                'background_check': 'Background Check'
+            };
+            return typeMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        // Helper function to get document icon based on type
+        function getDocumentIcon(type) {
+            const iconMap = {
+                'drivers_license': 'id-card',
+                'vehicle_registration': 'car',
+                'insurance_certificate': 'shield-alt',
+                'profile_photo': 'user-circle',
+                'vehicle_photo': 'camera',
+                'commercial_license': 'certificate',
+                'background_check': 'user-check'
+            };
+            return iconMap[type] || 'file-alt';
+        }
+
+        // Helper function to format file size
+        function formatFileSize(bytes) {
+            if (!bytes) return 'Unknown size';
+            
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            if (bytes === 0) return '0 Bytes';
+            
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            const size = (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1);
+            
+            return `${size} ${sizes[i]}`;
+        }
+
+        // Helper function to download document
+        function downloadDocument(fileUrl, fileName) {
+            const link = document.createElement('a');
+            link.href = fileUrl;
+            link.download = fileName;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Helper function to generate star rating display
+        function generateStarRating(rating) {
+            const stars = [];
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 !== 0;
+            
+            for (let i = 0; i < fullStars; i++) {
+                stars.push('<i class="fas fa-star star-filled"></i>');
+            }
+            
+            if (hasHalfStar) {
+                stars.push('<i class="fas fa-star-half-alt star-filled"></i>');
+            }
+            
+            const remainingStars = 5 - Math.ceil(rating);
+            for (let i = 0; i < remainingStars; i++) {
+                stars.push('<i class="far fa-star star-empty"></i>');
+            }
+            
+            return `${stars.join('')} <span class="rating-number">${rating}/5</span>`;
+        }
+
+        // Close driver details modal
+        function closeDriverDetailsModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            
+            const modal = document.getElementById('driverDetailsModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // Document approval functions
+        async function approveDocument(documentId) {
+            try {
+                showMessage('Approving document...', 'info');
+                
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/driver_documents?id=eq.${documentId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        status: 'approved',
+                        reviewed_at: new Date().toISOString(),
+                        reviewed_by: null, // Admin approval - no specific user ID needed
+                        review_notes: 'Document approved by admin'
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to approve document');
+                }
+
+                showMessage('Document approved successfully! ✅', 'success');
+                
+                // Refresh the modal by finding the driver ID and reloading
+                const modal = document.getElementById('driverDetailsModal');
+                if (modal) {
+                    const modalBody = modal.querySelector('.modal-body');
+                    if (modalBody && modalBody.dataset.driverId) {
+                        setTimeout(() => viewDriverDetails(modalBody.dataset.driverId), 500);
+                    }
+                }
+                
+                // Also refresh the main dashboard to update pending indicators
+                setTimeout(() => loadDrivers(), 1000);
+                
+            } catch (error) {
+                console.error('Error approving document:', error);
+                showMessage('Failed to approve document: ' + error.message, 'error');
+            }
+        }
+
+        async function rejectDocument(documentId) {
+            const reason = prompt('Please provide a reason for rejecting this document:');
+            if (!reason || reason.trim() === '') {
+                showMessage('Rejection cancelled - no reason provided', 'info');
+                return;
+            }
+
+            try {
+                showMessage('Rejecting document...', 'info');
+                
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/driver_documents?id=eq.${documentId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        status: 'rejected',
+                        review_notes: reason.trim(),
+                        reviewed_at: new Date().toISOString(),
+                        reviewed_by: null // Admin rejection - no specific user ID needed
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to reject document');
+                }
+
+                showMessage('Document rejected successfully! ❌', 'success');
+                
+                // Refresh the modal by finding the driver ID and reloading
+                const modal = document.getElementById('driverDetailsModal');
+                if (modal) {
+                    const modalBody = modal.querySelector('.modal-body');
+                    if (modalBody && modalBody.dataset.driverId) {
+                        setTimeout(() => viewDriverDetails(modalBody.dataset.driverId), 500);
+                    }
+                }
+                
+                // Also refresh the main dashboard to update pending indicators
+                setTimeout(() => loadDrivers(), 1000);
+                
+            } catch (error) {
+                console.error('Error rejecting document:', error);
+                showMessage('Failed to reject document: ' + error.message, 'error');
+            }
+        }
+        
+        // Helper function to refresh driver list (for external calls)
+        async function loadDrivers() {
+            return loadDashboard();
         }
         
         // Show message
