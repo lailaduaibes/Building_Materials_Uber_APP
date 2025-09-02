@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { Colors } from '../theme/colors'; // Import YouMats theme
@@ -49,6 +50,7 @@ interface EarningsData {
 
 export default function EarningsScreen({ onBack }: EarningsScreenProps) {
   const { t } = useLanguage();
+  const { t: i18nT } = useTranslation();
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [earningsData, setEarningsData] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);

@@ -18,6 +18,7 @@ import {
   StatusBar,
   ScrollView,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import MapView, { Marker, Polyline, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -83,6 +84,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
   onCompleteTrip,
 }) => {
   const { t } = useLanguage();
+  const { t: i18nT } = useTranslation();
   const [driverLocation, setDriverLocation] = useState<LocationCoordinates | null>(null);
   const [customerLocation, setCustomerLocation] = useState<LocationCoordinates | null>(null);
   const [tripStatus, setTripStatus] = useState<TripTracking['status']>('matched');
@@ -570,20 +572,10 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            {/* Debug: Show current tripStatus */}
-            <View style={{ padding: 10, backgroundColor: '#f0f0f0', marginBottom: 10 }}>
-              <Text style={{ color: '#000', fontWeight: 'bold' }}>
-                DEBUG: Current tripStatus = "{tripStatus}"
-              </Text>
-            </View>
-
             {tripStatus === 'matched' && (
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: theme.accent }]}
-                onPress={() => {
-                  console.log('🔘 "Start Trip" button pressed. Current tripStatus:', tripStatus);
-                  handleStatusUpdate('in_transit');
-                }}
+                onPress={() => handleStatusUpdate('in_transit')}
               >
                 <Text style={styles.actionButtonText}>{t('liveTracking.startTrip')}</Text>
               </TouchableOpacity>
@@ -592,10 +584,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
             {tripStatus === 'in_transit' && (
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: theme.success }]}
-                onPress={() => {
-                  console.log('🔘 "Complete Delivery" button pressed. Current tripStatus:', tripStatus);
-                  handleStatusUpdate('delivered');
-                }}
+                onPress={() => handleStatusUpdate('delivered')}
               >
                 <Text style={styles.actionButtonText}>{t('liveTracking.completeDelivery')}</Text>
               </TouchableOpacity>

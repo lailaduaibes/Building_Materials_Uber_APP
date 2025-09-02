@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../src/contexts/LanguageContext';
 import { driverService } from '../services/DriverService';
@@ -39,6 +40,7 @@ interface Trip {
 
 export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
   const { t } = useLanguage();
+  const { t: i18nT } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
   const [trips, setTrips] = useState<Trip[]>([]);

@@ -19,6 +19,7 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { authService, AuthResponse } from './AuthServiceSupabase';
 import { Colors } from './theme/colors';
@@ -32,6 +33,7 @@ interface AuthScreensProps {
 }
 
 export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess, onNavigateToRegister }) => {
+  const { t } = useTranslation();
   const [currentScreen, setCurrentScreen] = useState<'login' | 'forgot'>('login');
   const [loading, setLoading] = useState(false);
 

@@ -39,21 +39,27 @@ const supabase = createClient(
 
 const { width } = Dimensions.get('window');
 
-// Professional theme matching driver app
+// Professional theme matching driver app with enhanced visual hierarchy
 const theme = {
   primary: '#3B82F6',
+  primaryDark: '#2563EB',
+  primaryLight: '#DBEAFE',
   secondary: '#FFFFFF',
   accent: '#1E40AF',
   background: '#F8FAFC',
+  cardBackground: '#FFFFFF',
   white: '#FFFFFF',
   text: '#1F2937',
   lightText: '#6B7280',
+  darkText: '#111827',
+  mutedText: '#9CA3AF',
+  border: '#E5E7EB',
+  lightBorder: '#F3F4F6',
   success: '#10B981',
   warning: '#F59E0B',
   error: '#EF4444',
-  border: '#E5E7EB',
-  cardBackground: '#FFFFFF',
-  shadow: '#000000',
+  info: '#06B6D4',
+  shadow: 'rgba(0, 0, 0, 0.1)',
 };
 
 interface SupportTicket {
@@ -81,6 +87,47 @@ interface DriverSupportScreenProps {
   onBack: () => void;
 }
 
+// Helper functions for support ticket display
+const getStatusColor = (status: string): string => {
+  switch (status.toLowerCase()) {
+    case 'open':
+      return theme.info;
+    case 'in_progress':
+      return theme.warning;
+    case 'resolved':
+      return theme.success;
+    case 'closed':
+      return theme.mutedText;
+    default:
+      return theme.lightText;
+  }
+};
+
+const getPriorityColor = (priority: string): string => {
+  switch (priority.toLowerCase()) {
+    case 'high':
+      return theme.error;
+    case 'medium':
+      return theme.warning;
+    case 'low':
+      return theme.success;
+    default:
+      return theme.lightText;
+  }
+};
+
+const getCategoryLabel = (category: string): string => {
+  const categoryMap: { [key: string]: string } = {
+    'general': 'General Inquiry',
+    'technical': 'Technical Issue', 
+    'billing': 'Payment/Earnings',
+    'delivery': 'Delivery Issue',
+    'vehicle': 'Vehicle/Equipment',
+    'safety': 'Safety Concern',
+  };
+  return categoryMap[category] || category;
+};
+
 export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'create' | 'tickets'>('create');
@@ -101,19 +148,32 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
   const [category, setCategory] = useState('general');
   const [priority, setPriority] = useState('medium');
 
+  // Helper function for translated category labels
+  const getTranslatedCategoryLabel = (category: string): string => {
+    const categoryMap: { [key: string]: string } = {
+      'general': t('support.categories.general', 'General Inquiry'),
+      'technical': t('support.categories.technical', 'Technical Issue'),
+      'billing': t('support.categories.billing', 'Payment/Earnings'),
+      'delivery': t('support.categories.delivery', 'Delivery Issue'),
+      'vehicle': t('support.categories.vehicle', 'Vehicle/Equipment'),
+      'safety': t('support.categories.safety', 'Safety Concern'),
+    };
+    return categoryMap[category] || category;
+  };
+
   const categories = [
-    { value: 'general', label: 'General Inquiry' },
-    { value: 'technical', label: 'Technical Issue' },
-    { value: 'billing', label: 'Payment/Earnings' },
-    { value: 'delivery', label: 'Delivery Issue' },
-    { value: 'vehicle', label: 'Vehicle/Equipment' },
-    { value: 'safety', label: 'Safety Concern' },
+    { value: 'general', label: t('support.categories.general', 'General Inquiry') },
+    { value: 'technical', label: t('support.categories.technical', 'Technical Issue') },
+    { value: 'billing', label: t('support.categories.billing', 'Payment/Earnings') },
+    { value: 'delivery', label: t('support.categories.delivery', 'Delivery Issue') },
+    { value: 'vehicle', label: t('support.categories.vehicle', 'Vehicle/Equipment') },
+    { value: 'safety', label: t('support.categories.safety', 'Safety Concern') },
   ];
 
   const priorities = [
-    { value: 'low', label: 'Low', color: theme.success },
-    { value: 'medium', label: 'Medium', color: theme.warning },
-    { value: 'high', label: 'High', color: theme.error },
+    { value: 'low', label: t('support.priorities.low', 'Low'), color: theme.success },
+    { value: 'medium', label: t('support.priorities.medium', 'Medium'), color: theme.warning },
+    { value: 'high', label: t('support.priorities.high', 'High'), color: theme.error },
   ];
 
   useEffect(() => {
@@ -129,7 +189,10 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
       // Check if user is authenticated with Supabase (same as customer app)
       const currentUser = await authService.getCurrentUser();
       if (!currentUser) {
-        Alert.alert('Authentication Required', 'Please login to view your support tickets');
+        Alert.alert(
+          t('support.alerts.authRequired', 'Authentication Required'), 
+          t('support.alerts.authMessage', 'Please login to view your support tickets')
+        );
         return;
       }
 
@@ -152,7 +215,10 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
 
       if (error) {
         console.error('Error loading tickets:', error);
-        Alert.alert('Error', 'Failed to load support tickets');
+        Alert.alert(
+          t('support.alerts.error', 'Error'), 
+          t('support.alerts.loadTicketsError', 'Failed to load support tickets')
+        );
         return;
       }
 
@@ -160,7 +226,10 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
       setTickets(data || []);
     } catch (error) {
       console.error('Error loading tickets:', error);
-      Alert.alert('Error', 'Failed to load support tickets');
+      Alert.alert(
+        t('support.alerts.error', 'Error'), 
+        t('support.alerts.loadTicketsError', 'Failed to load support tickets')
+      );
     } finally {
       setLoading(false);
     }
@@ -168,7 +237,10 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
 
   const submitTicket = async () => {
     if (!subject.trim() || !description.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      Alert.alert(
+        t('support.alerts.error', 'Error'), 
+        t('support.alerts.fillRequiredFields', 'Please fill in all required fields')
+      );
       return;
     }
 
@@ -178,7 +250,10 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
       // Check if user is authenticated with Supabase (same as customer app)
       const currentUser = await authService.getCurrentUser();
       if (!currentUser) {
-        Alert.alert('Authentication Required', 'You must be logged in to submit a support ticket');
+        Alert.alert(
+          t('support.alerts.authRequired', 'Authentication Required'), 
+          t('support.alerts.submitAuthMessage', 'You must be logged in to submit a support ticket')
+        );
         return;
       }
 
@@ -196,7 +271,10 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
 
       if (error) {
         console.error('Error creating ticket:', error);
-        Alert.alert('Error', 'Failed to submit support ticket');
+        Alert.alert(
+          t('support.alerts.error', 'Error'), 
+          t('support.alerts.submitError', 'Failed to submit support ticket')
+        );
         return;
       }
 
@@ -207,16 +285,19 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
       setPriority('medium');
 
       Alert.alert(
-        'Success', 
-        'Your support ticket has been submitted successfully. Our team will get back to you soon.',
+        t('support.alerts.success', 'Success'), 
+        t('support.alerts.submitSuccess', 'Your support ticket has been submitted successfully. Our team will get back to you soon.'),
         [
-          { text: 'OK', onPress: () => setActiveTab('tickets') }
+          { text: t('support.alerts.ok', 'OK'), onPress: () => setActiveTab('tickets') }
         ]
       );
 
     } catch (error) {
       console.error('Error submitting ticket:', error);
-      Alert.alert('Error', 'Failed to submit support ticket');
+      Alert.alert(
+        t('support.alerts.error', 'Error'), 
+        t('support.alerts.submitError', 'Failed to submit support ticket')
+      );
     } finally {
       setLoading(false);
     }
@@ -226,19 +307,19 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       {/* Subject */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Subject *</Text>
+        <Text style={styles.label}>{t('support.form.subject', 'Subject')} *</Text>
         <TextInput
           style={styles.input}
           value={subject}
           onChangeText={setSubject}
-          placeholder="Brief description of your issue"
+          placeholder={t('support.form.subjectPlaceholder', 'Brief description of your issue')}
           placeholderTextColor={theme.lightText}
         />
       </View>
 
       {/* Category */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Category</Text>
+        <Text style={styles.label}>{t('support.form.category', 'Category')}</Text>
         <View style={styles.optionsContainer}>
           {categories.map((cat) => (
             <TouchableOpacity
@@ -262,7 +343,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
 
       {/* Priority */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Priority</Text>
+        <Text style={styles.label}>{t('support.form.priority', 'Priority')}</Text>
         <View style={styles.priorityContainer}>
           {priorities.map((prio) => (
             <TouchableOpacity
@@ -287,12 +368,12 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
 
       {/* Description */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Description *</Text>
+        <Text style={styles.label}>{t('support.form.description', 'Description')} *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={description}
           onChangeText={setDescription}
-          placeholder="Please provide detailed information about your issue or question"
+          placeholder={t('support.form.descriptionPlaceholder', 'Please provide detailed information about your issue or question')}
           placeholderTextColor={theme.lightText}
           multiline
           numberOfLines={6}
@@ -307,7 +388,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
         disabled={loading}
       >
         <Text style={styles.submitButtonText}>
-          {loading ? 'Submitting...' : 'Submit Ticket'}
+          {loading ? t('support.form.submitting', 'Submitting...') : t('support.form.submitTicket', 'Submit Ticket')}
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -326,7 +407,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
         </View>
       </View>
       
-      <Text style={styles.ticketCategory}>{getCategoryLabel(item.category)}</Text>
+      <Text style={styles.ticketCategory}>{getTranslatedCategoryLabel(item.category)}</Text>
       <Text style={styles.ticketDescription} numberOfLines={2}>
         {item.description}
       </Text>
@@ -347,20 +428,22 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
     <View style={styles.tabContent}>
       {loading ? (
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading tickets...</Text>
+          <Text style={styles.loadingText}>{t('support.loading', 'Loading tickets...')}</Text>
         </View>
       ) : tickets.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="help-circle-outline" size={64} color={theme.lightText} />
-          <Text style={styles.emptyTitle}>No Support Tickets</Text>
+          <Text style={styles.emptyTitle}>{t('support.empty.title', 'No Support Tickets')}</Text>
           <Text style={styles.emptyDescription}>
-            You haven't submitted any support tickets yet.
+            {t('support.empty.description', 'You haven\'t submitted any support tickets yet.')}
           </Text>
           <TouchableOpacity
             style={styles.createFirstButton}
             onPress={() => setActiveTab('create')}
           >
-            <Text style={styles.createFirstButtonText}>Create Your First Ticket</Text>
+            <Text style={styles.createFirstButtonText}>
+              {t('support.empty.createFirst', 'Create Your First Ticket')}
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -515,7 +598,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
           <TouchableOpacity onPress={() => setSelectedTicket(null)} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={theme.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Ticket Details</Text>
+          <Text style={styles.headerTitle}>{t('support.ticketDetails', 'Ticket Details')}</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -523,7 +606,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
           {/* Ticket Status */}
           <View style={styles.detailsSection}>
             <View style={styles.detailsHeader}>
-              <Text style={styles.detailsTitle}>Status</Text>
+              <Text style={styles.detailsTitle}>{t('support.status', 'Status')}</Text>
               <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedTicket.status) }]}>
                 <Text style={styles.statusText}>{selectedTicket.status.toUpperCase()}</Text>
               </View>
@@ -532,20 +615,20 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
 
           {/* Ticket Info */}
           <View style={styles.detailsSection}>
-            <Text style={styles.detailsTitle}>Ticket Information</Text>
+            <Text style={styles.detailsTitle}>{t('support.ticketInformation', 'Ticket Information')}</Text>
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Subject:</Text>
+              <Text style={styles.detailLabel}>{t('support.form.subject', 'Subject')}:</Text>
               <Text style={styles.detailValue}>{selectedTicket.subject}</Text>
             </View>
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Category:</Text>
-              <Text style={styles.detailValue}>{getCategoryLabel(selectedTicket.category)}</Text>
+              <Text style={styles.detailLabel}>{t('support.form.category', 'Category')}:</Text>
+              <Text style={styles.detailValue}>{getTranslatedCategoryLabel(selectedTicket.category)}</Text>
             </View>
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Priority:</Text>
+              <Text style={styles.detailLabel}>{t('support.form.priority', 'Priority')}:</Text>
               <View style={styles.priorityRow}>
                 <View style={[styles.priorityDot, { backgroundColor: getPriorityColor(selectedTicket.priority) }]} />
                 <Text style={[styles.detailValue, { color: getPriorityColor(selectedTicket.priority) }]}>
@@ -555,7 +638,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
             </View>
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Created:</Text>
+              <Text style={styles.detailLabel}>{t('support.created', 'Created')}:</Text>
               <Text style={styles.detailValue}>
                 {new Date(selectedTicket.created_at).toLocaleDateString()} at {new Date(selectedTicket.created_at).toLocaleTimeString()}
               </Text>
@@ -733,7 +816,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
             <TouchableOpacity onPress={onBack} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color={theme.primary} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Help & Support</Text>
+            <Text style={styles.headerTitle}>{t('support.title', 'Help & Support')}</Text>
             <View style={styles.placeholder} />
           </View>
 
@@ -752,7 +835,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
                 styles.tabText,
                 activeTab === 'create' && styles.activeTabText
               ]}>
-                Create Ticket
+                {t('support.createTicket', 'Create Ticket')}
               </Text>
             </TouchableOpacity>
 
@@ -769,7 +852,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
                 styles.tabText,
                 activeTab === 'tickets' && styles.activeTabText
               ]}>
-                My Tickets
+                {t('support.myTickets', 'My Tickets')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -795,18 +878,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 18,
     backgroundColor: theme.white,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: theme.lightBorder,
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   backButton: {
     padding: 8,
+    borderRadius: 8,
+    backgroundColor: theme.primaryLight,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.text,
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.darkText,
+    letterSpacing: -0.5,
   },
   placeholder: {
     width: 40,
@@ -815,225 +909,341 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: theme.white,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+    borderBottomColor: theme.lightBorder,
+    elevation: 1,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
+    paddingVertical: 18,
+    gap: 10,
   },
   activeTab: {
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
     borderBottomColor: theme.primary,
+    backgroundColor: theme.primaryLight + '30',
   },
   tabText: {
     fontSize: 16,
-    color: theme.lightText,
+    fontWeight: '500',
+    color: theme.mutedText,
   },
   activeTabText: {
     color: theme.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   tabContent: {
     flex: 1,
-    padding: 20,
+    padding: 24,
   },
   formGroup: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 8,
+    fontSize: 17,
+    fontWeight: '700',
+    color: theme.darkText,
+    marginBottom: 12,
+    letterSpacing: -0.3,
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.border,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
     fontSize: 16,
     color: theme.text,
     backgroundColor: theme.white,
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    fontWeight: '500',
   },
   textArea: {
-    height: 120,
+    height: 140,
+    textAlignVertical: 'top',
+    paddingTop: 18,
   },
   optionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
+    marginTop: 8,
   },
   optionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: 2,
     borderColor: theme.border,
     backgroundColor: theme.white,
+    elevation: 1,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   selectedOption: {
     backgroundColor: theme.primary,
     borderColor: theme.primary,
+    elevation: 3,
+    shadowOpacity: 0.15,
   },
   optionText: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
     color: theme.text,
   },
   selectedOptionText: {
     color: theme.white,
+    fontWeight: '700',
   },
   priorityContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
+    marginTop: 8,
   },
   priorityButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    borderWidth: 2,
     borderColor: theme.border,
     backgroundColor: theme.white,
-    gap: 8,
+    gap: 12,
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
   priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   priorityText: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
     color: theme.text,
   },
   submitButton: {
     backgroundColor: theme.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 16,
+    elevation: 4,
+    shadowColor: theme.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
   },
   disabledButton: {
-    opacity: 0.6,
+    opacity: 0.5,
+    elevation: 1,
+    shadowOpacity: 0.1,
   },
   submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: theme.white,
+    letterSpacing: 0.5,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 60,
   },
   loadingText: {
     fontSize: 16,
-    color: theme.lightText,
+    fontWeight: '500',
+    color: theme.mutedText,
+    marginTop: 12,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 48,
+    paddingVertical: 60,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: theme.text,
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.darkText,
+    marginTop: 20,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 16,
     color: theme.lightText,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
+    lineHeight: 26,
+    marginBottom: 32,
+    fontWeight: '500',
   },
   createFirstButton: {
     backgroundColor: theme.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: theme.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   createFirstButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: theme.white,
   },
   ticketCard: {
     backgroundColor: theme.white,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.lightBorder,
+    elevation: 3,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   ticketHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   ticketSubject: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.text,
+    fontSize: 17,
+    fontWeight: '700',
+    color: theme.darkText,
     flex: 1,
-    marginRight: 12,
+    marginRight: 16,
+    lineHeight: 24,
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    elevation: 1,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: theme.white,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   ticketCategory: {
     fontSize: 14,
-    color: theme.lightText,
-    marginBottom: 8,
+    color: theme.primary,
+    marginBottom: 10,
+    fontWeight: '600',
+    backgroundColor: theme.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
   },
   ticketDescription: {
-    fontSize: 14,
+    fontSize: 15,
     color: theme.text,
-    lineHeight: 20,
-    marginBottom: 12,
+    lineHeight: 22,
+    marginBottom: 16,
+    fontWeight: '500',
   },
   ticketFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.lightBorder,
   },
   ticketDate: {
-    fontSize: 12,
-    color: theme.lightText,
+    fontSize: 13,
+    color: theme.mutedText,
+    fontWeight: '500',
   },
   priorityIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    elevation: 1,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   // Ticket Details Styles
   ticketDetailsContent: {
     flex: 1,
-    padding: 20,
+    padding: 24,
   },
   detailsSection: {
     backgroundColor: theme.white,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.lightBorder,
+    elevation: 3,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   detailsHeader: {
     flexDirection: 'row',
@@ -1041,197 +1251,259 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   detailsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 12,
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.darkText,
+    marginBottom: 16,
+    letterSpacing: -0.3,
   },
   detailRow: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   detailLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: theme.lightText,
-    marginBottom: 4,
+    fontWeight: '700',
+    color: theme.mutedText,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   detailValue: {
     fontSize: 16,
     color: theme.text,
-    lineHeight: 22,
+    lineHeight: 24,
+    fontWeight: '500',
   },
   priorityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   descriptionBox: {
     backgroundColor: theme.background,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 16,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: theme.lightBorder,
+    marginTop: 4,
   },
   descriptionText: {
     fontSize: 16,
     color: theme.text,
-    lineHeight: 24,
+    lineHeight: 26,
+    fontWeight: '500',
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 2,
     borderColor: theme.border,
     backgroundColor: theme.white,
-    marginBottom: 8,
-    gap: 12,
+    marginBottom: 12,
+    gap: 16,
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
   actionButtonText: {
     fontSize: 16,
     color: theme.primary,
-    fontWeight: '500',
+    fontWeight: '700',
   },
   cancelButton: {
     borderColor: theme.error + '40',
-    backgroundColor: theme.error + '10',
+    backgroundColor: theme.error + '08',
   },
   // Messages Styles
   messageItem: {
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 8,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
   userMessage: {
     backgroundColor: theme.background,
     borderColor: theme.border,
-    marginLeft: 20,
+    marginLeft: 24,
+    borderTopLeftRadius: 6,
   },
   adminMessage: {
-    backgroundColor: theme.primary + '10',
+    backgroundColor: theme.primaryLight + '40',
     borderColor: theme.primary + '30',
-    marginRight: 20,
+    marginRight: 24,
+    borderTopRightRadius: 6,
   },
   messageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   messageAuthor: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   messageAuthorText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: theme.lightText,
+    fontWeight: '700',
+    color: theme.mutedText,
   },
   adminAuthorText: {
     color: theme.primary,
   },
   messageTime: {
     fontSize: 12,
-    color: theme.lightText,
+    color: theme.mutedText,
+    fontWeight: '500',
   },
   messageText: {
-    fontSize: 14,
+    fontSize: 15,
     color: theme.text,
-    lineHeight: 20,
+    lineHeight: 22,
+    fontWeight: '500',
   },
   noMessagesContainer: {
     alignItems: 'center',
-    padding: 24,
+    padding: 32,
   },
   noMessagesText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.lightText,
-    marginTop: 12,
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.mutedText,
+    marginTop: 16,
   },
   noMessagesSubtext: {
-    fontSize: 14,
+    fontSize: 15,
     color: theme.lightText,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 8,
+    fontWeight: '500',
   },
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   modalContent: {
     backgroundColor: theme.white,
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 20,
+    padding: 28,
     width: '100%',
-    maxWidth: 400,
-    maxHeight: '80%',
+    maxWidth: 420,
+    maxHeight: '85%',
+    elevation: 8,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.lightBorder,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: theme.text,
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.darkText,
+    letterSpacing: -0.3,
   },
   modalBody: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   modalLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: theme.text,
-    marginBottom: 8,
+    fontSize: 17,
+    fontWeight: '700',
+    color: theme.darkText,
+    marginBottom: 12,
   },
   commentInput: {
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.border,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 16,
+    padding: 18,
     fontSize: 16,
     color: theme.text,
     backgroundColor: theme.background,
-    minHeight: 100,
+    minHeight: 120,
+    textAlignVertical: 'top',
+    fontWeight: '500',
+    elevation: 1,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 16,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     alignItems: 'center',
+    elevation: 2,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: theme.lightText,
+    fontWeight: '700',
+    color: theme.mutedText,
   },
   modalSubmitButton: {
     backgroundColor: theme.primary,
+    elevation: 4,
+    shadowColor: theme.primary,
+    shadowOpacity: 0.25,
   },
   modalSubmitButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: theme.white,
   },
   modalDisabledButton: {
     backgroundColor: theme.border,
     opacity: 0.6,
+    elevation: 1,
+    shadowOpacity: 0.05,
   },
 });

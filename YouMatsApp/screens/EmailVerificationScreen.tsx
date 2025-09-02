@@ -12,6 +12,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 
@@ -43,6 +44,7 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
   onVerificationComplete,
   onBackToRegistration,
 }) => {
+  const { t } = useTranslation();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);

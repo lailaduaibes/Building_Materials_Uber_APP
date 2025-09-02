@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { DocumentUploadScreen } from './DocumentUploadScreen';
@@ -33,6 +34,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
   onRegistrationComplete,
   onBackToLogin,
 }) => {
+  const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState<RegistrationStep>('account');
   const [driverId, setDriverId] = useState<string>('');
   const [loading, setLoading] = useState(false);

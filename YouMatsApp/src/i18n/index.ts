@@ -138,6 +138,35 @@ const initializeI18n = async () => {
         load: 'languageOnly', // Load only language, not locale variants
         cleanCode: true, // Clean language codes
         nonExplicitSupportedLngs: true,
+        
+        // Professional empty string handling
+        returnEmptyString: false, // Don't return empty strings
+        returnNull: false, // Don't return null
+        returnObjects: false, // Return plain strings
+        
+        // Advanced fallback handling for empty translations
+        parseMissingKeyHandler: (key: string, defaultValue?: string) => {
+          console.warn('🌐 Missing translation for key:', key);
+          return defaultValue || key;
+        },
+        
+        // Handle nested keys properly
+        keySeparator: '.',
+        nsSeparator: false, // Disable namespace separator
+        
+        // Ensure proper fallback for empty values
+        returnedObjectHandler: (key: string, value: any, options: any) => {
+          if (value === '' || value === null || value === undefined) {
+            // Try fallback language first
+            const fallbackValue = i18n.getResource('en', 'translation', key);
+            if (fallbackValue && fallbackValue !== '') {
+              return fallbackValue;
+            }
+            // Return key as last resort
+            return key;
+          }
+          return value;
+        },
       });
     
     console.log('🌐 i18n initialized successfully');

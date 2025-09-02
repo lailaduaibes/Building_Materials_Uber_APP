@@ -14,6 +14,7 @@ import {
   ScrollView,
   Linking,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { ProfessionalMapMarker } from '../components/ProfessionalMapMarker';
@@ -34,6 +35,53 @@ import { useLanguage } from '../src/contexts/LanguageContext';
 const { width, height } = Dimensions.get('window');
 const isTablet = width >= 768;
 
+// Helper functions for trip status
+const getStatusLabel = (status: string): string => {
+  switch (status) {
+    case 'matched':
+      return 'ACCEPTED';
+    case 'driver_en_route':
+      return 'EN ROUTE';
+    case 'at_pickup':
+      return 'AT PICKUP';
+    case 'loaded':
+      return 'LOADED';
+    case 'in_transit':
+      return 'IN TRANSIT';
+    case 'at_delivery':
+      return 'AT DELIVERY';
+    case 'delivered':
+      return 'DELIVERED';
+    case 'completed':
+      return 'COMPLETED';
+    default:
+      return status.toUpperCase();
+  }
+};
+
+const getStatusColor = (status: string): string => {
+  switch (status) {
+    case 'matched':
+      return Colors.driver.online; // Blue
+    case 'driver_en_route':
+      return Colors.primary; // Primary blue
+    case 'at_pickup':
+      return Colors.status.warning; // Orange
+    case 'loaded':
+      return Colors.primary; // Blue
+    case 'in_transit':
+      return Colors.status.warning; // Orange
+    case 'at_delivery':
+      return Colors.status.warning; // Orange
+    case 'delivered':
+      return Colors.status.success; // Green
+    case 'completed':
+      return Colors.status.success; // Green
+    default:
+      return Colors.text.secondary; // Gray
+  }
+};
+
 interface ProfessionalDriverDashboardProps {
   onNavigateToProfile: () => void;
   onNavigateToOrder: (order: OrderAssignment) => void;
@@ -51,6 +99,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
 }) => {
   // Language support
   const { t, isRTL } = useLanguage();
+  const { t: i18nT } = useTranslation();
   
   const [driver, setDriver] = useState<Driver | null>(null);
   const [nearbyOrders, setNearbyOrders] = useState<OrderAssignment[]>([]);
@@ -780,7 +829,12 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                 >
                   <View style={styles.orderListHeader}>
                     <Text style={styles.orderListPrice}>AED {trip.estimated_fare}</Text>
-                    <Text style={[styles.orderListDistance, { color: Colors.driver.online }]}>ACCEPTED</Text>
+                    <Text style={[styles.orderListDistance, { 
+                      color: getStatusColor(trip.status),
+                      fontWeight: 'bold'
+                    }]}>
+                      {getStatusLabel(trip.status)}
+                    </Text>
                   </View>
                   <Text style={styles.orderListAddress} numberOfLines={1}>
                     📍 {trip.pickup_address || 'Pickup Location'}

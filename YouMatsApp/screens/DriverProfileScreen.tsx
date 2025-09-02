@@ -11,6 +11,7 @@ import {
   Switch,
   Image,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
@@ -87,6 +88,7 @@ interface DriverProfile {
 export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileScreenProps) {
   // Language support
   const { t, isRTL } = useLanguage();
+  const { t: i18nT } = useTranslation();
   
   const [driverProfile, setDriverProfile] = useState<DriverProfile | null>(null);
   const [driverTrucks, setDriverTrucks] = useState<any[]>([]); // NEW: Store actual truck data

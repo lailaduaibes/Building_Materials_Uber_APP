@@ -16,6 +16,7 @@ import {
   Dimensions,
   StatusBar,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, theme } from '../theme/colors';
 import { 
@@ -40,6 +41,7 @@ const RouteOptimizationScreen: React.FC<Props> = ({
   availableOrders,
   driverId,
 }) => {
+  const { t } = useTranslation();
   const [optimizedRoute, setOptimizedRoute] = useState<OptimizedRoute | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<OrderAssignment[]>([]);
