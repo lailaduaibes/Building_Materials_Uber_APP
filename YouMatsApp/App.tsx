@@ -29,6 +29,8 @@ import { LanguageProvider } from './src/contexts/LanguageContext';
 // Import modern services
 import { driverService, Driver, OrderAssignment } from './services/DriverService';
 import { driverLocationService } from './services/DriverLocationService';
+import { driverPushNotificationService } from './services/DriverPushNotificationService';
+import { asapTripHandler } from './services/ASAPTripHandler';
 
 // Import modern screens
 import ModernDriverDashboard from './screens/ModernDriverDashboard';
@@ -138,11 +140,51 @@ const App: React.FC = () => {
     }
   };
 
+  const checkForPendingASAPTrip = async () => {
+    try {
+      const pendingTripId = await AsyncStorage.getItem('pending_asap_trip');
+      if (pendingTripId) {
+        console.log('📱 Found pending ASAP trip from notification:', pendingTripId);
+        
+        // Clear the stored trip ID
+        await AsyncStorage.removeItem('pending_asap_trip');
+        
+        // Try to load the trip details and show order assignment
+        const availableTrips = await driverService.getAvailableTrips();
+        const pendingTrip = availableTrips.find(trip => trip.id === pendingTripId);
+        
+        if (pendingTrip) {
+          console.log('✅ Loading ASAP trip from notification');
+          setPendingOrder(pendingTrip);
+          setShowOrderAssignment(true);
+        } else {
+          console.warn('⚠️ Pending ASAP trip not found or expired');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error checking for pending ASAP trip:', error);
+    }
+  };
+
   const initializeDriver = async (userId: string) => {
     try {
       const driver = await driverService.initializeDriver(userId);
       if (driver) {
         setCurrentDriver(driver);
+        
+        // Initialize push notifications for driver
+        const pushInitialized = await driverPushNotificationService.initialize(userId);
+        if (pushInitialized) {
+          console.log('✅ Push notifications initialized for driver');
+          // Subscribe to real-time trip notifications
+          driverPushNotificationService.subscribeToTripNotifications();
+          
+          // Check for pending ASAP trip from notification tap
+          await checkForPendingASAPTrip();
+        } else {
+          console.warn('⚠️ Push notifications could not be initialized');
+        }
+        
         setCurrentScreen('dashboard');
         return true;
       }
@@ -263,9 +305,18 @@ const App: React.FC = () => {
     }
   };
 
-  const handleOrderReceived = (order: OrderAssignment) => {
-    setPendingOrder(order);
-    setShowOrderAssignment(true);
+  const handleOrderReceived = async (order: OrderAssignment) => {
+    // Handle ASAP trips with push notifications for background/closed app scenarios
+    if (order.pickupTimePreference === 'asap') {
+      await asapTripHandler.handleASAPTripAssignment(order, (order) => {
+        setPendingOrder(order);
+        setShowOrderAssignment(true);
+      });
+    } else {
+      // Regular scheduled trip handling
+      setPendingOrder(order);
+      setShowOrderAssignment(true);
+    }
     
     // Play notification sound or vibration here
     // Vibration.vibrate([0, 500, 200, 500]);

@@ -11,6 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { driverService } from '../services/DriverService';
 import { responsive } from '../utils/ResponsiveUtils';
 
@@ -43,6 +44,7 @@ interface RatingScreenProps {
 }
 
 const RatingScreen: React.FC<RatingScreenProps> = ({ route, navigation }) => {
+  const { t } = useTranslation();
   const { tripId, customerName, pickupLocation, deliveryLocation, completedAt, ratingType } = route.params;
   
   const [rating, setRating] = useState<number>(0);

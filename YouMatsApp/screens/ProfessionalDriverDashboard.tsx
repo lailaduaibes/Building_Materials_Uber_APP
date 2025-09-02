@@ -12,6 +12,7 @@ import {
   Animated,
   Platform,
   ScrollView,
+  Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
@@ -21,10 +22,14 @@ import { PickupTimeDisplay } from '../components/PickupTimeDisplay';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { driverService, Driver, OrderAssignment } from '../services/DriverService';
+import { driverPushNotificationService } from '../services/DriverPushNotificationService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 import { DriverChatScreen } from '../components/DriverChatScreen';
 import { ASAPTripModal } from '../components/ASAPTripModal';
 import { Colors, Typography, Spacing, ComponentSizes } from '../theme/colors';
+
+// Language support
+import { useLanguage } from '../src/contexts/LanguageContext';
 
 const { width, height } = Dimensions.get('window');
 const isTablet = width >= 768;
@@ -44,6 +49,9 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
   onNavigateToTripHistory,
   onNavigateToRouteOptimization,
 }) => {
+  // Language support
+  const { t, isRTL } = useLanguage();
+  
   const [driver, setDriver] = useState<Driver | null>(null);
   const [nearbyOrders, setNearbyOrders] = useState<OrderAssignment[]>([]);
   const [acceptedTrips, setAcceptedTrips] = useState<OrderAssignment[]>([]);
@@ -114,7 +122,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         
         try {
           await driverService.startASAPMonitoring(
-            (trip) => {
+            async (trip) => {
               console.log('⚡ [ASAP] New trip available:', trip.id.substring(0, 8));
               
               // Prevent duplicate modal for same trip
@@ -123,7 +131,12 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                 return;
               }
               
-              Alert.alert('⚡ ASAP Delivery Request', `${trip.customerName} • ${trip.distanceKm.toFixed(1)}km away`);
+              // Use push notification instead of Alert.alert
+              await driverPushNotificationService.showASAPTripNotification(
+                trip.id,
+                trip.pickupLocation.address,
+                trip.estimatedEarnings
+              );
               setCurrentASAPTrip(trip);
               setShowASAPModal(true);
             },
@@ -430,11 +443,11 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
 
       if (!locationPermission) {
         Alert.alert(
-          'Location Required',
-          'Please enable location services to go online and receive trip requests.',
+          t('dashboard.location.enableLocationTitle'),
+          t('dashboard.location.enableLocationMessage'),
           [
             { text: 'Enable', onPress: () => requestLocationPermission() },
-            { text: 'Cancel', style: 'cancel' }
+            { text: t('common.cancel'), style: 'cancel' }
           ]
         );
         setIsToggling(false);
@@ -650,19 +663,19 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         disabled={isToggling}
       >
         <Text style={styles.onlineButtonText}>
-          {isToggling ? 'UPDATING...' : (isOnline ? 'GO OFFLINE' : 'GO ONLINE')}
+          {isToggling ? t('dashboard.status.updating') : (isOnline ? t('dashboard.quickActions.goOffline') : t('dashboard.quickActions.goOnline'))}
         </Text>
       </TouchableOpacity>
     </View>
   );  const renderEarningsCard = () => (
     <View style={styles.earningsCard}>
       <View style={styles.earningsItem}>
-        <Text style={styles.earningsLabel}>Today</Text>
+        <Text style={styles.earningsLabel}>{t('dashboard.earnings.today')}</Text>
         <Text style={styles.earningsValue}>AED {earnings.today.toFixed(2)}</Text>
       </View>
       <View style={styles.earningsDivider} />
       <View style={styles.earningsItem}>
-        <Text style={styles.earningsLabel}>This Week</Text>
+        <Text style={styles.earningsLabel}>{t('dashboard.earnings.thisWeek')}</Text>
         <Text style={styles.earningsValue}>AED {earnings.thisWeek.toFixed(2)}</Text>
       </View>
     </View>
@@ -863,7 +876,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                 <Ionicons name="car-outline" size={48} color={Colors.text.secondary} />
                 <Text style={styles.emptyStateText}>No trips available</Text>
                 <Text style={styles.emptyStateSubtext}>
-                  {isOnline ? 'Check back in a few minutes' : 'Go online to see available trips'}
+                  {isOnline ? t('dashboard.noTrips.online') : t('dashboard.noTrips.offline')}
                 </Text>
               </View>
             )}

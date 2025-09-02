@@ -291,8 +291,13 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
         return;
       }
 
-      // For now, let's use a default document type - in a real app you'd let user choose
-      const documentType = 'vehicle_registration'; // or 'insurance', 'license', etc.
+      // For regular uploads (not replacements), default to vehicle_registration
+      const documentType = 'vehicle_registration';
+      
+      console.log('🔍 Regular Upload Info:', {
+        documentType,
+        fileName: file.name
+      });
       
       const uploadResult = await driverService.uploadDocument(
         currentDriver.id,
@@ -306,7 +311,7 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
       );
 
       if (uploadResult.success) {
-        Alert.alert('Success', 'Document uploaded successfully!');
+        Alert.alert('Success', `${getDocumentName(documentType)} uploaded successfully!`);
         // Refresh documents list
         loadDocuments();
       } else {
@@ -434,15 +439,115 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
           text: 'Replace',
           style: 'destructive',
           onPress: () => {
+            console.log('🔄 Replace document clicked for:', document.document_type);
             setViewerModalVisible(false);
             // Small delay to allow modal to close gracefully
             setTimeout(() => {
-              handleUploadDocument();
+              console.log('⏰ About to call replaceDocumentUpload with type:', document.document_type);
+              replaceDocumentUpload(document.document_type);
             }, 300);
           }
         }
       ]
     );
+  };
+
+  const replaceDocumentUpload = async (documentTypeToReplace: string) => {
+    // Get current driver ID first
+    const currentDriver = driverService.getCurrentDriver();
+    if (!currentDriver) {
+      Alert.alert('Error', 'Please log in to upload documents');
+      return;
+    }
+
+    Alert.alert(
+      'Upload Document',
+      `Choose how you want to replace your ${getDocumentName(documentTypeToReplace)}:`,
+      [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+            if (permissionResult.granted) {
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+              });
+              
+              if (!result.canceled && result.assets[0]) {
+                await uploadDocumentFileWithType(result.assets[0], documentTypeToReplace);
+              }
+            } else {
+              Alert.alert('Permission Required', 'Camera permission is needed to take photos.');
+            }
+          }
+        },
+        {
+          text: 'Choose File',
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/pdf', 'image/*'],
+                copyToCacheDirectory: true,
+              });
+              
+              if (!result.canceled && result.assets[0]) {
+                await uploadDocumentFileWithType(result.assets[0], documentTypeToReplace);
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to select document');
+            }
+          }
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ]
+    );
+  };
+
+  const uploadDocumentFileWithType = async (file: any, specificDocumentType: string) => {
+    try {
+      setUploading(true);
+      
+      const currentDriver = driverService.getCurrentDriver();
+      if (!currentDriver) {
+        Alert.alert('Error', 'Please log in to upload documents');
+        return;
+      }
+
+      console.log('🔍 Upload with specific type:', {
+        specificDocumentType,
+        fileName: file.name
+      });
+      
+      const uploadResult = await driverService.uploadDocument(
+        currentDriver.id,
+        specificDocumentType,
+        {
+          uri: file.uri,
+          name: file.name || 'document.jpg',
+          type: file.mimeType || 'image/jpeg',
+          size: file.size
+        }
+      );
+
+      if (uploadResult.success) {
+        Alert.alert('Success', `${getDocumentName(specificDocumentType)} uploaded successfully!`);
+        // Refresh documents list
+        loadDocuments();
+      } else {
+        Alert.alert('Upload Failed', uploadResult.message || 'Failed to upload document');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', 'Failed to upload document');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleCloseViewer = () => {

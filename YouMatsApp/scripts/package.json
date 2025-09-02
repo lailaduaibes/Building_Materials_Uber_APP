@@ -1,0 +1,12 @@
+{
+  "name": "auto-translate-runner",
+  "version": "1.0.0",
+  "main": "auto-translate.js",
+  "dependencies": {
+    "glob": "^8.0.0"
+  },
+  "scripts": {
+    "auto-translate": "node auto-translate.js",
+    "install-deps": "npm install glob"
+  }
+}

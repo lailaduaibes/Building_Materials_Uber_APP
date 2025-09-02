@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../src/contexts/LanguageContext';
 import { driverService } from '../services/DriverService';
 import { Colors } from '../theme/colors';
 
@@ -37,6 +38,7 @@ interface Trip {
 }
 
 export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
+  const { t } = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -52,13 +54,13 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
       id: trip.id,
       date: trip.delivered_at ? new Date(trip.delivered_at).toLocaleDateString() : new Date(trip.created_at).toLocaleDateString(),
       time: trip.delivered_at ? new Date(trip.delivered_at).toLocaleTimeString() : new Date(trip.created_at).toLocaleTimeString(),
-      customerName: trip.users ? `${trip.users.first_name || ''} ${trip.users.last_name || ''}`.trim() : 'Customer',
-      pickupAddress: trip.pickup_address?.formatted_address || trip.pickup_address || 'Pickup Location',
-      deliveryAddress: trip.delivery_address?.formatted_address || trip.delivery_address || 'Delivery Location',
+      customerName: trip.users ? `${trip.users.first_name || ''} ${trip.users.last_name || ''}`.trim() : t('common.customer'),
+      pickupAddress: trip.pickup_address?.formatted_address || trip.pickup_address || t('orders.pickup_location'),
+      deliveryAddress: trip.delivery_address?.formatted_address || trip.delivery_address || t('orders.delivery_location'),
       distance: trip.estimated_distance_km ? `${trip.estimated_distance_km.toFixed(1)} km` : 'N/A',
       duration: 'N/A', // We don't have duration in database
       earnings: trip.final_price || 0,
-      materials: trip.material_type ? [trip.material_type] : ['Building Materials'],
+      materials: trip.material_type ? [trip.material_type] : [t('orders.building_materials')],
       status: trip.status === 'delivered' ? 'completed' : trip.status,
       rating: trip.customer_rating || undefined,
       tip: 0 // We don't have tip data in database yet
@@ -135,7 +137,9 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
             styles.filterTabText,
             selectedFilter === filter && styles.filterTabTextActive,
           ]}>
-            {filter.charAt(0).toUpperCase() + filter.slice(1)}
+            {filter === 'all' ? t('common.all') : 
+             filter === 'completed' ? t('orders.status.completed') : 
+             t('orders.status.cancelled')}
           </Text>
         </TouchableOpacity>
       ))}
@@ -146,7 +150,7 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
     <TouchableOpacity 
       key={trip.id} 
       style={styles.tripCard}
-      onPress={() => Alert.alert('Trip Details', `View details for trip ${trip.id}`)}
+      onPress={() => Alert.alert(t('tripHistory.tripDetailsAlert'), `View details for trip ${trip.id}`)}
     >
       <View style={styles.tripHeader}>
         <View style={styles.tripTimeInfo}>
@@ -156,7 +160,7 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
         <View style={styles.tripEarnings}>
           <Text style={styles.earningsAmount}>{formatCurrency(trip.earnings)}</Text>
           {trip.tip && trip.tip > 0 && (
-            <Text style={styles.tipAmount}>+{formatCurrency(trip.tip)} tip</Text>
+            <Text style={styles.tipAmount}>+{formatCurrency(trip.tip)} {t('common.tip')}</Text>
           )}
         </View>
       </View>
@@ -182,22 +186,26 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
         <View style={styles.tripMeta}>
           <Text style={styles.metaText}>{trip.distance} • {trip.duration}</Text>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(trip.status) }]}>
-            <Text style={styles.statusText}>{trip.status}</Text>
+            <Text style={styles.statusText}>
+              {trip.status === 'completed' ? t('orders.status.completed') : 
+               trip.status === 'cancelled' ? t('orders.status.cancelled') : 
+               t('orders.status.ongoing')}
+            </Text>
           </View>
         </View>
       </View>
 
       <View style={styles.materialsSection}>
-        <Text style={styles.materialsLabel}>Materials:</Text>
+        <Text style={styles.materialsLabel}>{t('trips.materials')}:</Text>
         <Text style={styles.materialsText} numberOfLines={1}>
-          {trip.materials && Array.isArray(trip.materials) ? trip.materials.join(', ') : 'Building Materials'}
+          {trip.materials && Array.isArray(trip.materials) ? trip.materials.join(', ') : t('orders.materials')}
         </Text>
       </View>
 
       {trip.rating && (
         <View style={styles.ratingSection}>
           {renderStars(trip.rating)}
-          <Text style={styles.ratingText}>Customer Rating</Text>
+          <Text style={styles.ratingText}>{t('tripHistory.customerRating')}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -212,19 +220,19 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
 
     return (
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Today's Summary</Text>
+        <Text style={styles.summaryTitle}>{t('tripHistory.todaySummary')}</Text>
         <View style={styles.summaryStats}>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryValue}>{completedTrips.length}</Text>
-            <Text style={styles.summaryLabel}>Trips</Text>
+            <Text style={styles.summaryLabel}>{t('tripHistory.trips')}</Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryValue}>{formatCurrency(totalEarnings)}</Text>
-            <Text style={styles.summaryLabel}>Earnings</Text>
+            <Text style={styles.summaryLabel}>{t('tripHistory.earnings')}</Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryValue}>{avgRating.toFixed(1)}</Text>
-            <Text style={styles.summaryLabel}>Rating</Text>
+            <Text style={styles.summaryLabel}>{t('tripHistory.rating')}</Text>
           </View>
         </View>
       </View>
@@ -238,8 +246,8 @@ export default function TripHistoryScreen({ onBack }: TripHistoryScreenProps) {
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Trip History</Text>
-        <TouchableOpacity onPress={() => Alert.alert('Search', 'Search trips functionality')}>
+        <Text style={styles.headerTitle}>{t('tripHistory.title')}</Text>
+        <TouchableOpacity onPress={() => Alert.alert(t('common.search'), t('tripHistory.searchTrips'))}>
           <Ionicons name="search" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
       </View>

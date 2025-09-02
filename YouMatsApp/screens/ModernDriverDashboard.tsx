@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { driverService, Driver, DriverStats, OrderAssignment, ApprovalStatus } from '../services/DriverService';
+import { driverPushNotificationService } from '../services/DriverPushNotificationService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 import { Colors, Typography, Spacing, ComponentSizes, createShadow } from '../theme/colors';
 import { PickupTimeDisplay } from '../components/PickupTimeDisplay';
@@ -461,9 +462,15 @@ const ModernDriverDashboard: React.FC<ModernDriverDashboardProps> = ({
           
           try {
             await driverService.startASAPMonitoring(
-              (trip) => {
+              async (trip) => {
                 console.log('🚨🚨🚨 [FORCE ASAP] NEW TRIP CALLBACK!', trip.id);
-                Alert.alert('🚨 ASAP TRIP!', `${trip.customerName} - ${trip.distanceKm.toFixed(1)}km`);
+                
+                // Use push notification instead of Alert.alert
+                await driverPushNotificationService.showASAPTripNotification(
+                  trip.id,
+                  trip.pickupLocation.address,
+                  trip.estimatedEarnings
+                );
                 setCurrentASAPTrip(trip);
                 setShowASAPModal(true);
               },

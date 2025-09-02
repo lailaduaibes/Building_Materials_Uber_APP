@@ -2,7 +2,7 @@
  * OrderAssignmentScreen - Uber-style Order Assignment Interface
  * Enhanced with distance calculation, route preview, and smart analytics
  * Shows incoming order assignments with accept/decline functionality
- * Black & White Theme
+ * Black & White Theme with Multi-Language Support
  */
 
 import React, { useState, useEffect } from 'react';
@@ -18,6 +18,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { OrderAssignment, driverService } from '../services/DriverService';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 
@@ -54,6 +55,7 @@ const OrderAssignmentScreen: React.FC<Props> = ({
   onDecline,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [timeRemaining, setTimeRemaining] = useState(30); // 30 seconds to accept
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
@@ -289,12 +291,12 @@ const OrderAssignmentScreen: React.FC<Props> = ({
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.declineButton} onPress={handleDecline}>
-              <Text style={styles.declineButtonText}>Decline</Text>
+              <Text style={styles.declineButtonText}>{t('orderAssignment.declineOrder')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}>
               <View style={styles.acceptButtonGradient}>
-                <Text style={styles.acceptButtonText}>Accept</Text>
+                <Text style={styles.acceptButtonText}>{t('orderAssignment.acceptOrder')}</Text>
               </View>
             </TouchableOpacity>
           </View>

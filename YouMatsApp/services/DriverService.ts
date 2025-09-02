@@ -1902,6 +1902,12 @@ class DriverService {
       }
 
       if (freshDriverData) {
+        console.log('🔍 Fresh driver data from database:', {
+          id: freshDriverData.id,
+          approval_status: freshDriverData.approval_status,
+          profile_image_url: freshDriverData.profile_image_url
+        });
+        
         // Update current driver with fresh data
         this.currentDriver = {
           ...this.currentDriver,
@@ -1910,9 +1916,13 @@ class DriverService {
           // Update other fields that might have changed
           firstName: freshDriverData.first_name,
           lastName: freshDriverData.last_name,
-          phone: freshDriverData.phone
+          phone: freshDriverData.phone,
+          profile_image_url: freshDriverData.profile_image_url, // ⭐ ADD: Update profile image URL
         };
-        console.log('✅ Driver profile refreshed with latest approval status:', freshDriverData.approval_status);
+        console.log('✅ Driver profile refreshed with latest data:', {
+          approval_status: freshDriverData.approval_status,
+          profile_image_url: freshDriverData.profile_image_url
+        });
       }
     } catch (error) {
       console.error('❌ Exception refreshing driver profile:', error);
@@ -4480,23 +4490,28 @@ class DriverService {
 
   /**
    * Check if a trip should be visible to drivers
-   * This is a safety check to prevent wrongly hiding valid trips
+   * This is a safety check to prevent showing expired trips
    */
   private shouldTripBeVisible(trip: any): { visible: boolean; reason: string } {
     const now = new Date();
     
-    // Must be pending status
+    // Must be pending status - check for expired status first
+    if (trip.status === 'expired') {
+      return { visible: false, reason: 'Trip is marked as expired' };
+    }
+    
     if (trip.status !== 'pending') {
       return { visible: false, reason: `Status is ${trip.status}` };
     }
     
-    // Check acceptance deadline
-    const deadline = new Date(trip.acceptance_deadline);
-    if (!trip.acceptance_deadline || deadline <= now) {
-      const minutesLate = trip.acceptance_deadline ? 
-        Math.round((now.getTime() - deadline.getTime()) / 60000) : 
-        'unknown (null deadline)';
-      return { visible: false, reason: `Deadline expired ${minutesLate} minutes ago` };
+    // Check for ASAP trips - expire after 1 hour
+    if (trip.pickup_time_preference === 'asap') {
+      const createdTime = new Date(trip.created_at);
+      const hoursOld = (now.getTime() - createdTime.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursOld > 1) {
+        return { visible: false, reason: `ASAP trip created ${hoursOld.toFixed(1)} hours ago (expired)` };
+      }
     }
     
     // Check scheduled pickup time (if scheduled)
@@ -4505,7 +4520,16 @@ class DriverService {
       const hoursLate = (now.getTime() - scheduledTime.getTime()) / (1000 * 60 * 60);
       
       if (hoursLate > 2) {
-        return { visible: false, reason: `Scheduled pickup was ${hoursLate.toFixed(1)} hours ago` };
+        return { visible: false, reason: `Scheduled pickup was ${hoursLate.toFixed(1)} hours ago (expired)` };
+      }
+    }
+    
+    // Check acceptance deadline if it exists (most important check)
+    if (trip.acceptance_deadline) {
+      const deadline = new Date(trip.acceptance_deadline);
+      if (deadline <= now) {
+        const minutesLate = Math.round((now.getTime() - deadline.getTime()) / 60000);
+        return { visible: false, reason: `Deadline expired ${minutesLate} minutes ago` };
       }
     }
     
@@ -4513,34 +4537,26 @@ class DriverService {
   }
 
   
-  // Simple trip expiration - just based on pickup time
+  // Simple trip expiration - uses database function with proper permissions
   private async simpleCleanupExpiredTrips(): Promise<void> {
     try {
-      console.log('🧹 Simple cleanup: marking expired trips based on pickup time...');
+      console.log('🧹 Simple cleanup: checking for expired trips...');
       
-      // Mark old ASAP trips as expired (older than 1 hour)
-      const { data: asapUpdated, error: asapError } = await supabase
-        .from('trip_requests')
-        .update({ status: 'expired' })
-        .eq('status', 'pending')
-        .eq('pickup_time_preference', 'asap')
-        .lt('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString()); // 1 hour ago
+      // Use the database function that handles RLS properly
+      const { data, error } = await supabase.rpc('cleanup_expired_trip_requests');
       
-      // Mark scheduled trips as expired if their pickup time has passed
-      const { data: scheduledUpdated, error: scheduledError } = await supabase
-        .from('trip_requests')
-        .update({ status: 'expired' })
-        .eq('status', 'pending')
-        .eq('pickup_time_preference', 'scheduled')
-        .lt('scheduled_pickup_time', new Date().toISOString());
-      
-      if (!asapError && !scheduledError) {
-        console.log('✅ Simple cleanup completed successfully');
+      if (error) {
+        console.error('❌ Simple cleanup had errors:', { 
+          asapError: null, 
+          scheduledError: error 
+        });
+        console.log('ℹ️ Expired trips will be filtered out during fetch instead');
       } else {
-        console.error('❌ Simple cleanup had errors:', { asapError, scheduledError });
+        console.log(`✅ Simple cleanup completed successfully. Expired ${data || 0} trips.`);
       }
     } catch (error) {
       console.error('❌ Error during simple trip cleanup:', error);
+      console.log('ℹ️ Using client-side filtering for expired trips');
     }
   }
 
@@ -4553,20 +4569,7 @@ class DriverService {
       
       if (error) {
         console.error('❌ Failed to cleanup expired trips:', error.message);
-        
-        // Fallback: manual cleanup
-        const { data: manualCleanup, error: manualError } = await supabase
-          .from('trip_requests')
-          .update({ status: 'expired' })
-          .eq('status', 'pending')
-          .lt('acceptance_deadline', new Date().toISOString());
-          
-        if (manualError) {
-          console.error('❌ Manual cleanup also failed:', manualError.message);
-          return 0;
-        }
-        
-        console.log('✅ Manual cleanup completed');
+        console.log('ℹ️ Expired trips will be filtered client-side instead');
         return 0;
       }
       

@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { Colors } from '../theme/colors'; // Import YouMats theme
+import { useLanguage } from '../src/contexts/LanguageContext';
 
 const { width } = Dimensions.get('window');
 
@@ -47,6 +48,7 @@ interface EarningsData {
 }
 
 export default function EarningsScreen({ onBack }: EarningsScreenProps) {
+  const { t } = useLanguage();
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [earningsData, setEarningsData] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,10 +140,10 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Earnings</Text>
+          <Text style={styles.headerTitle}>{t('earnings.title')}</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading earnings...</Text>
+          <Text style={styles.loadingText}>{t('earnings.loading_earnings')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -162,7 +164,7 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
             styles.periodButtonText,
             selectedPeriod === period && styles.periodButtonTextActive,
           ]}>
-            {period.charAt(0).toUpperCase() + period.slice(1)}
+            {t(`earnings.${period}`)}
           </Text>
         </TouchableOpacity>
       ))}
@@ -172,26 +174,26 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
   const renderEarningsCard = () => (
     <View style={styles.earningsCard}>
       <View style={styles.earningsHeader}>
-        <Text style={styles.earningsTitle}>Total Earnings</Text>
+        <Text style={styles.earningsTitle}>{t('earnings.total_earnings')}</Text>
         <Text style={styles.earningsAmount}>{formatCurrency(currentData?.earnings || 0)}</Text>
       </View>
       
       <View style={styles.earningsStats}>
         <View style={styles.statItem}>
           <Ionicons name="car" size={20} color={Colors.primary} />
-          <Text style={styles.statLabel}>Trips</Text>
+          <Text style={styles.statLabel}>{t('trips.title')}</Text>
           <Text style={styles.statValue}>{currentData?.trips || 0}</Text>
         </View>
         
         <View style={styles.statItem}>
           <Ionicons name="time" size={20} color={Colors.primary} />
-          <Text style={styles.statLabel}>Online</Text>
+          <Text style={styles.statLabel}>{t('earnings.online_time')}</Text>
           <Text style={styles.statValue}>{currentData?.onlineTime || '0h 0m'}</Text>
         </View>
         
         <View style={styles.statItem}>
           <Ionicons name="trending-up" size={20} color={Colors.primary} />
-          <Text style={styles.statLabel}>Avg/Trip</Text>
+          <Text style={styles.statLabel}>{t('earnings.avg_trip')}</Text>
           <Text style={styles.statValue}>{formatCurrency(currentData?.averagePerTrip || 0)}</Text>
         </View>
       </View>
@@ -201,9 +203,9 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
   const renderPayoutHistory = () => (
     <View style={styles.payoutSection}>
       <View style={styles.payoutHeader}>
-        <Text style={styles.sectionTitle}>Recent Payouts</Text>
-        <TouchableOpacity onPress={() => Alert.alert('Payout Details', 'View complete payout history')}>
-          <Text style={styles.viewAllText}>View All</Text>
+        <Text style={styles.sectionTitle}>{t('earnings.recent_payouts')}</Text>
+        <TouchableOpacity onPress={() => Alert.alert(t('earnings.payout_details'), t('earnings.view_complete_history'))}>
+          <Text style={styles.viewAllText}>{t('common.view_all')}</Text>
         </TouchableOpacity>
       </View>
       
@@ -225,26 +227,26 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
     <View style={styles.quickActions}>
       <TouchableOpacity 
         style={styles.actionButton}
-        onPress={() => Alert.alert('Cash Out', 'Instant cash out feature coming soon')}
+        onPress={() => Alert.alert(t('earnings.cash_out'), t('earnings.cash_out_coming_soon'))}
       >
         <Ionicons name="card" size={24} color={Colors.text.onPrimary} />
-        <Text style={styles.actionButtonText}>Cash Out</Text>
+        <Text style={styles.actionButtonText}>{t('earnings.cash_out')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
         style={styles.actionButton}
-        onPress={() => Alert.alert('Tax Documents', 'Download tax documents')}
+        onPress={() => Alert.alert(t('earnings.tax_documents'), t('earnings.download_tax_docs'))}
       >
         <Ionicons name="document" size={24} color={Colors.text.onPrimary} />
-        <Text style={styles.actionButtonText}>Tax Docs</Text>
+        <Text style={styles.actionButtonText}>{t('earnings.tax_docs')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
         style={styles.actionButton}
-        onPress={() => Alert.alert('Trip Details', 'View detailed trip breakdown')}
+        onPress={() => Alert.alert(t('earnings.trip_details'), t('earnings.view_trip_breakdown'))}
       >
         <Ionicons name="list" size={24} color={Colors.text.onPrimary} />
-        <Text style={styles.actionButtonText}>Trip Details</Text>
+        <Text style={styles.actionButtonText}>{t('earnings.trip_details')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -256,8 +258,8 @@ export default function EarningsScreen({ onBack }: EarningsScreenProps) {
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Earnings</Text>
-        <TouchableOpacity onPress={() => Alert.alert('Help', 'Contact support for earnings questions')}>
+        <Text style={styles.headerTitle}>{t('earnings.title')}</Text>
+        <TouchableOpacity onPress={() => Alert.alert(t('common.help'), t('earnings.contact_support'))}>
           <Ionicons name="help-circle-outline" size={24} color={Colors.primary} />
         </TouchableOpacity>
       </View>

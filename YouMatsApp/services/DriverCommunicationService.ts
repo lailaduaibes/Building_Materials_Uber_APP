@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import { driverPushNotificationService } from './DriverPushNotificationService';
 
 const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
@@ -531,9 +532,37 @@ class DriverCommunicationService {
           table: 'trip_messages',
           filter: `trip_id=eq.${tripId}`,
         },
-        (payload) => {
+        async (payload) => {
           console.log('📨 New message received:', payload.new);
-          onMessage(payload.new as TripMessage);
+          const newMessage = payload.new as TripMessage;
+          
+          // Check if this is a customer message (not from driver)
+          if (newMessage.sender_type === 'customer' && newMessage.sender_id !== this.currentUserId) {
+            console.log('💬 Customer message received, sending push notification');
+            
+            // Send push notification for customer message
+            try {
+              await driverPushNotificationService.sendLocalNotification({
+                tripId: tripId,
+                type: 'customer_message',
+                title: '💬 New Message from Customer',
+                message: this.truncateMessage(newMessage.content),
+                priority: 'normal',
+                sound: 'default',
+                data: {
+                  message_id: newMessage.id,
+                  sender_type: newMessage.sender_type,
+                  message_type: newMessage.message_type,
+                  timestamp: newMessage.created_at,
+                }
+              });
+            } catch (error) {
+              console.error('❌ Failed to send push notification for customer message:', error);
+            }
+          }
+          
+          // Call the original callback
+          onMessage(newMessage);
         }
       )
       .subscribe();
@@ -543,6 +572,16 @@ class DriverCommunicationService {
       subscription.unsubscribe();
       console.log('🔄 Unsubscribed from trip messages');
     };
+  }
+
+  /**
+   * Truncate message for notification display
+   */
+  private truncateMessage(message: string, maxLength: number = 50): string {
+    if (message.length <= maxLength) {
+      return message;
+    }
+    return message.substring(0, maxLength) + '...';
   }
 
   /**

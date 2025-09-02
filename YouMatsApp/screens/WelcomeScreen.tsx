@@ -1,6 +1,6 @@
 /**
  * YouMats Driver App Welcome Screen
- * Professional welcome screen matching customer app design
+ * Professional welcome screen matching customer app design with multi-language support
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -14,6 +14,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { YouMatsLogo } from '../components';
 import { Colors, getGradient } from '../theme/colors';
 
@@ -29,6 +30,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onGetStarted, 
   onLogin 
 }) => {
+  const { t } = useTranslation();
+  
   // Animation values
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.5)).current;
@@ -148,7 +151,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           onPress={onGetStarted}
           activeOpacity={0.9}
         >
-          <Text style={styles.primaryButtonText}>Get Started</Text>
+          <Text style={styles.primaryButtonText}>{t('welcome.getStarted')}</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -156,7 +159,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           onPress={onLogin}
           activeOpacity={0.9}
         >
-          <Text style={styles.secondaryButtonText}>I already have an account</Text>
+          <Text style={styles.secondaryButtonText}>{t('welcome.alreadyDriver')} {t('welcome.loginButton')}</Text>
         </TouchableOpacity>
       </Animated.View>
     </LinearGradient>

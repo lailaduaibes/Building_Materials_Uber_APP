@@ -17,6 +17,7 @@ import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 import VehicleManagementScreen from './VehicleManagementScreen';
 import VehicleDocumentsScreen from './VehicleDocumentsScreen';
 import SpecializationsManagementScreen from './SpecializationsManagementScreen';
+import SupportScreen from './SupportScreen';
 import { createClient } from '@supabase/supabase-js';
 
 // Import language components
@@ -93,6 +94,8 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
   const [showVehicleManagement, setShowVehicleManagement] = useState(false);
   const [showVehicleDocuments, setShowVehicleDocuments] = useState<any>(null);
   const [showSpecializationsManagement, setShowSpecializationsManagement] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
+  const [imageRefreshKey, setImageRefreshKey] = useState(Date.now()); // Force image re-render
   const [settings, setSettings] = useState({
     notifications: true,
     locationSharing: true,
@@ -152,6 +155,12 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
       const accountCreated = new Date(currentDriver.created_at || new Date());
       const yearsActive = Math.max(1, new Date().getFullYear() - accountCreated.getFullYear());
 
+      console.log('🖼️ Profile Image Debug:', {
+        profile_image_url: currentDriver.profile_image_url,
+        profileImage: currentDriver.profile_image_url || undefined,
+        hasProfileImage: !!currentDriver.profile_image_url
+      });
+
       const profile: DriverProfile = {
         id: currentDriver.id,
         name: currentDriver.fullName || `${currentDriver.firstName} ${currentDriver.lastName}`.trim() || 'Driver',
@@ -183,6 +192,8 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
       };
 
       setDriverProfile(profile);
+      // Force image refresh when profile is updated
+      setImageRefreshKey(Date.now());
       // Also reload truck data
       await loadDriverTrucks();
       console.log('✅ Driver profile loaded:', profile.name);
@@ -247,11 +258,30 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
       <View style={styles.profileHeader}>
         <View style={styles.profileImageContainer}>
           {driverProfile.profileImage ? (
-            <Image source={{ uri: driverProfile.profileImage }} style={styles.profileImage} />
+            <>
+              {console.log('📸 Displaying profile image:', driverProfile.profileImage, 'with refresh key:', imageRefreshKey)}
+              <Image 
+                key={imageRefreshKey} // Force re-render when key changes
+                source={{ 
+                  uri: `${driverProfile.profileImage}?t=${imageRefreshKey}` // Use refresh key for cache-busting
+                }} 
+                style={styles.profileImage}
+                onError={(error) => {
+                  console.error('❌ Image load error:', error.nativeEvent.error);
+                  console.error('❌ Failed URL:', `${driverProfile.profileImage}?t=${imageRefreshKey}`);
+                }}
+                onLoad={() => {
+                  console.log('✅ Image loaded successfully:', `${driverProfile.profileImage}?t=${imageRefreshKey}`);
+                }}
+              />
+            </>
           ) : (
-            <View style={styles.profileImagePlaceholder}>
-              <Ionicons name="person" size={50} color={theme.white} />
-            </View>
+            <>
+              {console.log('👤 No profile image, showing placeholder')}
+              <View style={styles.profileImagePlaceholder}>
+                <Ionicons name="person" size={50} color={theme.white} />
+              </View>
+            </>
           )}
           <TouchableOpacity 
             style={styles.editImageButton}
@@ -332,13 +362,6 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
             </View>
           </View>
           
-          <View style={styles.vehicleRow}>
-            <Ionicons name="location-outline" size={20} color={theme.primary} />
-            <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={styles.vehicleLabel}>Max Distance</Text>
-              <Text style={styles.vehicleValue}>{driverProfile.maxDistance} km</Text>
-            </View>
-          </View>
         </View>
       </View>
     );
@@ -434,7 +457,13 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                   {(truck.truck_types as any)?.description && (
                     <View style={styles.vehicleRow}>
                       <Text style={styles.vehicleLabel}>Description:</Text>
-                      <Text style={styles.vehicleValue}>{(truck.truck_types as any).description}</Text>
+                      <Text 
+                        style={styles.vehicleValue} 
+                        numberOfLines={3}
+                        ellipsizeMode="tail"
+                      >
+                        {(truck.truck_types as any).description}
+                      </Text>
                     </View>
                   )}
                   {truck.source === 'driver_profile' && (
@@ -538,20 +567,8 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         </View>
       </View>
       
-      {/* Existing Settings */}
-      {Object.entries(settings).map(([key, value]) => (
-        <View key={key} style={styles.settingItem}>
-          <Text style={styles.settingLabel}>
-            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-          </Text>
-          <Switch
-            value={value}
-            onValueChange={(newValue) => setSettings(prev => ({ ...prev, [key]: newValue }))}
-            trackColor={{ false: theme.border, true: theme.primary }}
-            thumbColor={theme.white}
-          />
-        </View>
-      ))}
+      {/* Removed notification and location sharing settings as requested */}
+      {/* These settings are not needed for driver app */}
     </View>
   );
 
@@ -559,7 +576,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
     <View style={styles.actionButtons}>
       <TouchableOpacity 
         style={styles.actionButton}
-        onPress={() => Alert.alert('Support', 'Contact YouMats support')}
+        onPress={() => setShowSupport(true)}
       >
         <Ionicons name="help-circle-outline" size={24} color={theme.primary} />
         <Text style={styles.actionButtonText}>Help & Support</Text>
@@ -608,6 +625,10 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
           currentTruckTypes={driverProfile?.preferredTruckTypes || []}
           onUpdate={loadDriverProfile}
         />
+      ) : showSupport ? (
+        <SupportScreen 
+          onBack={() => setShowSupport(false)} 
+        />
       ) : (
         <>
           {/* Header */}
@@ -616,8 +637,22 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
               <Ionicons name="arrow-back" size={24} color={theme.primary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Profile</Text>
-            <TouchableOpacity onPress={() => Alert.alert('Edit Profile', 'Edit profile information')}>
-              <Ionicons name="pencil" size={24} color={theme.primary} />
+            <TouchableOpacity 
+              onPress={async () => {
+                try {
+                  console.log('🔄 Manual profile refresh triggered');
+                  // Force image to re-render by updating refresh key
+                  setImageRefreshKey(Date.now());
+                  await loadDriverProfile();
+                  Alert.alert('Profile Refreshed', 'Your profile has been updated with the latest information');
+                } catch (error) {
+                  console.error('❌ Error refreshing profile:', error);
+                  Alert.alert('Refresh Failed', 'Failed to refresh profile. Please try again.');
+                }
+              }}
+              style={styles.refreshButton}
+            >
+              <Ionicons name="refresh" size={24} color={theme.primary} />
             </TouchableOpacity>
           </View>
 
@@ -666,6 +701,9 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.border,
   },
   backButton: {
+    padding: 5,
+  },
+  refreshButton: {
     padding: 5,
   },
   headerTitle: {
@@ -789,16 +827,23 @@ const styles = StyleSheet.create({
   vehicleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start', // Align to top for better text wrapping
     marginBottom: 8,
+    flexWrap: 'wrap', // Allow row to wrap if needed
   },
   vehicleLabel: {
     fontSize: 14,
     color: theme.lightText,
+    minWidth: 100, // Fixed minimum width for consistent layout
+    marginRight: 12, // Space between label and value
   },
   vehicleValue: {
     fontSize: 14,
     fontWeight: '500',
     color: theme.text,
+    flex: 1, // Allow text to take available space
+    textAlign: 'right', // Align text to the right
+    flexWrap: 'wrap', // Allow text wrapping
   },
   specializationsContainer: {
     flexDirection: 'row',
@@ -1028,6 +1073,8 @@ const styles = StyleSheet.create({
     color: theme.primary,
     marginLeft: 6,
     flex: 1,
+    flexWrap: 'wrap', // Allow text wrapping
+    lineHeight: 16, // Better line spacing for wrapped text
   },
   vehicleDocumentsButton: {
     flexDirection: 'row',

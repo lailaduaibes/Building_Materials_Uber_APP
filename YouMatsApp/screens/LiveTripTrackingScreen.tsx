@@ -1,17 +1,6 @@
 /**
  * LiveTripTrackingScreen - Driver's Real-time Trip Tracking
- * Matches the customer app experience w      case 'assigned':
-        console.log('➡️ Order status "assigned" mapped to: matched');
-        return 'matched';
-      case 'in_transit':
-        console.log('➡️ Order status "in_transit" mapped to: in_transit');
-        return 'in_transit';
-      case 'delivered':
-        console.log('➡️ Order status mapped to: delivered');
-        return 'delivered';
-      default:
-        console.log('➡️ Unknown order status, defaulting to: matched');
-        return 'matched';ation updates
+ * Matches the customer app experience with real-time location updates
  * Shows trip progress, customer location, and provides status updates
  */
 
@@ -32,6 +21,7 @@ import {
 import MapView, { Marker, Polyline, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../src/contexts/LanguageContext';
 import { LocationCoordinates, driverLocationService } from '../services/DriverLocationService';
 import { driverService, OrderAssignment } from '../services/DriverService';
 import { createClient } from '@supabase/supabase-js';
@@ -92,6 +82,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
   onBack,
   onCompleteTrip,
 }) => {
+  const { t } = useLanguage();
   const [driverLocation, setDriverLocation] = useState<LocationCoordinates | null>(null);
   const [customerLocation, setCustomerLocation] = useState<LocationCoordinates | null>(null);
   const [tripStatus, setTripStatus] = useState<TripTracking['status']>('matched');
@@ -175,11 +166,11 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
       const locationPermissionGranted = await driverLocationService.initializeDriver(driverId);
       if (!locationPermissionGranted) {
         Alert.alert(
-          'Location Permission Required',
-          'Please enable location access to track your trip.',
+          t('liveTracking.locationPermissionRequired'),
+          t('liveTracking.enableLocationAccess'),
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Settings', onPress: () => Linking.openSettings() }
+            { text: t('liveTracking.cancel'), style: 'cancel' },
+            { text: t('liveTracking.settings'), onPress: () => Linking.openSettings() }
           ]
         );
         return;
@@ -208,7 +199,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
       setLoading(false);
     } catch (error) {
       console.error('Error initializing trip:', error);
-      Alert.alert('Error', 'Failed to initialize trip tracking');
+      Alert.alert(t('liveTracking.error'), t('liveTracking.failedToInitialize'));
       setLoading(false);
     }
   };
@@ -383,12 +374,12 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
     };
 
     Alert.alert(
-      'Update Status',
-      `Mark trip as: ${statusMessages[status] || status}?`,
+      t('liveTracking.updateStatusTitle'),
+      t('liveTracking.updateStatusMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('liveTracking.cancel'), style: 'cancel' },
         { 
-          text: 'Confirm', 
+          text: t('liveTracking.confirm'), 
           onPress: () => {
             console.log('   User confirmed status update to:', status);
             updateTripStatus(status);
@@ -405,7 +396,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
     if (order.customerPhone) {
       Linking.openURL(`tel:${order.customerPhone}`);
     } else {
-      Alert.alert('No Contact', 'Customer phone number not available');
+      Alert.alert(t('liveTracking.noContact'), t('liveTracking.customerPhoneNotAvailable'));
     }
   };
 
@@ -452,7 +443,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Initializing trip tracking...</Text>
+          <Text style={styles.loadingText}>{t('liveTracking.initializingTracking')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -468,7 +459,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Trip #{order.id.slice(-6)}</Text>
+          <Text style={styles.headerTitle}>{t('liveTracking.tripNumber')}{order.id.slice(-6)}</Text>
           <Text style={styles.headerSubtitle}>{order.customerName}</Text>
         </View>
         <TouchableOpacity style={styles.phoneButton} onPress={callCustomer}>
@@ -497,8 +488,8 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
                 latitude: driverLocation.latitude,
                 longitude: driverLocation.longitude,
               }}
-              title="Your Location"
-              description="Driver"
+              title={t('liveTracking.yourLocation')}
+              description={t('liveTracking.driver')}
             >
               <View style={styles.driverMarker}>
                 <Ionicons name="car" size={20} color={theme.secondary} />
@@ -511,7 +502,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
                 latitude: customerLocation.latitude,
                 longitude: customerLocation.longitude,
               }}
-              title="Customer Location"
+              title={t('liveTracking.customerLocation')}
               description={order.pickupLocation.address}
             >
               <View style={styles.customerMarker}>
@@ -544,7 +535,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
           {/* Status and ETA */}
           <View style={styles.statusCard}>
             <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Status:</Text>
+              <Text style={styles.statusLabel}>{t('liveTracking.status')}</Text>
               <Text style={[styles.statusValue, { color: theme.accent }]}>
                 {tripStatus ? tripStatus.replace('_', ' ').toUpperCase() : 'UNKNOWN'}
               </Text>
@@ -552,14 +543,14 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
             
             {etaMinutes && (
               <View style={styles.statusRow}>
-                <Text style={styles.statusLabel}>ETA:</Text>
-                <Text style={styles.statusValue}>{etaMinutes} minutes</Text>
+                <Text style={styles.statusLabel}>{t('liveTracking.eta')}</Text>
+                <Text style={styles.statusValue}>{etaMinutes} {t('liveTracking.minutes')}</Text>
               </View>
             )}
             
             {distanceToCustomer && (
               <View style={styles.statusRow}>
-                <Text style={styles.statusLabel}>Distance:</Text>
+                <Text style={styles.statusLabel}>{t('liveTracking.distance')}</Text>
                 <Text style={styles.statusValue}>
                   {(distanceToCustomer / 1000).toFixed(1)} km
                 </Text>
@@ -569,7 +560,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
 
           {/* Order Details */}
           <View style={styles.orderCard}>
-            <Text style={styles.orderTitle}>Order Details</Text>
+            <Text style={styles.orderTitle}>{t('liveTracking.orderDetails')}</Text>
             <Text style={styles.orderAddress}>{order.pickupLocation.address}</Text>
             <Text style={styles.orderItems}>
               {order.materials?.map(m => `${m.quantity} ${m.description}`).join(', ') || 'Loading materials...'}
@@ -594,7 +585,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
                   handleStatusUpdate('in_transit');
                 }}
               >
-                <Text style={styles.actionButtonText}>Start Trip</Text>
+                <Text style={styles.actionButtonText}>{t('liveTracking.startTrip')}</Text>
               </TouchableOpacity>
             )}
 
@@ -606,7 +597,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
                   handleStatusUpdate('delivered');
                 }}
               >
-                <Text style={styles.actionButtonText}>Complete Delivery</Text>
+                <Text style={styles.actionButtonText}>{t('liveTracking.completeDelivery')}</Text>
               </TouchableOpacity>
             )}
 
@@ -614,7 +605,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
               style={[styles.actionButton, styles.secondaryButton]}
               onPress={openNavigation}
             >
-              <Text style={[styles.actionButtonText, { color: theme.text }]}>Open Navigation</Text>
+              <Text style={[styles.actionButtonText, { color: theme.text }]}>{t('liveTracking.openNavigation')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
