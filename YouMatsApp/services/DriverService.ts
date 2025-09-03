@@ -1612,10 +1612,21 @@ class DriverService {
     newETA: number,
     reason?: string
   ): Promise<boolean> {
-    if (!this.currentDriver) return false;
+    console.log('🚛 DriverService.sendETAUpdate called', {
+      tripId,
+      newETA,
+      reason,
+      currentDriver: !!this.currentDriver
+    });
+
+    if (!this.currentDriver) {
+      console.log('❌ DriverService.sendETAUpdate: No current driver');
+      return false;
+    }
 
     try {
       // Get trip data to find customer
+      console.log('📤 DriverService.sendETAUpdate: Fetching trip data');
       const { data: tripData, error } = await supabase
         .from('trip_requests')
         .select('customer_id')
@@ -1627,12 +1638,16 @@ class DriverService {
         return false;
       }
 
+      console.log('📊 DriverService.sendETAUpdate: Trip data fetched', tripData);
+
       const result = await enhancedNotificationService.sendETAUpdateNotification(
         tripData.customer_id,
         tripId,
         newETA,
         reason
       );
+
+      console.log('📥 DriverService.sendETAUpdate: enhancedNotificationService response', result);
 
       if (result.success) {
         console.log('⏱️ ETA update notification sent successfully');

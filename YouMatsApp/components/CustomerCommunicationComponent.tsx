@@ -98,28 +98,47 @@ export const CustomerCommunicationComponent: React.FC<CustomerCommunicationProps
   };
 
   const sendETAUpdate = async () => {
+    console.log('🎯 CustomerCommunicationComponent: sendETAUpdate called', {
+      etaMinutes,
+      tripId,
+      delayReason: delayReason.trim()
+    });
+
     const eta = parseInt(etaMinutes);
     if (!eta || eta < 1) {
+      console.log('❌ CustomerCommunicationComponent: Invalid ETA input');
       Alert.alert('Error', 'Please enter a valid ETA in minutes');
       return;
     }
 
     setSending(true);
     try {
+      console.log('📤 CustomerCommunicationComponent: Calling driverService.sendETAUpdate', {
+        tripId,
+        eta,
+        delayReason: delayReason.trim() || undefined
+      });
+
       const success = await driverService.sendETAUpdate(
         tripId,
         eta,
         delayReason.trim() || undefined
       );
+
+      console.log('📥 CustomerCommunicationComponent: driverService response', { success });
+
       if (success) {
+        console.log('✅ CustomerCommunicationComponent: ETA update successful');
         Alert.alert('Success', 'ETA update sent to customer');
         setEtaMinutes('');
         setDelayReason('');
         onClose();
       } else {
+        console.log('❌ CustomerCommunicationComponent: ETA update failed');
         Alert.alert('Error', 'Failed to send ETA update');
       }
     } catch (error) {
+      console.log('💥 CustomerCommunicationComponent: Exception in sendETAUpdate', error);
       Alert.alert('Error', 'Failed to send ETA update');
     } finally {
       setSending(false);
@@ -127,15 +146,21 @@ export const CustomerCommunicationComponent: React.FC<CustomerCommunicationProps
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal 
+      visible={visible} 
+      animationType="slide" 
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
+      statusBarTranslucent={Platform.OS === 'android'}
+    >
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView 
           style={styles.content}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7} accessible={true} accessibilityLabel="Close" accessibilityRole="button">
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Customer Communication</Text>
@@ -147,6 +172,10 @@ export const CustomerCommunicationComponent: React.FC<CustomerCommunicationProps
             <TouchableOpacity
               style={[styles.tab, activeTab === 'message' && styles.activeTab]}
               onPress={() => setActiveTab('message')}
+              activeOpacity={0.7}
+              accessible={true}
+              accessibilityLabel="Message Tab"
+              accessibilityRole="button"
             >
               <MaterialIcons name="message" size={20} color={activeTab === 'message' ? theme.accent : theme.lightText} />
               <Text style={[styles.tabText, activeTab === 'message' && styles.activeTabText]}>
@@ -154,8 +183,32 @@ export const CustomerCommunicationComponent: React.FC<CustomerCommunicationProps
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.tab, activeTab === 'eta' && styles.activeTab]}
-              onPress={() => setActiveTab('eta')}
+              style={[
+                styles.tab, 
+                activeTab === 'eta' && styles.activeTab,
+                Platform.select({
+                  android: {
+                    minHeight: 48,
+                    minWidth: 48,
+                    padding: 12,
+                    borderRadius: 8,
+                    backgroundColor: activeTab === 'eta' ? theme.accent + '20' : 'transparent',
+                    elevation: activeTab === 'eta' ? 2 : 0,
+                  },
+                })
+              ]}
+              onPress={() => {
+                console.log('🎯 ETA tab pressed - switching to ETA mode');
+                console.log('🎯 Platform:', Platform.OS);
+                console.log('🎯 Current tab:', activeTab);
+                setActiveTab('eta');
+                console.log('🎯 Tab switched to ETA');
+              }}
+              activeOpacity={0.7}
+              accessible={true}
+              accessibilityLabel="ETA Update Tab"
+              accessibilityRole="button"
+              hitSlop={Platform.OS === 'android' ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
             >
               <MaterialIcons name="schedule" size={20} color={activeTab === 'eta' ? theme.accent : theme.lightText} />
               <Text style={[styles.tabText, activeTab === 'eta' && styles.activeTabText]}>
@@ -205,12 +258,26 @@ export const CustomerCommunicationComponent: React.FC<CustomerCommunicationProps
               
               <Text style={styles.inputLabel}>ETA (minutes)</Text>
               <TextInput
-                style={styles.numberInput}
+                style={[
+                  styles.numberInput,
+                  Platform.select({
+                    android: {
+                      minHeight: 48,
+                      borderRadius: 8,
+                      elevation: 1,
+                      textAlignVertical: 'center',
+                    },
+                  })
+                ]}
                 placeholder="15"
                 value={etaMinutes}
-                onChangeText={setEtaMinutes}
+                onChangeText={(text) => {
+                  console.log('🎯 Android ETA input changed:', text);
+                  setEtaMinutes(text);
+                }}
                 keyboardType="numeric"
                 maxLength={3}
+                autoFocus={Platform.OS === 'android' ? true : false}
               />
 
               <Text style={styles.inputLabel}>Reason for delay (optional)</Text>
@@ -223,9 +290,31 @@ export const CustomerCommunicationComponent: React.FC<CustomerCommunicationProps
               />
 
               <TouchableOpacity
-                style={[styles.sendButton, sending && styles.disabledButton]}
-                onPress={sendETAUpdate}
+                style={[
+                  styles.sendButton, 
+                  sending && styles.disabledButton,
+                  Platform.select({
+                    android: {
+                      minHeight: 48,
+                      borderRadius: 8,
+                      elevation: (!sending && etaMinutes) ? 4 : 1,
+                      marginTop: 8,
+                    },
+                  })
+                ]}
+                onPress={() => {
+                  console.log('🎯 ETA Send button pressed!');
+                  console.log('🎯 Android ETA send triggered successfully!');
+                  console.log('🎯 ETA minutes:', etaMinutes);
+                  console.log('🎯 Delay reason:', delayReason);
+                  sendETAUpdate();
+                }}
                 disabled={sending || !etaMinutes}
+                activeOpacity={0.8}
+                accessible={true}
+                accessibilityLabel="Send ETA Update"
+                accessibilityRole="button"
+                hitSlop={Platform.OS === 'android' ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
               >
                 <Text style={styles.sendButtonText}>
                   {sending ? 'Sending...' : 'Send ETA Update'}
@@ -243,6 +332,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
+    ...Platform.select({
+      android: {
+        paddingTop: 20, // Add some padding for Android status bar
+      },
+    }),
   },
   content: {
     flex: 1,
@@ -255,9 +349,32 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
+    ...Platform.select({
+      android: {
+        elevation: 2,
+        backgroundColor: theme.background,
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+    }),
   },
   closeButton: {
     padding: 5,
+    minWidth: 44, // Ensure minimum touch target
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    ...Platform.select({
+      android: {
+        backgroundColor: 'transparent',
+        elevation: 0,
+      },
+    }),
   },
   headerTitle: {
     fontSize: 18,
@@ -278,7 +395,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 15,
+    paddingHorizontal: 10,
     gap: 8,
+    minHeight: 50, // Ensure good touch target
+    ...Platform.select({
+      android: {
+        backgroundColor: 'transparent',
+        elevation: 0,
+      },
+    }),
   },
   activeTab: {
     borderBottomWidth: 2,
@@ -351,6 +476,18 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
+    minHeight: 50, // Ensure good touch target
+    ...Platform.select({
+      android: {
+        elevation: 2,
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+    }),
   },
   disabledButton: {
     backgroundColor: theme.lightText,

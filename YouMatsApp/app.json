@@ -27,7 +27,7 @@
         "NSPhotoLibraryUsageDescription": "This app uses photo library to upload delivery images and proof of delivery documents"
       },
       "config": {
-        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+        "googleMapsApiKey": "AIzaSyDgcKABlWbsVN5ai14wj05W1-NJM2G0GaI"
       }
     },
     "android": {
@@ -43,11 +43,16 @@
         "ACCESS_BACKGROUND_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+          "apiKey": "AIzaSyDgcKABlWbsVN5ai14wj05W1-NJM2G0GaI"
         }
       }
     },
@@ -57,7 +62,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "d563e86d-0958-4aac-a0b5-7aefeaf60593"
       }
     },
     "plugins": [
@@ -78,6 +83,7 @@
           "sounds": []
         }
       ]
-    ]
+    ],
+    "owner": "lailaduaibes"
   }
 }

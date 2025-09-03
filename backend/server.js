@@ -20,6 +20,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 app.use(cors());
 app.use(express.json());
 
+// Import and use places routes for Google Places API
+const placesRoutes = require('./routes/places');
+app.use('/api/places', placesRoutes);
+
 // Middleware to verify JWT token
 const verifyToken = async (req, res, next) => {
   try {

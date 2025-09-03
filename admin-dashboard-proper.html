@@ -3081,6 +3081,28 @@
             try {
                 showMessage('Approving document...', 'info');
                 
+                // First, get the document details to check if it's a profile photo
+                const getDocResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_documents?id=eq.${documentId}&select=*`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!getDocResponse.ok) {
+                    throw new Error('Failed to fetch document details');
+                }
+
+                const documents = await getDocResponse.json();
+                const document = documents[0];
+                
+                if (!document) {
+                    throw new Error('Document not found');
+                }
+                
+                // Update document status
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/driver_documents?id=eq.${documentId}`, {
                     method: 'PATCH',
                     headers: {
@@ -3102,7 +3124,51 @@
                     throw new Error(error.message || 'Failed to approve document');
                 }
 
-                showMessage('Document approved successfully! ✅', 'success');
+                // ⭐ NEW: If this is a profile photo, update the driver's profile_image_url
+                console.log('🔍 Checking document type:', document.document_type, 'against profile_photo');
+                if (document.document_type === 'profile_photo') {
+                    console.log('🔄 ✅ MATCH! Updating driver profile photo URL...');
+                    console.log('📄 Document details:', {
+                        id: document.id,
+                        driver_id: document.driver_id,
+                        document_type: document.document_type,
+                        file_url: document.file_url
+                    });
+                    
+                    // Simply use the current approved document's URL
+                    const updateProfileResponse = await fetch(`${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${document.driver_id}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': SUPABASE_SERVICE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify({
+                            profile_image_url: document.file_url,
+                            updated_at: new Date().toISOString()
+                        })
+                    });
+
+                    if (!updateProfileResponse.ok) {
+                        const updateError = await updateProfileResponse.json();
+                        console.error('⚠️ Failed to update profile image URL:', updateError);
+                        console.error('⚠️ Response status:', updateProfileResponse.status);
+                        console.error('⚠️ Request URL:', `${SUPABASE_URL}/rest/v1/driver_profiles?id=eq.${document.driver_id}`);
+                        console.error('⚠️ Request body:', JSON.stringify({
+                            profile_image_url: document.file_url,
+                            updated_at: new Date().toISOString()
+                        }));
+                        showMessage('Document approved but profile photo update failed: ' + (updateError.message || updateError.details || 'Unknown error'), 'warning');
+                    } else {
+                        const updateResult = await updateProfileResponse.json();
+                        console.log('✅ Driver profile photo URL updated successfully:', updateResult);
+                        console.log('✅ Updated rows count:', updateResult.length);
+                        showMessage('Document approved and profile photo updated! ✅', 'success');
+                    }
+                } else {
+                    showMessage('Document approved successfully! ✅', 'success');
+                }
                 
                 // Refresh the modal by finding the driver ID and reloading
                 const modal = document.getElementById('driverDetailsModal');

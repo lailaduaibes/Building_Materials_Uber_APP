@@ -1,0 +1,154 @@
+{
+  "common": {
+    "welcome": "स्वागत है",
+    "login": "लॉगिन",
+    "register": "रजिस्टर",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "submit": "सबमिट",
+    "cancel": "रद्द करें",
+    "save": "सेव करें",
+    "delete": "डिलीट",
+    "edit": "एडिट",
+    "confirm": "कन्फर्म",
+    "back": "वापस",
+    "next": "अगला",
+    "loading": "लोड हो रहा है...",
+    "error": "एरर",
+    "success": "सफलता",
+    "warning": "चेतावनी",
+    "info": "जानकारी",
+    "yes": "हाँ",
+    "no": "नहीं",
+    "ok": "ठीक है",
+    "close": "बंद करें",
+    "search": "खोजें",
+    "filter": "फिल्टर",
+    "sort": "क्रमबद्ध करें",
+    "refresh": "रिफ्रेश",
+    "retry": "फिर से कोशिश करें",
+    "uploading": "अपलोड हो रहा है...",
+    "failed_update_trip": "ट्रिप स्टेटस अपडेट करने में विफल। कृपया फिर से कोशिश करें।",
+    "failed_update_pickup": "पिकअप स्टेटस अपडेट करने में विफल। कृपया फिर से कोशिश करें।",
+    "failed_complete_delivery": "डिलीवरी पूरी करने में विफल। कृपया फिर से कोशिश करें।",
+    "view_all": "सभी देखें",
+    "help": "सहायता",
+    "tip": "टिप",
+    "all": "सभी",
+    "customer": "ग्राहक"
+  },
+  "auth": {
+    "welcomeTitle": "YouMats में आपका स्वागत है",
+    "welcomeSubtitle": "प्रोफेशनल बिल्डिंग मैटेरियल डिलीवरी",
+    "loginTitle": "ड्राइवर लॉगिन",
+    "registerTitle": "ड्राइवर रजिस्ट्रेशन",
+    "forgotPassword": "पासवर्ड भूल गए?",
+    "createAccount": "खाता बनाएं",
+    "alreadyHaveAccount": "पहले से खाता है?",
+    "emailPlaceholder": "अपना ईमेल दर्ज करें",
+    "passwordPlaceholder": "अपना पासवर्ड दर्ज करें",
+    "confirmPasswordPlaceholder": "पासवर्ड की पुष्टि करें",
+    "loginButton": "लॉगिन",
+    "registerButton": "रजिस्टर",
+    "loggingIn": "लॉगिन हो रहा है...",
+    "registering": "खाता बन रहा है...",
+    "emailVerification": {
+      "title": "अपना ईमेल वेरिफाई करें",
+      "subtitle": "हमने आपके ईमेल पर वेरिफिकेशन कोड भेजा है",
+      "enterCode": "वेरिफिकेशन कोड दर्ज करें",
+      "resendCode": "कोड दोबारा भेजें",
+      "verify": "वेरिफाई करें",
+      "verifying": "वेरिफाई हो रहा है..."
+    }
+  },
+  "dashboard": {
+    "title": "डैशबोर्ड",
+    "welcomeBack": "वापसी पर स्वागत है",
+    "todayEarnings": "आज की कमाई",
+    "totalTrips": "कुल ट्रिप्स",
+    "rating": "रेटिंग",
+    "status": {
+      "online": "ऑनलाइन",
+      "offline": "ऑफलाइन",
+      "busy": "व्यस्त",
+      "available": "उपलब्ध",
+      "updating": "अपडेट हो रहा है..."
+    },
+    "quickActions": {
+      "goOnline": "ऑनलाइन जाएं",
+      "goOffline": "ऑफलाइन जाएं",
+      "viewEarnings": "कमाई देखें",
+      "tripHistory": "ट्रिप हिस्ट्री",
+      "profile": "प्रोफाइल"
+    },
+    "noTrips": {
+      "online": "कुछ मिनट बाद वापस चेक करें",
+      "offline": "उपलब्ध ट्रिप्स देखने के लिए ऑनलाइन जाएं"
+    },
+    "earnings": {
+      "today": "आज",
+      "thisWeek": "इस सप्ताह"
+    },
+    "location": {
+      "enableLocationTitle": "स्थान आवश्यक",
+      "enableLocationMessage": "कृपया ऑनलाइन जाने और ट्रिप रिक्वेस्ट प्राप्त करने के लिए लोकेशन सेवाएं सक्षम करें।",
+      "goToSettings": "सेटिंग्स में जाएं"
+    },
+    "nearbyTrips": "नजदीकी ट्रिप्स",
+    "acceptedTrips": "स्वीकृत ट्रिप्स",
+    "driverStats": "ड्राइवर आंकड़े"
+  },
+  "support": {
+    "title": "सहायता और सपोर्ट",
+    "subtitle": "अपनी चिंताओं के लिए मदद प्राप्त करें",
+    "noTickets": "कोई सपोर्ट टिकट नहीं",
+    "createTicket": "टिकट बनाएं",
+    "viewTickets": "टिकट देखें",
+    "recentTickets": "हाल के टिकट",
+    "ticketId": "टिकट आईडी",
+    "status": "स्थिति",
+    "ticketInformation": "टिकट जानकारी",
+    "created": "बनाया गया",
+    "form": {
+      "subject": "विषय",
+      "subjectPlaceholder": "अपनी समस्या का संक्षिप्त विवरण",
+      "category": "श्रेणी",
+      "priority": "प्राथमिकता",
+      "description": "विवरण",
+      "descriptionPlaceholder": "कृपया अपनी समस्या या प्रश्न के बारे में विस्तृत जानकारी प्रदान करें",
+      "submitTicket": "टिकट सबमिट करें",
+      "submitting": "सबमिट हो रहा है..."
+    },
+    "categories": {
+      "general": "सामान्य पूछताछ",
+      "technical": "तकनीकी समस्या",
+      "billing": "भुगतान/कमाई",
+      "delivery": "डिलीवरी समस्या",
+      "vehicle": "वाहन/उपकरण",
+      "safety": "सुरक्षा चिंता"
+    },
+    "priorities": {
+      "low": "कम",
+      "medium": "मध्यम",
+      "high": "उच्च"
+    },
+    "alerts": {
+      "error": "एरर",
+      "success": "सफलता",
+      "authRequired": "प्रमाणीकरण आवश्यक",
+      "authMessage": "कृपया अपने सपोर्ट टिकट देखने के लिए लॉगिन करें",
+      "submitAuthMessage": "सपोर्ट टिकट सबमिट करने के लिए आपको लॉगिन होना होगा",
+      "loadTicketsError": "सपोर्ट टिकट लोड करने में विफल",
+      "submitError": "सपोर्ट टिकट सबमिट करने में विफल",
+      "fillRequiredFields": "कृपया सभी आवश्यक फील्ड भरें",
+      "submitSuccess": "आपका सपोर्ट टिकट सफलतापूर्वक सबमिट हो गया है। हमारी टीम जल्द ही आपसे संपर्क करेगी।",
+      "ok": "ठीक है"
+    },
+    "loading": "टिकट लोड हो रहे हैं...",
+    "empty": {
+      "title": "कोई सपोर्ट टिकट नहीं",
+      "description": "आपने अभी तक कोई सपोर्ट टिकट सबमिट नहीं किया है।",
+      "createFirst": "अपना पहला टिकट बनाएं"
+    }
+  }
+}

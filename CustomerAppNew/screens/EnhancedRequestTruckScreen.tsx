@@ -326,86 +326,84 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
 
     setIsSearching(true);
     try {
-      // First try Google Places API if key is configured
-      if (GOOGLE_PLACES_CONFIG.API_KEY !== 'YOUR_GOOGLE_PLACES_API_KEY') {
-        try {
-          const response = await fetch(GOOGLE_PLACES_CONFIG.getAutocompleteUrl(query));
-          
-          if (response.ok) {
-            const data = await response.json();
-            
-            if (data.predictions && data.predictions.length > 0) {
-              const results: LocationData[] = await Promise.all(
-                data.predictions.slice(0, GOOGLE_PLACES_CONFIG.RESULT_LIMIT).map(async (prediction: any) => {
-                  // Get detailed place information
-                  try {
-                    const detailResponse = await fetch(GOOGLE_PLACES_CONFIG.getPlaceDetailsUrl(prediction.place_id));
-                    
-                    if (detailResponse.ok) {
-                      const detailData = await detailResponse.json();
-                      const place = detailData.result;
-                      
-                      // Extract city, state, postal code from address components
-                      let city = '';
-                      let state = '';
-                      let postal_code = '';
-                      
-                      if (place.address_components) {
-                        place.address_components.forEach((component: any) => {
-                          if (component.types.includes('locality')) {
-                            city = component.long_name;
-                          }
-                          if (component.types.includes('administrative_area_level_1')) {
-                            state = component.long_name;
-                          }
-                          if (component.types.includes('postal_code')) {
-                            postal_code = component.long_name;
-                          }
-                        });
+      // Use Google Places API directly - more reliable for mobile apps
+      const response = await fetch(GOOGLE_PLACES_CONFIG.getAutocompleteUrl(query));
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.predictions && data.predictions.length > 0) {
+          const results: LocationData[] = await Promise.all(
+            data.predictions.slice(0, GOOGLE_PLACES_CONFIG.RESULT_LIMIT).map(async (prediction: any) => {
+              // Get detailed place information
+              try {
+                const detailResponse = await fetch(GOOGLE_PLACES_CONFIG.getPlaceDetailsUrl(prediction.place_id));
+                
+                if (detailResponse.ok) {
+                  const detailData = await detailResponse.json();
+                  const place = detailData.result;
+                  
+                  // Extract city, state, postal code from address components
+                  let city = '';
+                  let state = '';
+                  let postal_code = '';
+                  
+                  if (place.address_components) {
+                    place.address_components.forEach((component: any) => {
+                      if (component.types.includes('locality')) {
+                        city = component.long_name;
                       }
-                      
-                      return {
-                        latitude: place.geometry.location.lat,
-                        longitude: place.geometry.location.lng,
-                        address: prediction.structured_formatting.main_text || prediction.description,
-                        formatted_address: place.formatted_address,
-                        city,
-                        state,
-                        postal_code,
-                      };
-                    }
-                  } catch (detailError) {
-                    console.log('Detail fetch failed, using basic info');
+                      if (component.types.includes('administrative_area_level_1')) {
+                        state = component.long_name;
+                      }
+                      if (component.types.includes('postal_code')) {
+                        postal_code = component.long_name;
+                      }
+                    });
                   }
                   
-                  // Fallback if details fail
                   return {
-                    latitude: 24.7136,
-                    longitude: 46.6753,
-                    address: prediction.structured_formatting?.main_text || prediction.description,
-                    formatted_address: prediction.description,
-                    city: 'Riyadh',
-                    state: 'Riyadh Region',
-                    postal_code: '',
+                    latitude: place.geometry.location.lat,
+                    longitude: place.geometry.location.lng,
+                    address: prediction.structured_formatting.main_text || prediction.description,
+                    formatted_address: place.formatted_address,
+                    city,
+                    state,
+                    postal_code,
                   };
-                })
-              );
+                }
+              } catch (detailError) {
+                console.log('Detail fetch failed, using basic info');
+              }
               
-              // Cache the results
-              setSearchCache(prev => new Map(prev.set(query, results)));
-              setSearchResults(results);
-              return;
-            }
-          }
-        } catch (googleError) {
-          console.log('Google Places API failed, using simple fallback');
+              // Fallback if details fail - use prediction data
+              return {
+                latitude: 24.7136,
+                longitude: 46.6753,
+                address: prediction.structured_formatting?.main_text || prediction.description,
+                formatted_address: prediction.description,
+                city: 'Riyadh',
+                state: 'Riyadh Region',
+                postal_code: '',
+              };
+            })
+          );
+          
+          console.log('✅ Google Places API success:', results.length, 'results');
+          
+          // Cache the results
+          setSearchCache(prev => new Map(prev.set(query, results)));
+          setSearchResults(results);
+          return;
         }
+      } else {
+        console.log('Google Places API response not OK:', response.status);
       }
       
-      // Skip Expo geocoding to avoid rate limits - use simple fallback instead
-      console.log('Using simple fallback to avoid rate limits');
+    } catch (googleError) {
+      console.error('Places search error:', googleError);
       
-      // Simple fallback with realistic Saudi locations
+      // Enhanced fallback with realistic Saudi locations
       const saudiLocations = [
         { name: 'Al Olaya', lat: 24.6944, lng: 46.6846, postal: '12213' },
         { name: 'King Fahd District', lat: 24.6877, lng: 46.7219, postal: '12271' },
@@ -425,13 +423,11 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         postal_code: location.postal,
       }));
       
+      console.log('🔄 Using fallback locations:', fallbackResults.length);
+      
       // Cache the fallback results
       setSearchCache(prev => new Map(prev.set(query, fallbackResults)));
       setSearchResults(fallbackResults);
-      
-    } catch (error) {
-      console.error('Search failed:', error);
-      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
@@ -863,6 +859,7 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
         zoomEnabled={true}
         rotateEnabled={true}
         pitchEnabled={true}
+        mapPadding={{ top: 0, right: 0, bottom: 100, left: 0 }} // Reserve space for Google attribution
       >
         {/* Show markers for selected locations */}
         {pickupLocation && (
@@ -1506,6 +1503,7 @@ const EnhancedRequestTruckScreen: React.FC<RequestTruckScreenProps> = ({
               provider={PROVIDER_GOOGLE}
               showsUserLocation={true}
               showsMyLocationButton={true}
+              mapPadding={{ top: 0, right: 0, bottom: 100, left: 0 }} // Reserve space for Google attribution
             />
             
             {/* Center Pin - Uber Style */}

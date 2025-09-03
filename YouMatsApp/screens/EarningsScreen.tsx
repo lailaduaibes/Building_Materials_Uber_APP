@@ -8,14 +8,25 @@ import {
   Dimensions,
   SafeAreaView,
   Alert,
+  Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 import { Colors } from '../theme/colors'; // Import YouMats theme
 import { useLanguage } from '../src/contexts/LanguageContext';
+import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 
 const { width } = Dimensions.get('window');
+const screenWidth = width;
+
+// Enhanced responsive calculations for Android
+const getResponsiveValue = (small: number, medium: number = small * 1.2, large: number = small * 1.5) => {
+  if (screenWidth < 360) return small * 0.9; // Small Android phones
+  if (screenWidth < 400) return small; // Standard Android phones
+  if (screenWidth < 600) return medium; // Large phones/small tablets
+  return large; // Tablets
+};
 
 interface EarningsScreenProps {
   onBack: () => void;
@@ -285,174 +296,243 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: getResponsiveValue(16, 20, 24),
+    paddingVertical: getResponsiveValue(12, 15, 18),
     borderBottomWidth: 1,
     borderBottomColor: Colors.border.light,
+    minHeight: getResponsiveValue(56, 64, 72),
   },
   backButton: {
-    padding: 5,
+    padding: getResponsiveValue(4, 5, 6),
+    minHeight: getResponsiveValue(44, 48, 52), // Android touch target
+    minWidth: getResponsiveValue(44, 48, 52),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: getResponsiveValue(18, 20, 22),
     fontWeight: '600',
     color: Colors.text.primary,
+    lineHeight: getResponsiveValue(24, 26, 28),
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: getResponsiveValue(16, 20, 24),
   },
   periodSelector: {
     flexDirection: 'row',
     backgroundColor: Colors.background.secondary,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 20,
+    borderRadius: getResponsiveValue(10, 12, 14),
+    padding: getResponsiveValue(3, 4, 5),
+    marginBottom: getResponsiveValue(16, 20, 24),
   },
   periodButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: getResponsiveValue(10, 12, 14),
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: getResponsiveValue(6, 8, 10),
+    minHeight: getResponsiveValue(40, 44, 48),
   },
   periodButtonActive: {
     backgroundColor: Colors.primary,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   periodButtonText: {
-    fontSize: 16,
+    fontSize: getResponsiveValue(14, 16, 18),
     fontWeight: '500',
     color: Colors.text.secondary,
+    lineHeight: getResponsiveValue(18, 20, 22),
   },
   periodButtonTextActive: {
     color: Colors.text.onPrimary,
   },
   earningsCard: {
     backgroundColor: Colors.background.primary,
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: getResponsiveValue(12, 16, 20),
+    padding: getResponsiveValue(20, 24, 28),
+    marginBottom: getResponsiveValue(16, 20, 24),
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   earningsHeader: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: getResponsiveValue(20, 24, 28),
   },
   earningsTitle: {
-    fontSize: 16,
+    fontSize: getResponsiveValue(14, 16, 18),
     color: Colors.text.secondary,
-    marginBottom: 8,
+    marginBottom: getResponsiveValue(6, 8, 10),
+    lineHeight: getResponsiveValue(18, 20, 22),
   },
   earningsAmount: {
-    fontSize: 36,
+    fontSize: getResponsiveValue(32, 36, 40),
     fontWeight: 'bold',
     color: Colors.primary,
+    lineHeight: getResponsiveValue(38, 42, 46),
   },
   earningsStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    paddingHorizontal: getResponsiveValue(8, 12, 16),
   },
   statItem: {
     alignItems: 'center',
+    minWidth: getResponsiveValue(60, 70, 80),
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: getResponsiveValue(11, 12, 14),
     color: Colors.text.secondary,
-    marginTop: 4,
-    marginBottom: 2,
+    marginTop: getResponsiveValue(3, 4, 5),
+    marginBottom: getResponsiveValue(2, 2, 3),
+    lineHeight: getResponsiveValue(14, 16, 18),
+    textAlign: 'center',
   },
   statValue: {
-    fontSize: 16,
+    fontSize: getResponsiveValue(14, 16, 18),
     fontWeight: '600',
     color: Colors.text.primary,
+    lineHeight: getResponsiveValue(18, 20, 22),
   },
   quickActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: getResponsiveValue(16, 20, 24),
+    gap: getResponsiveValue(8, 12, 16),
   },
   actionButton: {
     flex: 1,
     backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: getResponsiveValue(10, 12, 14),
+    paddingVertical: getResponsiveValue(14, 16, 18),
+    paddingHorizontal: getResponsiveValue(12, 16, 20),
     alignItems: 'center',
-    marginHorizontal: 4,
+    minHeight: getResponsiveValue(48, 52, 56), // Android touch target
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   actionButtonText: {
     color: Colors.text.onPrimary,
-    fontSize: 12,
+    fontSize: getResponsiveValue(11, 12, 14),
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: getResponsiveValue(3, 4, 5),
+    lineHeight: getResponsiveValue(14, 16, 18),
+    textAlign: 'center',
   },
   payoutSection: {
     backgroundColor: Colors.background.primary,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: getResponsiveValue(12, 16, 20),
+    padding: getResponsiveValue(16, 20, 24),
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   payoutHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: getResponsiveValue(12, 16, 20),
+    minHeight: getResponsiveValue(32, 36, 40),
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: getResponsiveValue(16, 18, 20),
     fontWeight: '600',
     color: Colors.text.primary,
+    lineHeight: getResponsiveValue(20, 22, 24),
   },
   viewAllText: {
-    fontSize: 14,
+    fontSize: getResponsiveValue(13, 14, 16),
     color: Colors.primary,
     fontWeight: '500',
+    lineHeight: getResponsiveValue(16, 18, 20),
+    minHeight: getResponsiveValue(32, 36, 40), // Touch target
+    paddingVertical: getResponsiveValue(8, 10, 12),
   },
   payoutItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: getResponsiveValue(10, 12, 14),
+    paddingHorizontal: getResponsiveValue(4, 8, 12),
     borderBottomWidth: 1,
     borderBottomColor: Colors.border.light,
+    minHeight: getResponsiveValue(56, 64, 72),
   },
   payoutInfo: {
     flex: 1,
+    paddingRight: getResponsiveValue(8, 12, 16),
   },
   payoutAmount: {
-    fontSize: 16,
+    fontSize: getResponsiveValue(15, 16, 18),
     fontWeight: '600',
     color: Colors.text.primary,
+    lineHeight: getResponsiveValue(18, 20, 22),
   },
   payoutDate: {
-    fontSize: 14,
+    fontSize: getResponsiveValue(13, 14, 16),
     color: Colors.text.secondary,
-    marginTop: 2,
+    marginTop: getResponsiveValue(2, 2, 3),
+    lineHeight: getResponsiveValue(16, 18, 20),
   },
   payoutStatus: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: getResponsiveValue(10, 12, 14),
+    paddingVertical: getResponsiveValue(4, 6, 8),
+    borderRadius: getResponsiveValue(10, 12, 14),
+    minHeight: getResponsiveValue(28, 32, 36),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   payoutStatusText: {
-    fontSize: 12,
+    fontSize: getResponsiveValue(11, 12, 14),
     fontWeight: '500',
     color: Colors.text.onPrimary,
     textTransform: 'capitalize',
+    lineHeight: getResponsiveValue(14, 16, 18),
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: getResponsiveValue(40, 48, 56),
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: getResponsiveValue(15, 16, 18),
     color: Colors.text.secondary,
+    lineHeight: getResponsiveValue(20, 22, 24),
   },
 });

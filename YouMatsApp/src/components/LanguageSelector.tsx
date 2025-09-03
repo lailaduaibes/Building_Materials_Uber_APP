@@ -43,6 +43,13 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
 
   const [modalVisible, setModalVisible] = useState(false);
 
+  // Close modal when language changes
+  React.useEffect(() => {
+    if (!isChangingLanguage) {
+      setModalVisible(false);
+    }
+  }, [isChangingLanguage]);
+
   const handleLanguageSelect = async (languageCode: string) => {
     if (languageCode === currentLanguageInfo.code) {
       setModalVisible(false);

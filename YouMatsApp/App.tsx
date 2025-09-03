@@ -42,7 +42,6 @@ import DriverProfileScreen from './screens/DriverProfileScreen';
 import LiveTripTrackingScreen from './screens/LiveTripTrackingScreen';
 import RatingScreen from './screens/RatingScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
-import RouteOptimizationScreen from './screens/RouteOptimizationScreen';
 import { AuthScreensSupabase } from './AuthScreensSupabase';
 import { authService, User } from './AuthServiceSupabase';
 import EnhancedDriverRegistrationScreen from './screens/EnhancedDriverRegistrationScreen';
@@ -59,7 +58,6 @@ type AppScreen =
   | 'live_tracking'
   | 'register'
   | 'email_verification'
-  | 'route_optimization'
   | 'rating';
 
 const App: React.FC = () => {
@@ -74,7 +72,6 @@ const App: React.FC = () => {
   const [verificationEmail, setVerificationEmail] = useState<string>('');
   const [useProfessionalDashboard, setUseProfessionalDashboard] = useState(true); // Always use professional dashboard due to ModernDriverDashboard corruption
   const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
-  const [availableOrders, setAvailableOrders] = useState<OrderAssignment[]>([]);
   const [completedTripData, setCompletedTripData] = useState<{
     tripId: string;
     customerName?: string;
@@ -353,19 +350,6 @@ const App: React.FC = () => {
     setCurrentScreen('profile');
   };
 
-  const handleNavigateToRouteOptimization = async () => {
-    // Load available orders before showing route optimization screen
-    try {
-      const orders = await driverService.getAvailableTrips();
-      setAvailableOrders(orders);
-      console.log(`📊 Route Optimization: Loaded ${orders.length} available orders`);
-    } catch (error) {
-      console.error('Error loading available orders for route optimization:', error);
-      setAvailableOrders([]);
-    }
-    setCurrentScreen('route_optimization');
-  };
-
   const handleBackToDashboard = () => {
     // Increment refresh key to force dashboard to reload its data
     setDashboardRefreshKey(prev => prev + 1);
@@ -480,7 +464,6 @@ const App: React.FC = () => {
               onNavigateToEarnings={handleNavigateToEarnings}
               onNavigateToTripHistory={handleNavigateToTripHistory}
               onNavigateToProfile={handleNavigateToProfile}
-              onNavigateToRouteOptimization={handleNavigateToRouteOptimization}
             />
           ) : (
             <ModernDriverDashboard
@@ -515,18 +498,6 @@ const App: React.FC = () => {
           driverId={currentDriver.id}
           onBack={handleBackToDashboard}
           onCompleteTrip={handleTripCompleted}
-        />
-      )}
-
-      {currentScreen === 'route_optimization' && currentDriver && (
-        <RouteOptimizationScreen
-          onBack={handleBackToDashboard}
-          onNavigateToOrder={(order) => {
-            setActiveOrder(order);
-            setCurrentScreen('live_tracking');
-          }}
-          availableOrders={availableOrders}
-          driverId={currentDriver.id}
         />
       )}
 

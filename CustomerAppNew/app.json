@@ -21,6 +21,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.yourcompany.customerapp",
       "buildNumber": "1",
+      "googleMapsApiKey": "AIzaSyDgcKABlWbsVN5ai14wj05W1-NJM2G0GaI",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to provide live delivery tracking and show your position on the map.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to provide live delivery tracking and show your position on the map even when the app is in the background.",
@@ -43,7 +44,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+          "apiKey": "AIzaSyDgcKABlWbsVN5ai14wj05W1-NJM2G0GaI"
         }
       }
     },

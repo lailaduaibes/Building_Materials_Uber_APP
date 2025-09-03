@@ -87,7 +87,7 @@ interface DriverProfile {
 
 export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileScreenProps) {
   // Language support
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, currentLanguageInfo } = useLanguage();
   const { t: i18nT } = useTranslation();
   
   const [driverProfile, setDriverProfile] = useState<DriverProfile | null>(null);
@@ -441,7 +441,23 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                   <View style={styles.vehicleRow}>
                     <Text style={styles.vehicleLabel}>Vehicle:</Text>
                     <Text style={styles.vehicleValue}>
-                      {truck.make} {truck.model} {truck.year && `(${truck.year})`}
+                      {(() => {
+                        // Avoid duplicate make/model (e.g., "Toyota Toyota")
+                        const make = truck.make || '';
+                        const model = truck.model || '';
+                        
+                        if (make && model) {
+                          // If model already contains make, just show model
+                          if (model.toLowerCase().includes(make.toLowerCase())) {
+                            return `${model} ${truck.year ? `(${truck.year})` : ''}`.trim();
+                          }
+                          // Otherwise show make + model
+                          return `${make} ${model} ${truck.year ? `(${truck.year})` : ''}`.trim();
+                        }
+                        
+                        // Fallback to whatever is available
+                        return `${make || model || 'Unknown'} ${truck.year ? `(${truck.year})` : ''}`.trim();
+                      })()}
                     </Text>
                   </View>
                   <View style={styles.vehicleRow}>
@@ -560,6 +576,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         <Text style={styles.settingLabel}>{t('profile.language')}</Text>
         <View style={styles.languageSelectorContainer}>
           <LanguageSelector 
+            key={currentLanguageInfo.code} // Force re-render when language changes
             style={styles.languageSelector}
             buttonStyle={styles.languageSelectorButton}
             textStyle={styles.languageSelectorText}
@@ -624,7 +641,6 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         <SpecializationsManagementScreen 
           onBack={() => setShowSpecializationsManagement(false)}
           currentSpecializations={driverProfile?.specializations || []}
-          currentTruckTypes={driverProfile?.preferredTruckTypes || []}
           onUpdate={loadDriverProfile}
         />
       ) : showSupport ? (

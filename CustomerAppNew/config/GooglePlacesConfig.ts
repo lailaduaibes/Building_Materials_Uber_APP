@@ -26,14 +26,14 @@
 
 export const GOOGLE_PLACES_CONFIG = {
   // Your API key goes here
-  API_KEY: process.env.GOOGLE_PLACES_API_KEY || 'YOUR_GOOGLE_PLACES_API_KEY',
+  API_KEY: 'AIzaSyDgcKABlWbsVN5ai14wj05W1-NJM2G0GaI',
   
   // Base URLs
   AUTOCOMPLETE_URL: 'https://maps.googleapis.com/maps/api/place/autocomplete/json',
   PLACE_DETAILS_URL: 'https://maps.googleapis.com/maps/api/place/details/json',
   
   // Default parameters
-  COUNTRY_CODE: 'sa', // Saudi Arabia
+  COUNTRY_CODE: '', // Empty = worldwide search
   LANGUAGE: 'en',
   RESULT_LIMIT: 5,
   
@@ -42,9 +42,14 @@ export const GOOGLE_PLACES_CONFIG = {
     const params = new URLSearchParams({
       input: query,
       key: GOOGLE_PLACES_CONFIG.API_KEY,
-      components: `country:${GOOGLE_PLACES_CONFIG.COUNTRY_CODE}`,
       language: GOOGLE_PLACES_CONFIG.LANGUAGE,
     });
+    
+    // Only add country restriction if specified
+    if (GOOGLE_PLACES_CONFIG.COUNTRY_CODE) {
+      params.set('components', `country:${GOOGLE_PLACES_CONFIG.COUNTRY_CODE}`);
+    }
+    
     return `${GOOGLE_PLACES_CONFIG.AUTOCOMPLETE_URL}?${params.toString()}`;
   },
   

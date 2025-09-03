@@ -538,6 +538,7 @@ export const LiveTrackingScreenTrip: React.FC<LiveTrackingScreenTripProps> = ({
           initialRegion={getInitialRegion()}
           showsUserLocation={true}
           showsMyLocationButton={false}
+          mapPadding={{ top: 0, right: 0, bottom: 200, left: 0 }} // Reserve space for Google attribution
           showsCompass={false}
           onMapReady={fitMapToMarkers}
         >

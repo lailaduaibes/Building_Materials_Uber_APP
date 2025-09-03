@@ -1,0 +1,154 @@
+{
+  "common": {
+    "welcome": "خوش آمدید",
+    "login": "لاگ ان",
+    "register": "رجسٹر",
+    "email": "ای میل",
+    "password": "پاس ورڈ",
+    "submit": "جمع کریں",
+    "cancel": "منسوخ",
+    "save": "محفوظ کریں",
+    "delete": "ڈیلیٹ",
+    "edit": "ترمیم",
+    "confirm": "تصدیق",
+    "back": "واپس",
+    "next": "اگلا",
+    "loading": "لوڈ ہو رہا ہے...",
+    "error": "خرابی",
+    "success": "کامیابی",
+    "warning": "انتباہ",
+    "info": "معلومات",
+    "yes": "ہاں",
+    "no": "نہیں",
+    "ok": "ٹھیک ہے",
+    "close": "بند کریں",
+    "search": "تلاش",
+    "filter": "فلٹر",
+    "sort": "ترتیب",
+    "refresh": "ریفریش",
+    "retry": "دوبارہ کوشش کریں",
+    "uploading": "اپ لوڈ ہو رہا ہے...",
+    "failed_update_trip": "ٹرپ کی صورتحال اپ ڈیٹ کرنے میں ناکام۔ براہ کرم دوبارہ کوشش کریں۔",
+    "failed_update_pickup": "پک اپ کی صورتحال اپ ڈیٹ کرنے میں ناکام۔ براہ کرم دوبارہ کوشش کریں۔",
+    "failed_complete_delivery": "ڈیلیوری مکمل کرنے میں ناکام۔ براہ کرم دوبارہ کوشش کریں۔",
+    "view_all": "سب دیکھیں",
+    "help": "مدد",
+    "tip": "ٹپ",
+    "all": "تمام",
+    "customer": "کسٹمر"
+  },
+  "auth": {
+    "welcomeTitle": "YouMats میں خوش آمدید",
+    "welcomeSubtitle": "پیشہ ورانہ تعمیراتی مواد کی ترسیل",
+    "loginTitle": "ڈرائیور لاگ ان",
+    "registerTitle": "ڈرائیور رجسٹریشن",
+    "forgotPassword": "پاس ورڈ بھول گئے؟",
+    "createAccount": "اکاؤنٹ بنائیں",
+    "alreadyHaveAccount": "پہلے سے اکاؤنٹ ہے؟",
+    "emailPlaceholder": "اپنا ای میل درج کریں",
+    "passwordPlaceholder": "اپنا پاس ورڈ درج کریں",
+    "confirmPasswordPlaceholder": "پاس ورڈ کی تصدیق کریں",
+    "loginButton": "لاگ ان",
+    "registerButton": "رجسٹر",
+    "loggingIn": "لاگ ان ہو رہا ہے...",
+    "registering": "اکاؤنٹ بن رہا ہے...",
+    "emailVerification": {
+      "title": "اپنا ای میل تصدیق کریں",
+      "subtitle": "ہم نے آپ کے ای میل پر تصدیقی کوڈ بھیجا ہے",
+      "enterCode": "تصدیقی کوڈ درج کریں",
+      "resendCode": "کوڈ دوبارہ بھیجیں",
+      "verify": "تصدیق کریں",
+      "verifying": "تصدیق ہو رہی ہے..."
+    }
+  },
+  "dashboard": {
+    "title": "ڈیش بورڈ",
+    "welcomeBack": "واپسی پر خوش آمدید",
+    "todayEarnings": "آج کی کمائی",
+    "totalTrips": "کل ٹرپس",
+    "rating": "ریٹنگ",
+    "status": {
+      "online": "آن لائن",
+      "offline": "آف لائن",
+      "busy": "مصروف",
+      "available": "دستیاب",
+      "updating": "اپ ڈیٹ ہو رہا ہے..."
+    },
+    "quickActions": {
+      "goOnline": "آن لائن جائیں",
+      "goOffline": "آف لائن جائیں",
+      "viewEarnings": "کمائی دیکھیں",
+      "tripHistory": "ٹرپ کی تاریخ",
+      "profile": "پروفائل"
+    },
+    "noTrips": {
+      "online": "کچھ منٹ بعد دوبارہ چیک کریں",
+      "offline": "دستیاب ٹرپس دیکھنے کے لیے آن لائن جائیں"
+    },
+    "earnings": {
+      "today": "آج",
+      "thisWeek": "اس ہفتے"
+    },
+    "location": {
+      "enableLocationTitle": "مقام درکار",
+      "enableLocationMessage": "براہ کرم آن لائن جانے اور ٹرپ کی درخواستیں حاصل کرنے کے لیے لوکیشن سروسز فعال کریں۔",
+      "goToSettings": "سیٹنگز میں جائیں"
+    },
+    "nearbyTrips": "قریبی ٹرپس",
+    "acceptedTrips": "قبول شدہ ٹرپس",
+    "driverStats": "ڈرائیور کے اعداد و شمار"
+  },
+  "support": {
+    "title": "مدد اور سپورٹ",
+    "subtitle": "اپنی پریشانیوں کے لیے مدد حاصل کریں",
+    "noTickets": "کوئی سپورٹ ٹکٹ نہیں",
+    "createTicket": "ٹکٹ بنائیں",
+    "viewTickets": "ٹکٹ دیکھیں",
+    "recentTickets": "حالیہ ٹکٹس",
+    "ticketId": "ٹکٹ آئی ڈی",
+    "status": "صورتحال",
+    "ticketInformation": "ٹکٹ کی معلومات",
+    "created": "بنایا گیا",
+    "form": {
+      "subject": "موضوع",
+      "subjectPlaceholder": "اپنے مسئلے کا مختصر تذکرہ",
+      "category": "قسم",
+      "priority": "ترجیح",
+      "description": "تفصیل",
+      "descriptionPlaceholder": "براہ کرم اپنے مسئلے یا سوال کے بارے میں تفصیلی معلومات فراہم کریں",
+      "submitTicket": "ٹکٹ جمع کریں",
+      "submitting": "جمع ہو رہا ہے..."
+    },
+    "categories": {
+      "general": "عمومی استفسار",
+      "technical": "تکنیکی مسئلہ",
+      "billing": "ادائیگی/کمائی",
+      "delivery": "ڈیلیوری کا مسئلہ",
+      "vehicle": "گاڑی/آلات",
+      "safety": "حفاظتی تشویش"
+    },
+    "priorities": {
+      "low": "کم",
+      "medium": "درمیانہ",
+      "high": "زیادہ"
+    },
+    "alerts": {
+      "error": "خرابی",
+      "success": "کامیابی",
+      "authRequired": "تصدیق درکار",
+      "authMessage": "براہ کرم اپنے سپورٹ ٹکٹس دیکھنے کے لیے لاگ ان کریں",
+      "submitAuthMessage": "سپورٹ ٹکٹ جمع کرنے کے لیے آپ کو لاگ ان ہونا ہوگا",
+      "loadTicketsError": "سپورٹ ٹکٹس لوڈ کرنے میں ناکام",
+      "submitError": "سپورٹ ٹکٹ جمع کرنے میں ناکام",
+      "fillRequiredFields": "براہ کرم تمام ضروری فیلڈز بھریں",
+      "submitSuccess": "آپ کا سپورٹ ٹکٹ کامیابی سے جمع ہو گیا ہے۔ ہماری ٹیم جلد ہی آپ سے رابطہ کرے گی۔",
+      "ok": "ٹھیک ہے"
+    },
+    "loading": "ٹکٹس لوڈ ہو رہے ہیں...",
+    "empty": {
+      "title": "کوئی سپورٹ ٹکٹ نہیں",
+      "description": "آپ نے ابھی تک کوئی سپورٹ ٹکٹ جمع نہیں کیا ہے۔",
+      "createFirst": "اپنا پہلا ٹکٹ بنائیں"
+    }
+  }
+}

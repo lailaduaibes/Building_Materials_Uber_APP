@@ -16,12 +16,14 @@ import {
   FlatList,
   Dimensions,
   Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../AuthServiceSupabase';
+import SupportScreenUtils from '../utils/SupportScreenUtils';
 
 // Use the same Supabase configuration as DriverService
 const supabase = createClient(
@@ -126,6 +128,27 @@ const getCategoryLabel = (category: string): string => {
     'safety': 'Safety Concern',
   };
   return categoryMap[category] || category;
+};
+
+const getPriorityDescription = (priority: string): string => {
+  const priorityDescriptions: { [key: string]: string } = {
+    'low': 'General questions',
+    'medium': 'Standard issues',
+    'high': 'Urgent problems',
+  };
+  return priorityDescriptions[priority] || 'Select priority';
+};
+
+const getCategoryIcon = (category: string): string => {
+  const categoryIcons: { [key: string]: string } = {
+    'general': 'help-circle-outline',
+    'technical': 'settings-outline',
+    'billing': 'card-outline',
+    'delivery': 'car-outline',
+    'vehicle': 'build-outline',
+    'safety': 'shield-checkmark-outline',
+  };
+  return categoryIcons[category] || 'help-circle-outline';
 };
 
 export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps) {
@@ -317,52 +340,73 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
         />
       </View>
 
-      {/* Category */}
+      {/* Category - Simple Design */}
       <View style={styles.formGroup}>
         <Text style={styles.label}>{t('support.form.category', 'Category')}</Text>
-        <View style={styles.optionsContainer}>
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat.value}
-              style={[
-                styles.optionButton,
-                category === cat.value && styles.selectedOption
-              ]}
-              onPress={() => setCategory(cat.value)}
-            >
-              <Text style={[
-                styles.optionText,
-                category === cat.value && styles.selectedOptionText
-              ]}>
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <Text style={styles.sublabel}>
+          {t('support.form.categoryHelp', 'What type of issue are you experiencing?')}
+        </Text>
+        <View style={styles.categoryContainer}>
+          {categories.map((cat, index) => {
+            const isSelected = category === cat.value;
+            
+            return (
+              <TouchableOpacity
+                key={cat.value}
+                style={[
+                  styles.categoryButton,
+                  isSelected && styles.selectedCategoryButton
+                ]}
+                onPress={() => setCategory(cat.value)}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={getCategoryIcon(cat.value)} 
+                  size={20} 
+                  color={isSelected ? theme.primary : theme.mutedText} 
+                />
+                <Text style={[
+                  styles.categoryText,
+                  isSelected && { color: theme.primary, fontWeight: '600' }
+                ]}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
-      {/* Priority */}
+      {/* Priority - Simple Design */}
       <View style={styles.formGroup}>
         <Text style={styles.label}>{t('support.form.priority', 'Priority')}</Text>
+        <Text style={styles.sublabel}>
+          {t('support.form.priorityHelp', 'Select the urgency level of your issue')}
+        </Text>
         <View style={styles.priorityContainer}>
-          {priorities.map((prio) => (
-            <TouchableOpacity
-              key={prio.value}
-              style={[
-                styles.priorityButton,
-                priority === prio.value && { backgroundColor: prio.color + '20', borderColor: prio.color }
-              ]}
-              onPress={() => setPriority(prio.value)}
-            >
-              <View style={[styles.priorityDot, { backgroundColor: prio.color }]} />
-              <Text style={[
-                styles.priorityText,
-                priority === prio.value && { color: prio.color }
-              ]}>
-                {prio.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {priorities.map((prio, index) => {
+            const isSelected = priority === prio.value;
+            
+            return (
+              <TouchableOpacity
+                key={prio.value}
+                style={[
+                  styles.priorityButton,
+                  isSelected && { borderColor: prio.color, backgroundColor: prio.color + '10' }
+                ]}
+                onPress={() => setPriority(prio.value)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.priorityDot, { backgroundColor: prio.color }]} />
+                <Text style={[
+                  styles.priorityText,
+                  isSelected && { color: prio.color, fontWeight: '600' }
+                ]}>
+                  {prio.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -1050,28 +1094,220 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.text,
   },
-  submitButton: {
-    backgroundColor: theme.primary,
-    paddingVertical: 18,
+  
+  // Enhanced Priority Button Styles
+  sublabel: {
+    fontSize: SupportScreenUtils.getResponsiveFontSizes().sm,
+    color: theme.lightText,
+    marginTop: 4,
+    marginBottom: 12,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  enhancedPriorityContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: SupportScreenUtils.getResponsiveSpacing().md,
+    marginTop: 8,
+  },
+  enhancedPriorityButton: {
+    backgroundColor: theme.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.border,
+    padding: SupportScreenUtils.getResponsiveSpacing().md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    ...SupportScreenUtils.getPlatformShadow(2),
+  },
+  priorityIconContainer: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
     alignItems: 'center',
-    marginTop: 16,
-    elevation: 4,
-    shadowColor: theme.primary,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  enhancedPriorityDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  selectedPriorityDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    ...SupportScreenUtils.getPlatformShadow(3),
+  },
+  priorityTextContainer: {
+    alignItems: 'center',
+  },
+  enhancedPriorityText: {
+    fontSize: SupportScreenUtils.getResponsiveFontSizes().md,
+    fontWeight: '600',
+    color: theme.text,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  prioritySubtext: {
+    fontSize: SupportScreenUtils.getResponsiveFontSizes().xs,
+    color: theme.mutedText,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  selectionIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SupportScreenUtils.getPlatformShadow(3),
+  },
+  
+  // Enhanced Category Button Styles
+  enhancedCategoryContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    marginTop: 8,
+  },
+  enhancedCategoryButton: {
+    backgroundColor: theme.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    minHeight: 65,
+    ...SupportScreenUtils.getPlatformShadow(2),
+  },
+  selectedCategoryButton: {
+    backgroundColor: theme.primary + '10',
+    borderColor: theme.primary,
+    borderWidth: 2,
+    ...SupportScreenUtils.getPlatformShadow(4),
+  },
+  categoryIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  enhancedCategoryText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.text,
+    textAlign: 'center',
+    lineHeight: 14,
+    paddingHorizontal: 2,
+    flex: 1,
+  },
+  selectedCategoryText: {
+    color: theme.primary,
+    fontWeight: '700',
+  },
+  categorySelectionIndicator: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  
+  // Simple Priority Button Styles
+  priorityContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  priorityButton: {
+    flex: 1,
+    backgroundColor: theme.white,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.border,
+    padding: 12,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    minHeight: 60,
+  },
+  priorityDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  priorityText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: theme.text,
+    textAlign: 'center',
+  },
+  
+  // Simple Category Button Styles  
+  categoryContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  categoryButton: {
+    width: '48%',
+    backgroundColor: theme.white,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.border,
+    padding: 12,
+    marginBottom: 8,
+    alignItems: 'center',
+    minHeight: 70,
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.text,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  
+  submitButton: {
+    backgroundColor: theme.primary,
+    paddingVertical: SupportScreenUtils.getResponsiveSpacing().lg,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: SupportScreenUtils.getResponsiveSpacing().lg,
+    minHeight: SupportScreenUtils.getMinTouchTarget(),
+    ...SupportScreenUtils.getPlatformShadow(4),
   },
   disabledButton: {
     opacity: 0.5,
-    elevation: 1,
-    shadowOpacity: 0.1,
+    ...SupportScreenUtils.getPlatformShadow(1),
   },
   submitButtonText: {
-    fontSize: 17,
+    fontSize: SupportScreenUtils.getResponsiveFontSizes().lg,
     fontWeight: '700',
     color: theme.white,
     letterSpacing: 0.5,

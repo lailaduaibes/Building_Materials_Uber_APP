@@ -32,7 +32,16 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   // Update language info when i18n language changes
   useEffect(() => {
     const updateLanguageInfo = () => {
-      setCurrentLanguageInfo(getCurrentLanguage());
+      const newLanguageInfo = getCurrentLanguage();
+      console.log('🌐 Language info updated:', newLanguageInfo);
+      setCurrentLanguageInfo(newLanguageInfo);
+      
+      // Force reset loading state when language actually changes
+      if (isChangingLanguage) {
+        setTimeout(() => {
+          setIsChangingLanguage(false);
+        }, 500);
+      }
     };
 
     // Listen for language changes
@@ -41,7 +50,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     return () => {
       i18n.off('languageChanged', updateLanguageInfo);
     };
-  }, [i18n]);
+  }, [i18n, isChangingLanguage]);
 
   const handleChangeLanguage = async (languageCode: string): Promise<void> => {
     if (isChangingLanguage) return;
@@ -72,9 +81,15 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
             {
               text: t('common.confirm'),
               onPress: async () => {
-                await changeLanguage(languageCode);
-                // App restart is handled by the main App component
-                // by listening to I18nManager changes
+                try {
+                  await changeLanguage(languageCode);
+                  // App restart is handled by the main App component
+                  // by listening to I18nManager changes
+                } catch (error) {
+                  console.error('Failed to change language in restart case:', error);
+                } finally {
+                  setIsChangingLanguage(false);
+                }
               }
             }
           ]
@@ -91,6 +106,11 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
       );
       setIsChangingLanguage(false);
     }
+    
+    // Fallback: Reset loading state after 3 seconds no matter what
+    setTimeout(() => {
+      setIsChangingLanguage(false);
+    }, 3000);
   };
 
   const contextValue: LanguageContextType = {

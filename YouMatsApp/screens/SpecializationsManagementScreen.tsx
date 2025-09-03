@@ -1,5 +1,5 @@
 /**
- * SpecializationsManagementScreen - Manage driver specializations and truck preferences
+ * SpecializationsManagementScreen - Manage driver specializations
  */
 
 import React, { useState, useEffect } from 'react';
@@ -14,23 +14,29 @@ import {
   Modal,
   TextInput,
   FlatList,
+  Platform,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
 
+const { width: screenWidth } = Dimensions.get('window');
+
+// Professional Blue Theme - matching other screens
 const theme = {
-  primary: '#000000',
-  secondary: '#333333',
-  accent: '#666666',
-  background: '#FFFFFF',
+  primary: '#3B82F6',      // Professional blue
+  secondary: '#FFFFFF',     // Clean white
+  accent: '#1E40AF',       // Darker blue for emphasis
+  background: '#F8FAFC',   // Very light blue-gray
   white: '#FFFFFF',
-  text: '#000000',
-  lightText: '#666666',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  border: '#E0E0E0',
-  cardBackground: '#F8F8F8',
+  text: '#1F2937',         // Dark gray for text
+  lightText: '#6B7280',    // Medium gray for secondary text
+  success: '#10B981',      // Modern green
+  warning: '#F59E0B',      // Warm amber
+  error: '#EF4444',        // Modern red
+  border: '#E5E7EB',       // Light border
+  cardBackground: '#FFFFFF', // White cards with shadows
+  shadow: '#000000',       // For shadow effects
 };
 
 // Available specializations for drivers
@@ -50,35 +56,18 @@ const AVAILABLE_SPECIALIZATIONS = [
   { id: 'fragile_items', label: 'Fragile Items', icon: '📦' },
 ];
 
-// Available truck types
-const AVAILABLE_TRUCK_TYPES = [
-  { id: 'small_truck', label: 'Small Truck (up to 3.5t)', icon: '🚐' },
-  { id: 'medium_truck', label: 'Medium Truck (3.5-7.5t)', icon: '🚚' },
-  { id: 'large_truck', label: 'Large Truck (7.5-18t)', icon: '🚛' },
-  { id: 'heavy_truck', label: 'Heavy Truck (18t+)', icon: '🚛' },
-  { id: 'flatbed_truck', label: 'Flatbed Truck', icon: '🛻' },
-  { id: 'dump_truck', label: 'Dump Truck', icon: '🚛' },
-  { id: 'concrete_mixer', label: 'Concrete Mixer', icon: '🚛' },
-  { id: 'crane_truck', label: 'Crane Truck', icon: '🏗️' },
-  { id: 'box_truck', label: 'Box Truck', icon: '📦' },
-  { id: 'refrigerated_truck', label: 'Refrigerated Truck', icon: '❄️' },
-];
-
 interface SpecializationsManagementScreenProps {
   onBack: () => void;
   currentSpecializations: string[];
-  currentTruckTypes: string[];
   onUpdate: () => void;
 }
 
 export default function SpecializationsManagementScreen({
   onBack,
   currentSpecializations,
-  currentTruckTypes,
   onUpdate,
 }: SpecializationsManagementScreenProps) {
   const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>(currentSpecializations);
-  const [selectedTruckTypes, setSelectedTruckTypes] = useState<string[]>(currentTruckTypes);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customSpecialization, setCustomSpecialization] = useState('');
   const [loading, setLoading] = useState(false);
@@ -87,14 +76,6 @@ export default function SpecializationsManagementScreen({
     setSelectedSpecializations(prev => 
       prev.includes(id) 
         ? prev.filter(s => s !== id)
-        : [...prev, id]
-    );
-  };
-
-  const toggleTruckType = (id: string) => {
-    setSelectedTruckTypes(prev => 
-      prev.includes(id) 
-        ? prev.filter(t => t !== id)
         : [...prev, id]
     );
   };
@@ -116,21 +97,15 @@ export default function SpecializationsManagementScreen({
     try {
       setLoading(true);
 
-      // Update specializations
+      // Update specializations only
       const specializationsSuccess = await driverService.updateSpecializations(selectedSpecializations);
       if (!specializationsSuccess) {
         throw new Error('Failed to update specializations');
       }
 
-      // Update truck types
-      const truckTypesSuccess = await driverService.updatePreferredTruckTypes(selectedTruckTypes);
-      if (!truckTypesSuccess) {
-        throw new Error('Failed to update truck types');
-      }
-
       Alert.alert(
         'Success',
-        'Your specializations and truck preferences have been updated!',
+        'Your specializations have been updated!',
         [{ text: 'OK', onPress: () => { onUpdate(); onBack(); } }]
       );
 
@@ -149,25 +124,6 @@ export default function SpecializationsManagementScreen({
       <TouchableOpacity
         style={[styles.optionItem, isSelected && styles.optionItemSelected]}
         onPress={() => toggleSpecialization(item.id)}
-      >
-        <Text style={styles.optionIcon}>{item.icon}</Text>
-        <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
-          {item.label}
-        </Text>
-        {isSelected && (
-          <Ionicons name="checkmark-circle" size={20} color={theme.success} />
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const renderTruckTypeItem = ({ item }: { item: typeof AVAILABLE_TRUCK_TYPES[0] }) => {
-    const isSelected = selectedTruckTypes.includes(item.id);
-    
-    return (
-      <TouchableOpacity
-        style={[styles.optionItem, isSelected && styles.optionItemSelected]}
-        onPress={() => toggleTruckType(item.id)}
       >
         <Text style={styles.optionIcon}>{item.icon}</Text>
         <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
@@ -246,25 +202,11 @@ export default function SpecializationsManagementScreen({
         {/* Custom Specializations */}
         {renderCustomSpecializations()}
 
-        {/* Truck Types Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferred Truck Types</Text>
-          <FlatList
-            data={AVAILABLE_TRUCK_TYPES}
-            renderItem={renderTruckTypeItem}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-          />
-        </View>
-
         {/* Selected Summary */}
         <View style={styles.summarySection}>
           <Text style={styles.summaryTitle}>Summary</Text>
           <Text style={styles.summaryText}>
             Specializations: {selectedSpecializations.length}
-          </Text>
-          <Text style={styles.summaryText}>
-            Truck Types: {selectedTruckTypes.length}
           </Text>
         </View>
       </ScrollView>
@@ -318,164 +260,274 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 15,
+    backgroundColor: theme.white,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   backButton: {
     padding: 8,
+    minWidth: 44, // iOS minimum touch target
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: Math.min(screenWidth * 0.045, 18),
     fontWeight: '600',
     color: theme.text,
+    textAlign: 'center',
+    flex: 1,
   },
   saveButton: {
     backgroundColor: theme.primary,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 8,
+    minHeight: 44,
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   saveButtonDisabled: {
-    backgroundColor: theme.accent,
+    backgroundColor: theme.lightText,
+    opacity: 0.6,
   },
   saveButtonText: {
     color: theme.white,
     fontWeight: '600',
+    fontSize: 14,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   section: {
-    marginVertical: 20,
+    marginVertical: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: Math.min(screenWidth * 0.045, 18),
     fontWeight: '600',
     color: theme.text,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: theme.primary + '10',
   },
   addButtonText: {
     marginLeft: 5,
     color: theme.primary,
-    fontWeight: '500',
+    fontWeight: '600',
+    fontSize: 14,
   },
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginVertical: 4,
     backgroundColor: theme.cardBackground,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.border,
+    minHeight: 56, // Better touch target
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   optionItemSelected: {
-    backgroundColor: '#E8F5E8',
-    borderColor: theme.success,
+    backgroundColor: theme.primary + '10',
+    borderColor: theme.primary,
+    borderWidth: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   optionIcon: {
     fontSize: 20,
     marginRight: 12,
+    width: 24,
+    textAlign: 'center',
   },
   optionLabel: {
     flex: 1,
-    fontSize: 16,
+    fontSize: Math.min(screenWidth * 0.04, 16),
     color: theme.text,
+    flexWrap: 'wrap',
   },
   optionLabelSelected: {
     fontWeight: '600',
-    color: theme.text,
+    color: theme.primary,
   },
   customSpecItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginVertical: 4,
-    backgroundColor: '#FFF3E0',
-    borderRadius: 10,
+    backgroundColor: theme.warning + '10',
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.warning,
+    minHeight: 56,
   },
   customSpecText: {
-    fontSize: 16,
+    fontSize: Math.min(screenWidth * 0.04, 16),
     color: theme.text,
     textTransform: 'capitalize',
+    flex: 1,
   },
   summarySection: {
-    marginVertical: 20,
-    padding: 15,
+    marginVertical: 16,
+    padding: 16,
     backgroundColor: theme.cardBackground,
-    borderRadius: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   summaryTitle: {
-    fontSize: 16,
+    fontSize: Math.min(screenWidth * 0.04, 16),
     fontWeight: '600',
     color: theme.text,
     marginBottom: 10,
   },
   summaryText: {
-    fontSize: 14,
+    fontSize: Math.min(screenWidth * 0.035, 14),
     color: theme.lightText,
     marginBottom: 5,
+    lineHeight: 18,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   modalContent: {
     backgroundColor: theme.white,
-    borderRadius: 15,
+    borderRadius: 16,
     padding: 20,
-    width: '90%',
+    width: '100%',
     maxWidth: 400,
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.shadow,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 15,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: Math.min(screenWidth * 0.045, 18),
     fontWeight: '600',
     color: theme.text,
-    marginBottom: 15,
+    marginBottom: 16,
     textAlign: 'center',
   },
   modalInput: {
     borderWidth: 1,
     borderColor: theme.border,
     borderRadius: 10,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 20,
+    minHeight: 48,
+    backgroundColor: theme.background,
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 12,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
-    marginHorizontal: 5,
+    paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   modalButtonCancel: {
-    backgroundColor: theme.cardBackground,
+    backgroundColor: theme.background,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   modalButtonAdd: {
     backgroundColor: theme.primary,
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   modalButtonText: {
     fontSize: 16,

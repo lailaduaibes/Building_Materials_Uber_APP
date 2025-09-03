@@ -11,6 +11,7 @@ import {
   Dimensions,
   Linking,
   Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -771,16 +772,30 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
           <Text style={styles.headerTitle}>Vehicle Documents</Text>
           <Text style={styles.headerSubtitle}>{vehicle.license_plate}</Text>
         </View>
-        <TouchableOpacity onPress={handleUploadDocument} style={styles.uploadButton}>
-          <Ionicons name="add" size={24} color={theme.primary} />
-        </TouchableOpacity>
+        {/* Removed upload button - drivers can only replace existing documents */}
       </View>
 
       <ScrollView style={styles.content}>
         {/* Vehicle Info */}
         <View style={styles.vehicleInfo}>
           <Text style={styles.vehicleTitle}>
-            {vehicle.make} {vehicle.model} ({vehicle.year})
+            {(() => {
+              // Avoid duplicate make/model (e.g., "Toyota Toyota")
+              const make = vehicle.make || '';
+              const model = vehicle.model || '';
+              
+              if (make && model) {
+                // If model already contains make, just show model
+                if (model.toLowerCase().includes(make.toLowerCase())) {
+                  return `${model} ${vehicle.year ? `(${vehicle.year})` : ''}`.trim();
+                }
+                // Otherwise show make + model
+                return `${make} ${model} ${vehicle.year ? `(${vehicle.year})` : ''}`.trim();
+              }
+              
+              // Fallback to whatever is available
+              return `${make || model || 'Unknown'} ${vehicle.year ? `(${vehicle.year})` : ''}`.trim();
+            })()}
           </Text>
           <Text style={styles.vehiclePlate}>{vehicle.license_plate}</Text>
         </View>
@@ -811,16 +826,7 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
         {/* Required Documents Checklist */}
         {renderRequiredDocuments()}
 
-        {/* Upload Actions */}
-        <View style={styles.uploadSection}>
-          <TouchableOpacity style={styles.uploadCard} onPress={handleUploadDocument}>
-            <Ionicons name="cloud-upload-outline" size={32} color={theme.primary} />
-            <Text style={styles.uploadTitle}>Upload New Document</Text>
-            <Text style={styles.uploadSubtitle}>
-              Take a photo or select a file to upload
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Removed Upload Actions - drivers can only replace existing documents */}
       </ScrollView>
 
       {/* Document Viewer Modal */}
@@ -968,61 +974,35 @@ export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocum
                 </ScrollView>
 
                 <View style={styles.modalActions}>
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.viewButton]}
-                    onPress={() => {
-                      if (selectedDocument) {
-                        Linking.openURL(selectedDocument.file_url);
-                      } else {
-                        Alert.alert('Error', 'No document selected');
-                      }
-                    }}
-                  >
-                    <Ionicons name="open" size={20} color={theme.white} />
-                    <Text style={styles.actionButtonText}>Open</Text>
-                  </TouchableOpacity>
+                  <View style={styles.actionButtonRow}>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.viewButton]}
+                      onPress={() => {
+                        if (selectedDocument) {
+                          Linking.openURL(selectedDocument.file_url);
+                        } else {
+                          Alert.alert('Error', 'No document selected');
+                        }
+                      }}
+                    >
+                      <Ionicons name="open" size={20} color={theme.white} />
+                      <Text style={styles.actionButtonText}>Open</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.downloadButton]}
-                    onPress={() => {
-                      if (selectedDocument) {
-                        handleDownloadDocument(selectedDocument);
-                      } else {
-                        Alert.alert('Error', 'No document selected');
-                      }
-                    }}
-                  >
-                    <Ionicons name="download" size={20} color={theme.white} />
-                    <Text style={styles.actionButtonText}>Download</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.shareButton]}
-                    onPress={() => {
-                      if (selectedDocument) {
-                        handleShareDocument(selectedDocument);
-                      } else {
-                        Alert.alert('Error', 'No document selected');
-                      }
-                    }}
-                  >
-                    <Ionicons name="share" size={20} color={theme.white} />
-                    <Text style={styles.actionButtonText}>Share</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.replaceButton]}
-                    onPress={() => {
-                      if (selectedDocument) {
-                        handleReplaceDocument(selectedDocument);
-                      } else {
-                        Alert.alert('Error', 'No document selected');
-                      }
-                    }}
-                  >
-                    <Ionicons name="refresh" size={20} color={theme.primary} />
-                    <Text style={[styles.actionButtonText, { color: theme.primary }]}>Replace</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.replaceButton]}
+                      onPress={() => {
+                        if (selectedDocument) {
+                          handleReplaceDocument(selectedDocument);
+                        } else {
+                          Alert.alert('Error', 'No document selected');
+                        }
+                      }}
+                    >
+                      <Ionicons name="refresh" size={20} color={theme.primary} />
+                      <Text style={[styles.actionButtonText, { color: theme.primary }]}>Replace</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </>
             )}
@@ -1329,38 +1309,45 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
     marginTop: responsive.spacing(20),
-    gap: responsive.spacing(12),
     paddingTop: responsive.padding(20),
     borderTopWidth: 1,
     borderTopColor: theme.border,
+  },
+  actionButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: responsive.spacing(12),
+    gap: responsive.spacing(12),
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: responsive.padding(20),
-    paddingVertical: responsive.padding(16),
+    paddingHorizontal: responsive.padding(16),
+    paddingVertical: responsive.padding(14),
     borderRadius: 10,
     flex: 1,
-    minWidth: 120, // Minimum width for buttons
-    maxWidth: '48%', // Two buttons per row max
-    gap: responsive.spacing(8),
-    shadowColor: theme.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    minHeight: 50, // Minimum touch target
+    gap: responsive.spacing(6),
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.shadow,
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   actionButtonText: {
     color: theme.white,
-    fontSize: responsive.fontSize(14, 16),
+    fontSize: responsive.fontSize(13, 15),
     fontWeight: '600',
     textAlign: 'center',
     flexShrink: 1, // Allow text to shrink if needed

@@ -1,0 +1,154 @@
+{
+  "common": {
+    "welcome": "مرحباً",
+    "login": "تسجيل الدخول",
+    "register": "التسجيل",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "submit": "إرسال",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "confirm": "تأكيد",
+    "back": "العودة",
+    "next": "التالي",
+    "loading": "جاري التحميل...",
+    "error": "خطأ",
+    "success": "نجح",
+    "warning": "تحذير",
+    "info": "معلومات",
+    "yes": "نعم",
+    "no": "لا",
+    "ok": "موافق",
+    "close": "إغلاق",
+    "search": "بحث",
+    "filter": "تصفية",
+    "sort": "ترتيب",
+    "refresh": "تحديث",
+    "retry": "إعادة المحاولة",
+    "uploading": "جاري الرفع...",
+    "failed_update_trip": "فشل في تحديث حالة الرحلة. يرجى المحاولة مرة أخرى.",
+    "failed_update_pickup": "فشل في تحديث حالة الاستلام. يرجى المحاولة مرة أخرى.",
+    "failed_complete_delivery": "فشل في إكمال التسليم. يرجى المحاولة مرة أخرى.",
+    "view_all": "عرض الكل",
+    "help": "مساعدة",
+    "tip": "نصيحة",
+    "all": "الكل",
+    "customer": "العميل"
+  },
+  "auth": {
+    "welcomeTitle": "مرحباً بك في يو ماتس",
+    "welcomeSubtitle": "توصيل مواد البناء المهني",
+    "loginTitle": "تسجيل دخول السائق",
+    "registerTitle": "تسجيل السائق",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "createAccount": "إنشاء حساب",
+    "alreadyHaveAccount": "لديك حساب بالفعل؟",
+    "emailPlaceholder": "أدخل بريدك الإلكتروني",
+    "passwordPlaceholder": "أدخل كلمة المرور",
+    "confirmPasswordPlaceholder": "تأكيد كلمة المرور",
+    "loginButton": "تسجيل الدخول",
+    "registerButton": "التسجيل",
+    "loggingIn": "جاري تسجيل الدخول...",
+    "registering": "جاري إنشاء الحساب...",
+    "emailVerification": {
+      "title": "تحقق من بريدك الإلكتروني",
+      "subtitle": "لقد أرسلنا رمز التحقق إلى بريدك الإلكتروني",
+      "enterCode": "أدخل رمز التحقق",
+      "resendCode": "إعادة إرسال الرمز",
+      "verify": "تحقق",
+      "verifying": "جاري التحقق..."
+    }
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "welcomeBack": "مرحباً بعودتك",
+    "todayEarnings": "أرباح اليوم",
+    "totalTrips": "إجمالي الرحلات",
+    "rating": "التقييم",
+    "status": {
+      "online": "متصل",
+      "offline": "غير متصل",
+      "busy": "مشغول",
+      "available": "متاح",
+      "updating": "جاري التحديث..."
+    },
+    "quickActions": {
+      "goOnline": "الاتصال",
+      "goOffline": "قطع الاتصال",
+      "viewEarnings": "عرض الأرباح",
+      "tripHistory": "تاريخ الرحلات",
+      "profile": "الملف الشخصي"
+    },
+    "noTrips": {
+      "online": "تحقق مرة أخرى خلال دقائق قليلة",
+      "offline": "اتصل لترى الرحلات المتاحة"
+    },
+    "earnings": {
+      "today": "اليوم",
+      "thisWeek": "هذا الأسبوع"
+    },
+    "location": {
+      "enableLocationTitle": "الموقع مطلوب",
+      "enableLocationMessage": "يرجى تفعيل خدمات الموقع للاتصال وتلقي طلبات الرحلات.",
+      "goToSettings": "الذهاب إلى الإعدادات"
+    },
+    "nearbyTrips": "الرحلات القريبة",
+    "acceptedTrips": "الرحلات المقبولة",
+    "driverStats": "إحصائيات السائق"
+  },
+  "support": {
+    "title": "المساعدة والدعم",
+    "subtitle": "احصل على المساعدة مع مخاوفك",
+    "noTickets": "لا توجد تذاكر دعم",
+    "createTicket": "إنشاء تذكرة",
+    "viewTickets": "عرض التذاكر",
+    "recentTickets": "التذاكر الحديثة",
+    "ticketId": "رقم التذكرة",
+    "status": "الحالة",
+    "ticketInformation": "معلومات التذكرة",
+    "created": "تم الإنشاء",
+    "form": {
+      "subject": "الموضوع",
+      "subjectPlaceholder": "وصف موجز لمشكلتك",
+      "category": "الفئة",
+      "priority": "الأولوية",
+      "description": "الوصف",
+      "descriptionPlaceholder": "يرجى تقديم معلومات تفصيلية حول مشكلتك أو سؤالك",
+      "submitTicket": "إرسال التذكرة",
+      "submitting": "جاري الإرسال..."
+    },
+    "categories": {
+      "general": "استفسار عام",
+      "technical": "مشكلة تقنية",
+      "billing": "دفع/أرباح",
+      "delivery": "مشكلة التسليم",
+      "vehicle": "مركبة/معدات",
+      "safety": "مخاوف الأمان"
+    },
+    "priorities": {
+      "low": "منخفض",
+      "medium": "متوسط",
+      "high": "عالي"
+    },
+    "alerts": {
+      "error": "خطأ",
+      "success": "نجح",
+      "authRequired": "مطلوب المصادقة",
+      "authMessage": "يرجى تسجيل الدخول لعرض تذاكر الدعم الخاصة بك",
+      "submitAuthMessage": "يجب أن تكون مسجلاً للدخول لإرسال تذكرة دعم",
+      "loadTicketsError": "فشل في تحميل تذاكر الدعم",
+      "submitError": "فشل في إرسال تذكرة الدعم",
+      "fillRequiredFields": "يرجى ملء جميع الحقول المطلوبة",
+      "submitSuccess": "تم إرسال تذكرة الدعم الخاصة بك بنجاح. سيتواصل معك فريقنا قريباً.",
+      "ok": "موافق"
+    },
+    "loading": "جاري تحميل التذاكر...",
+    "empty": {
+      "title": "لا توجد تذاكر دعم",
+      "description": "لم تقم بإرسال أي تذاكر دعم بعد.",
+      "createFirst": "إنشاء تذكرتك الأولى"
+    }
+  }
+}

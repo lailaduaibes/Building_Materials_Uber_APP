@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import { ProfessionalMapMarker } from '../components/ProfessionalMapMarker';
 import { DriverLocationMarker } from '../components/DriverLocationMarker';
 import { PickupTimeDisplay } from '../components/PickupTimeDisplay';
@@ -34,6 +34,15 @@ import { useLanguage } from '../src/contexts/LanguageContext';
 
 const { width, height } = Dimensions.get('window');
 const isTablet = width >= 768;
+const screenWidth = width;
+
+// Enhanced responsive calculations for Android
+const getResponsiveValue = (small: number, medium: number = small * 1.2, large: number = small * 1.5) => {
+  if (screenWidth < 360) return small * 0.9; // Small Android phones
+  if (screenWidth < 400) return small; // Standard Android phones
+  if (screenWidth < 600) return medium; // Large phones/small tablets
+  return large; // Tablets
+};
 
 // Helper functions for trip status
 const getStatusLabel = (status: string): string => {
@@ -66,17 +75,17 @@ const getStatusColor = (status: string): string => {
     case 'driver_en_route':
       return Colors.primary; // Primary blue
     case 'at_pickup':
-      return Colors.status.warning; // Orange
+      return Colors.status.pending; // Orange
     case 'loaded':
       return Colors.primary; // Blue
     case 'in_transit':
-      return Colors.status.warning; // Orange
+      return Colors.status.inProgress; // Blue
     case 'at_delivery':
-      return Colors.status.warning; // Orange
+      return Colors.status.pending; // Orange
     case 'delivered':
-      return Colors.status.success; // Green
+      return Colors.status.completed; // Green
     case 'completed':
-      return Colors.status.success; // Green
+      return Colors.status.completed; // Green
     default:
       return Colors.text.secondary; // Gray
   }
@@ -87,7 +96,6 @@ interface ProfessionalDriverDashboardProps {
   onNavigateToOrder: (order: OrderAssignment) => void;
   onNavigateToEarnings: () => void;
   onNavigateToTripHistory: () => void;
-  onNavigateToRouteOptimization?: () => void;
 }
 
 const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = ({
@@ -95,7 +103,6 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
   onNavigateToOrder,
   onNavigateToEarnings,
   onNavigateToTripHistory,
-  onNavigateToRouteOptimization,
 }) => {
   // Language support
   const { t, isRTL } = useLanguage();
@@ -955,12 +962,6 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
               <Ionicons name="list" size={20} color={Colors.primary} />
               <Text style={styles.actionText}>Available</Text>
             </TouchableOpacity>
-            {onNavigateToRouteOptimization && (
-              <TouchableOpacity style={styles.actionButton} onPress={onNavigateToRouteOptimization}>
-                <Ionicons name="flash" size={20} color={Colors.warning} />
-                <Text style={styles.actionText}>AI Routes</Text>
-              </TouchableOpacity>
-            )}
             <TouchableOpacity style={styles.actionButton} onPress={onNavigateToProfile}>
               <Ionicons name="person" size={20} color={Colors.primary} />
               <Text style={styles.actionText}>Profile</Text>
@@ -980,11 +981,12 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'android' ? PROVIDER_DEFAULT : PROVIDER_GOOGLE}
         region={currentRegion || undefined}
         showsUserLocation={true}
         showsMyLocationButton={false}
         onRegionChangeComplete={setCurrentRegion}
+        mapPadding={{ top: 0, right: 0, bottom: 160, left: 0 }} // Reserve space for Google attribution
       >
         {/* Driver's current location marker */}
         {driverLocation && (
@@ -1136,11 +1138,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: getResponsiveValue(16, 20, 24),
+    paddingVertical: getResponsiveValue(10, 12, 14),
     backgroundColor: Colors.background.primary,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border.light,
+    minHeight: Platform.OS === 'android' ? 56 : 44, // Android Material Design
     ...Platform.select({
       ios: {
         shadowColor: Colors.shadow.color,
@@ -1156,58 +1159,71 @@ const styles = StyleSheet.create({
   topBarLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   menuButton: {
-    padding: 8,
-    marginRight: 12,
+    padding: getResponsiveValue(6, 8, 10),
+    marginRight: getResponsiveValue(10, 12, 14),
+    minWidth: Platform.OS === 'android' ? 48 : getResponsiveValue(40, 44, 48),
+    minHeight: Platform.OS === 'android' ? 48 : getResponsiveValue(40, 44, 48),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
+    width: getResponsiveValue(8, 9, 10),
+    height: getResponsiveValue(8, 9, 10),
+    borderRadius: getResponsiveValue(4, 4.5, 5),
+    marginRight: getResponsiveValue(6, 8, 10),
   },
   statusText: {
-    fontSize: 16,
+    fontSize: getResponsiveValue(14, 16, 18),
     fontWeight: '500',
     color: Colors.text.primary,
+    lineHeight: getResponsiveValue(18, 20, 22),
+    flexShrink: 1,
   },
   onlineButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: getResponsiveValue(12, 16, 20),
+    paddingVertical: getResponsiveValue(6, 8, 10),
+    borderRadius: getResponsiveValue(16, 20, 24),
+    minHeight: Platform.OS === 'android' ? 40 : getResponsiveValue(32, 36, 40),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   onlineButtonText: {
-    fontSize: 14,
+    fontSize: getResponsiveValue(12, 14, 16),
     fontWeight: '600',
     color: Colors.background.primary,
+    lineHeight: getResponsiveValue(16, 18, 20),
   },
   map: {
     flex: 1,
   },
   orderMarkerText: {
-    fontSize: 12,
+    fontSize: getResponsiveValue(10, 12, 14),
     fontWeight: '600',
     color: Colors.text.primary,
+    lineHeight: getResponsiveValue(14, 16, 18),
   },
   ordersOverlay: {
     position: 'absolute',
-    top: 80,
-    left: 20,
-    right: 20,
+    top: getResponsiveValue(70, 80, 90),
+    left: getResponsiveValue(16, 20, 24),
+    right: getResponsiveValue(16, 20, 24),
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   ordersInfo: {
     backgroundColor: Colors.background.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: getResponsiveValue(10, 12, 14),
+    paddingVertical: getResponsiveValue(5, 6, 7),
+    borderRadius: getResponsiveValue(12, 16, 20),
     ...Platform.select({
       ios: {
         shadowColor: Colors.shadow.color,
@@ -1222,13 +1238,13 @@ const styles = StyleSheet.create({
   },
   mapControls: {
     flexDirection: 'row',
-    gap: 8,
+    gap: getResponsiveValue(6, 8, 10),
   },
   mapControlButton: {
     backgroundColor: Colors.background.primary,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: Platform.OS === 'android' ? 48 : getResponsiveValue(36, 40, 44),
+    height: Platform.OS === 'android' ? 48 : getResponsiveValue(36, 40, 44),
+    borderRadius: Platform.OS === 'android' ? 24 : getResponsiveValue(18, 20, 22),
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
@@ -1247,9 +1263,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   ordersCount: {
-    fontSize: 14,
+    fontSize: getResponsiveValue(12, 14, 16),
     fontWeight: '500',
     color: Colors.text.primary,
+    lineHeight: getResponsiveValue(16, 18, 20),
   },
   bottomSheet: {
     position: 'absolute',
@@ -1257,13 +1274,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: Colors.background.primary,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20, // Account for iOS safe area
-    minHeight: 140,
-    maxHeight: height * 0.8, // Maximum 80% of screen height
+    borderTopLeftRadius: getResponsiveValue(16, 20, 24),
+    borderTopRightRadius: getResponsiveValue(16, 20, 24),
+    paddingHorizontal: getResponsiveValue(16, 20, 24),
+    paddingTop: getResponsiveValue(12, 16, 20),
+    paddingBottom: Platform.OS === 'ios' ? getResponsiveValue(28, 34, 40) : getResponsiveValue(16, 20, 24),
+    minHeight: getResponsiveValue(120, 140, 160),
+    maxHeight: height * (screenWidth < 400 ? 0.75 : 0.8), // Smaller max height on small screens
     ...Platform.select({
       ios: {
         shadowColor: Colors.shadow.color,
@@ -1278,17 +1295,18 @@ const styles = StyleSheet.create({
   },
   orderScrollContent: {
     flex: 1,
-    marginVertical: 10,
+    marginVertical: getResponsiveValue(8, 10, 12),
   },
   dashboardSummary: {
-    height: 100, // Fixed height for collapsed state
+    height: getResponsiveValue(90, 100, 110), // Responsive height for collapsed state
+    justifyContent: 'center',
   },
   earningsCard: {
     flexDirection: 'row',
     backgroundColor: Colors.background.primary,
-    borderRadius: 12,
-    padding: 12, // Reduced padding
-    marginBottom: 12, // Reduced margin
+    borderRadius: getResponsiveValue(10, 12, 14),
+    padding: getResponsiveValue(10, 12, 14),
+    marginBottom: getResponsiveValue(10, 12, 14),
     ...Platform.select({
       ios: {
         shadowColor: Colors.shadow.color,
@@ -1308,140 +1326,184 @@ const styles = StyleSheet.create({
   earningsDivider: {
     width: 1,
     backgroundColor: Colors.border.light,
-    marginHorizontal: 16,
+    marginHorizontal: getResponsiveValue(12, 16, 20),
   },
   earningsLabel: {
-    fontSize: 14,
+    fontSize: getResponsiveValue(12, 14, 16),
     color: Colors.text.secondary,
-    marginBottom: 4,
+    marginBottom: getResponsiveValue(3, 4, 5),
+    lineHeight: getResponsiveValue(16, 18, 20),
   },
   earningsValue: {
-    fontSize: 18,
+    fontSize: getResponsiveValue(16, 18, 20),
     fontWeight: '600',
     color: Colors.text.primary,
+    lineHeight: getResponsiveValue(20, 22, 24),
   },
   quickActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-around',
-    paddingHorizontal: 8,
+    paddingHorizontal: getResponsiveValue(6, 8, 12),
+    paddingVertical: getResponsiveValue(4, 6, 8),
   },
   actionButton: {
     alignItems: 'center',
-    padding: 8,
-    minWidth: '18%',
-    maxWidth: '20%',
+    padding: getResponsiveValue(6, 8, 10),
+    minWidth: screenWidth < 400 ? '16%' : '18%', // Smaller buttons on small screens
+    maxWidth: screenWidth < 400 ? '18%' : '20%',
+    minHeight: Platform.OS === 'android' ? 48 : getResponsiveValue(40, 44, 48),
+    justifyContent: 'center',
   },
   actionText: {
-    fontSize: 12,
+    fontSize: getResponsiveValue(10, 12, 14),
     color: Colors.primary,
-    marginTop: 4,
+    marginTop: getResponsiveValue(3, 4, 5),
     fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: getResponsiveValue(12, 14, 16),
   },
   orderDetails: {
     flex: 1,
-    minHeight: height * 0.5, // Minimum height for better visibility
+    minHeight: height * (screenWidth < 400 ? 0.45 : 0.5), // Smaller min height on small screens
   },
   orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
+    marginBottom: getResponsiveValue(12, 16, 20),
+    paddingBottom: getResponsiveValue(10, 12, 14),
     borderBottomWidth: 1,
     borderBottomColor: Colors.border.light,
+    minHeight: Platform.OS === 'android' ? 48 : getResponsiveValue(40, 44, 48),
   },
   closeButton: {
-    padding: 4,
+    padding: getResponsiveValue(6, 8, 10),
+    minWidth: Platform.OS === 'android' ? 48 : getResponsiveValue(36, 40, 44),
+    minHeight: Platform.OS === 'android' ? 48 : getResponsiveValue(36, 40, 44),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   orderTitle: {
-    fontSize: 18,
+    fontSize: getResponsiveValue(16, 18, 20),
     fontWeight: '600',
     color: Colors.text.primary,
+    flex: 1,
+    marginRight: getResponsiveValue(8, 10, 12),
+    lineHeight: getResponsiveValue(20, 22, 24),
   },
   orderPrice: {
-    fontSize: 18,
+    fontSize: getResponsiveValue(16, 18, 20),
     fontWeight: '700',
     color: Colors.status.completed,
+    lineHeight: getResponsiveValue(20, 22, 24),
   },
   orderInfo: {
-    marginBottom: 16,
+    marginBottom: getResponsiveValue(12, 16, 20),
   },
   orderRoute: {
-    marginBottom: 16,
+    marginBottom: getResponsiveValue(12, 16, 20),
   },
   routePoint: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 8,
+    marginVertical: getResponsiveValue(8, 10, 12),
+    paddingHorizontal: getResponsiveValue(8, 12, 16),
   },
   routeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+    width: getResponsiveValue(10, 12, 14),
+    height: getResponsiveValue(10, 12, 14),
+    borderRadius: getResponsiveValue(5, 6, 7),
+    marginRight: getResponsiveValue(10, 12, 14),
   },
   routeLine: {
-    width: 2,
-    height: 20,
+    width: getResponsiveValue(2, 2, 3),
+    height: getResponsiveValue(18, 20, 24),
     backgroundColor: Colors.border.light,
-    marginLeft: 5,
-    marginVertical: 4,
+    marginLeft: getResponsiveValue(4, 5, 6),
+    marginVertical: getResponsiveValue(3, 4, 5),
   },
   routeText: {
-    fontSize: 14,
+    fontSize: getResponsiveValue(13, 14, 16),
     color: Colors.text.primary,
     flex: 1,
+    lineHeight: getResponsiveValue(18, 20, 22),
   },
   orderMeta: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    paddingVertical: getResponsiveValue(8, 10, 12),
+    paddingHorizontal: getResponsiveValue(8, 12, 16),
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: getResponsiveValue(44, 48, 52), // Android touch target
   },
   metaText: {
-    fontSize: 14,
+    fontSize: getResponsiveValue(13, 14, 16),
     color: Colors.text.secondary,
-    marginLeft: 4,
+    marginLeft: getResponsiveValue(4, 6, 8),
+    lineHeight: getResponsiveValue(18, 20, 22),
   },
   acceptButton: {
     backgroundColor: Colors.status.completed,
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: getResponsiveValue(8, 12, 16),
+    paddingVertical: getResponsiveValue(14, 16, 20),
+    paddingHorizontal: getResponsiveValue(16, 20, 24),
     alignItems: 'center',
+    minHeight: getResponsiveValue(44, 48, 52), // Android touch target
+    marginHorizontal: getResponsiveValue(8, 12, 16),
+    marginVertical: getResponsiveValue(8, 10, 12),
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   acceptButtonText: {
-    fontSize: 16,
+    fontSize: getResponsiveValue(15, 16, 18),
     fontWeight: '600',
     color: Colors.background.primary,
+    lineHeight: getResponsiveValue(20, 22, 24),
   },
   // Orders List Styles
   ordersListContainer: {
     flex: 1,
+    paddingHorizontal: getResponsiveValue(8, 12, 16),
   },
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: getResponsiveValue(12, 16, 20),
+    paddingHorizontal: getResponsiveValue(4, 8, 12),
   },
   listTitle: {
-    fontSize: 18,
+    fontSize: getResponsiveValue(17, 18, 20),
     fontWeight: '600',
     color: Colors.text.primary,
+    lineHeight: getResponsiveValue(22, 24, 26),
   },
   ordersList: {
     flex: 1,
+    paddingBottom: getResponsiveValue(16, 20, 24),
   },
   orderListItem: {
     backgroundColor: Colors.background.primary,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    padding: getResponsiveValue(12, 16, 20),
+    borderRadius: getResponsiveValue(8, 12, 16),
+    marginBottom: getResponsiveValue(8, 12, 16),
+    marginHorizontal: getResponsiveValue(4, 8, 12),
     borderWidth: 1,
     borderColor: Colors.border.light,
+    minHeight: getResponsiveValue(88, 96, 104),
     ...Platform.select({
       ios: {
         shadowColor: Colors.shadow.color,
@@ -1458,37 +1520,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: getResponsiveValue(6, 8, 10),
   },
   orderListPrice: {
-    fontSize: 18,
+    fontSize: getResponsiveValue(16, 18, 20),
     fontWeight: '700',
     color: Colors.status.completed,
+    lineHeight: getResponsiveValue(20, 22, 24),
   },
   orderListDistance: {
-    fontSize: 14,
+    fontSize: getResponsiveValue(13, 14, 16),
     color: Colors.text.secondary,
     fontWeight: '500',
+    lineHeight: getResponsiveValue(18, 20, 22),
   },
   orderListAddress: {
-    fontSize: 14,
+    fontSize: getResponsiveValue(13, 14, 16),
     color: Colors.text.primary,
-    marginBottom: 4,
+    marginBottom: getResponsiveValue(3, 4, 5),
+    lineHeight: getResponsiveValue(18, 20, 22),
   },
   orderListMaterial: {
-    fontSize: 12,
+    fontSize: getResponsiveValue(12, 12, 14),
     color: Colors.text.secondary,
+    lineHeight: getResponsiveValue(16, 18, 20),
   },
   orderListTimeContainer: {
-    marginTop: 4,
-    marginBottom: 2,
+    marginTop: getResponsiveValue(3, 4, 5),
+    marginBottom: getResponsiveValue(2, 2, 3),
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: getResponsiveValue(32, 40, 48),
+    paddingHorizontal: getResponsiveValue(16, 20, 24),
   },
   emptyStateText: {
-    fontSize: 16,
+    fontSize: getResponsiveValue(15, 16, 18),
     fontWeight: '500',
     color: Colors.text.secondary,
     marginTop: 12,
@@ -1500,22 +1567,25 @@ const styles = StyleSheet.create({
   },
   tripMainContent: {
     flex: 1,
+    paddingHorizontal: getResponsiveValue(4, 8, 12),
   },
   chatButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary + '10',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginTop: 10,
-    gap: 5,
+    paddingHorizontal: getResponsiveValue(12, 15, 18),
+    paddingVertical: getResponsiveValue(6, 8, 10),
+    borderRadius: getResponsiveValue(16, 20, 24),
+    marginTop: getResponsiveValue(8, 10, 12),
+    gap: getResponsiveValue(4, 5, 6),
+    minHeight: getResponsiveValue(36, 40, 44), // Touch target for chat
   },
   chatButtonText: {
-    fontSize: 12,
+    fontSize: getResponsiveValue(11, 12, 14),
     fontWeight: '500',
     color: Colors.primary,
+    lineHeight: getResponsiveValue(14, 16, 18),
   },
 });
 
