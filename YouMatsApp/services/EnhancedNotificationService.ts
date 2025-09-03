@@ -117,14 +117,24 @@ class EnhancedNotificationService {
     newETA: number,
     reason?: string
   ): Promise<{ success: boolean; error?: string }> {
+    console.log('🔔 EnhancedNotificationService.sendETAUpdateNotification called', {
+      customerId,
+      tripId,
+      newETA,
+      reason
+    });
+
     try {
       // Send via chat system (more immediate)
+      console.log('📤 EnhancedNotificationService: Calling driverCommunicationService.sendETAUpdate');
       const result = await driverCommunicationService.sendETAUpdate(
         tripId,
         customerId,
         newETA,
         reason
       );
+
+      console.log('📥 EnhancedNotificationService: driverCommunicationService response', result);
 
       if (result.success) {
         // Also send as notification (without trip_id FK constraint)
@@ -212,6 +222,88 @@ class EnhancedNotificationService {
       return { success: true };
     } catch (error) {
       console.error('❌ Failed to send arrival notification:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+
+  /**
+   * Send driver message notification to customer
+   * Used when driver sends chat messages or photos
+   */
+  async sendDriverMessageNotification(
+    customerId: string,
+    tripId: string,
+    messageType: 'text' | 'image',
+    messageContent: string,
+    driverName?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log('🔔 Starting driver message notification...', {
+        customerId,
+        tripId,
+        messageType,
+        messageContent: messageContent.substring(0, 30) + '...'
+      });
+
+      const driver = driverName || 'Your driver';
+      let title: string;
+      let message: string;
+
+      if (messageType === 'image') {
+        title = '📷 Photo from Driver';
+        message = `${driver} sent a photo: ${messageContent}`;
+      } else {
+        title = '💬 Message from Driver';
+        message = `${driver}: ${messageContent}`;
+      }
+
+      console.log('📝 Notification content prepared:', { title, message });
+
+      // Send notification to customer using service role (bypasses RLS)
+      const { data, error } = await supabaseService
+        .from('notifications')
+        .insert({
+          user_id: customerId,
+          trip_id: tripId, // Add trip_id field for proper linking
+          title,
+          message,
+          type: 'info', // Use 'info' instead of 'driver_message' to match constraint
+          data: { 
+            message_type: messageType,
+            driver_name: driverName,
+            trip_id: tripId, // Use trip_id instead of trip_assignment_id
+            content: messageContent,
+            sender_type: 'driver', // Add for consistency
+            notification_category: 'driver_message' // Add category for filtering
+          },
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Driver message notification DB error:', error);
+        console.error('❌ Error details:', JSON.stringify(error, null, 2));
+        throw error;
+      }
+
+      console.log('✅ Driver message notification sent successfully:', {
+        notificationId: data.id,
+        customerId,
+        tripId,
+        title
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Failed to send driver message notification:', error);
+      console.error('❌ Full error context:', {
+        customerId,
+        tripId,
+        messageType,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 

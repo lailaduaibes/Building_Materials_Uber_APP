@@ -7,8 +7,10 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system';
 import { driverPushNotificationService } from './DriverPushNotificationService';
+import { enhancedNotificationService } from './EnhancedNotificationService';
 
 const supabaseUrl = 'https://pjbbtmuhlpscmrbgsyzb.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMTkzMTIsImV4cCI6MjA3MDY5NTMxMn0.bBBBaL7odpkTSGmEstQp8ihkEsdgYsycrRgFVKGvJ28';
@@ -170,6 +172,21 @@ class DriverCommunicationService {
       }
 
       console.log('✅ Text message sent:', data.id);
+
+      // Send push notification to customer
+      try {
+        await enhancedNotificationService.sendDriverMessageNotification(
+          customerId,
+          tripId,
+          'text',
+          message
+        );
+        console.log('📱 Customer notification sent for text message');
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send customer notification:', notificationError);
+        // Don't fail the whole operation if notification fails
+      }
+
       return { success: true, message: data };
     } catch (error) {
       console.error('❌ Exception sending text message:', error);
@@ -189,10 +206,20 @@ class DriverCommunicationService {
     newETA: number,
     reason?: string
   ): Promise<{ success: boolean; error?: string; message?: TripMessage }> {
+    console.log('💬 DriverCommunicationService.sendETAUpdate called', {
+      tripId,
+      customerId,
+      newETA,
+      reason,
+      currentUserId: this.currentUserId
+    });
+
     try {
       if (!this.currentUserId) {
+        console.log('❌ DriverCommunicationService: No currentUserId, calling initializeUser');
         await this.initializeUser();
         if (!this.currentUserId) {
+          console.log('❌ DriverCommunicationService: Still no currentUserId after initialize');
           return { success: false, error: 'Driver not authenticated' };
         }
       }
@@ -200,6 +227,8 @@ class DriverCommunicationService {
       const message = reason 
         ? `ETA updated to ${newETA} minutes due to ${reason}`
         : `New ETA: ${newETA} minutes`;
+
+      console.log('📝 DriverCommunicationService: Prepared message', { message });
 
       const messageData = {
         trip_id: tripId,
@@ -210,6 +239,8 @@ class DriverCommunicationService {
         is_read: false,
         delivered_at: new Date().toISOString(),
       };
+
+      console.log('📤 DriverCommunicationService: Inserting message data', messageData);
 
       const { data, error } = await supabase
         .from('trip_messages')
@@ -321,15 +352,15 @@ class DriverCommunicationService {
       const result = source === 'camera' 
         ? await ImagePicker.launchCameraAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
+            allowsEditing: false, // Remove forced editing/cropping
+            quality: 0.5, // Reduced for faster uploads
+            exif: false, // Remove EXIF data to reduce size
           })
         : await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
+            allowsEditing: false, // Remove forced editing/cropping
+            quality: 0.5, // Reduced for faster uploads
+            exif: false, // Remove EXIF data to reduce size
           });
 
       if (result.canceled) {
@@ -425,6 +456,146 @@ class DriverCommunicationService {
       return { success: true, photoId: data.id, message: messageData2 };
     } catch (error) {
       console.error('❌ Failed to send photo:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+
+  /**
+   * Upload and send photo from a local URI (used for photo preview workflow)
+   */
+  async sendPhotoFromUri(
+    tripId: string,
+    customerId: string,
+    photoUri: string,
+    photoType: TripPhoto['photo_type'],
+    description?: string
+  ): Promise<{ success: boolean; error?: string; photoId?: string; message?: TripMessage }> {
+    try {
+      // Get current authenticated user (driver)
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        return { success: false, error: 'Driver not authenticated' };
+      }
+
+      console.log('🔄 Optimizing image for faster upload...');
+      
+      const optimizedImage = await ImageManipulator.manipulateAsync(
+        photoUri,
+        [
+          // Resize if image is too large (max 1200px on longest side)
+          { resize: { width: 1200 } }
+        ],
+        {
+          compress: 0.6, // Good balance between quality and file size
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: false, // We'll read the file separately
+        }
+      );
+
+      // Upload to Supabase Storage
+      const fileExt = 'jpg'; // Always use jpg for consistency and size
+      const fileName = `${tripId}_${user.id}_${Date.now()}.${fileExt}`;
+      
+      console.log('📤 Uploading photo...', { 
+        optimizedSize: `${optimizedImage.width}x${optimizedImage.height}`,
+        fileName 
+      });
+
+      // Read optimized file as base64
+      const base64 = await FileSystem.readAsStringAsync(optimizedImage.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Convert base64 to Uint8Array (React Native compatible)
+      const byteArray = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+
+      console.log('📊 Upload size:', Math.round(byteArray.length / 1024), 'KB');
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('trip-photos')
+        .upload(fileName, byteArray, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      console.log('✅ Image uploaded to storage:', uploadData.path);
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('trip-photos')
+        .getPublicUrl(fileName);
+
+      console.log('📷 Generated public URL:', publicUrl);
+
+      // Get image dimensions from the URI
+      const imageInfo = await FileSystem.getInfoAsync(photoUri);
+      
+      // Save photo record
+      const { data, error } = await supabase
+        .from('trip_photos')
+        .insert({
+          trip_id: tripId,
+          taken_by_id: user.id,
+          taken_by_type: 'driver',
+          photo_type: photoType,
+          image_url: publicUrl,
+          file_size: byteArray.length,
+          description: description,
+          is_required: false,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Send message with photo
+      const messageData = {
+        trip_id: tripId,
+        sender_id: user.id,
+        sender_type: 'driver' as const,
+        message_type: 'image' as const,
+        content: description || `${photoType.replace('_', ' ')} photo`,
+        image_url: publicUrl,
+        is_read: false,
+        delivered_at: new Date().toISOString(),
+      };
+
+      const { data: messageData2, error: messageError } = await supabase
+        .from('trip_messages')
+        .insert(messageData)
+        .select()
+        .single();
+
+      if (messageError) {
+        console.error('❌ Failed to create image message:', messageError);
+        return { success: true, photoId: data.id };
+      }
+
+      console.log('📷 Photo uploaded and message sent:', data.id);
+
+      // Send push notification to customer
+      try {
+        await enhancedNotificationService.sendDriverMessageNotification(
+          customerId,
+          tripId,
+          'image',
+          description || 'Photo'
+        );
+        console.log('📱 Customer notification sent for photo message');
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send customer notification:', notificationError);
+        // Don't fail the whole operation if notification fails
+      }
+
+      return { success: true, photoId: data.id, message: messageData2 };
+    } catch (error) {
+      console.error('❌ Failed to send photo from URI:', error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 

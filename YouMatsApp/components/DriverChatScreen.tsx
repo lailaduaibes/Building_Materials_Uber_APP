@@ -19,8 +19,10 @@ import {
   Linking,
   KeyboardAvoidingView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { driverCommunicationService, TripMessage, TripPhoto } from '../services/DriverCommunicationService';
 import { OrderAssignment } from '../services/DriverService';
 
@@ -56,6 +58,14 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
   const [loading, setLoading] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showETAModal, setShowETAModal] = useState(false);
+  const [etaInput, setEtaInput] = useState('');
+  const [photoPreview, setPhotoPreview] = useState<{
+    uri: string;
+    type: TripPhoto['photo_type'];
+    description?: string;
+  } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   const flatListRef = useRef<FlatList>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
@@ -212,45 +222,70 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
   };
 
   const sendETAUpdate = () => {
-    Alert.prompt(
-      'Update ETA',
-      'Enter new estimated arrival time (in minutes)',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send',
-          onPress: async (value) => {
-            if (value && !isNaN(Number(value))) {
-              const result = await driverCommunicationService.sendETAUpdate(
-                trip.id,
-                trip.customerId,
-                Number(value)
-              );
-              if (result.success && result.message) {
-                // Add ETA update to UI immediately
-                setMessages(prev => {
-                  const exists = prev.find(msg => msg.id === result.message!.id);
-                  if (!exists) {
-                    return [...prev, result.message!];
-                  }
-                  return prev;
-                });
-                
-                // Auto-scroll to bottom
-                setTimeout(() => {
-                  flatListRef.current?.scrollToEnd({ animated: true });
-                }, 100);
-              } else {
-                Alert.alert('Error', result.error || 'Failed to send ETA update');
-              }
-            }
+    console.log('🎯 sendETAUpdate function called');
+    console.log('🎯 Android ETA Update - Starting prompt');
+    console.log('🎯 Trip details:', { id: trip.id, customerId: trip.customerId });
+    
+    if (Platform.OS === 'android') {
+      // Use custom modal for Android
+      console.log('🎯 Android ETA Update - Opening custom modal');
+      setEtaInput('');
+      setShowETAModal(true);
+    } else {
+      // Use Alert.prompt for iOS
+      Alert.prompt(
+        'Update ETA',
+        'Enter new estimated arrival time (in minutes)',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Send',
+            onPress: async (value) => {
+              console.log('🎯 iOS ETA Update - Send pressed with value:', value);
+              await handleETASubmit(value || '');
+            },
           },
-        },
-      ],
-      'plain-text',
-      '',
-      'numeric'
-    );
+        ],
+        'plain-text',
+        '',
+        'numeric'
+      );
+    }
+  };
+
+  const handleETASubmit = async (value: string) => {
+    console.log('🎯 handleETASubmit called with value:', value);
+    if (value && !isNaN(Number(value))) {
+      console.log('🎯 ETA Update - Valid value, sending to service');
+      const result = await driverCommunicationService.sendETAUpdate(
+        trip.id,
+        trip.customerId,
+        Number(value)
+      );
+      console.log('🎯 ETA Update - Service result:', result);
+      if (result.success && result.message) {
+        console.log('✅ ETA Update - Success!');
+        // Add ETA update to UI immediately
+        setMessages(prev => {
+          const exists = prev.find(msg => msg.id === result.message!.id);
+          if (!exists) {
+            return [...prev, result.message!];
+          }
+          return prev;
+        });
+        
+        // Auto-scroll to bottom
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      } else {
+        console.log('❌ ETA Update - Failed:', result.error);
+        Alert.alert('Error', result.error || 'Failed to send ETA update');
+      }
+    } else {
+      console.log('❌ ETA Update - Invalid value');
+      Alert.alert('Error', 'Please enter a valid number of minutes');
+    }
   };
 
   const sendPhoto = async (photoType: TripPhoto['photo_type']) => {
@@ -263,28 +298,80 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
           { text: 'Cancel', style: 'cancel' },
           { 
             text: 'Take Photo', 
-            onPress: () => sendPhotoWithSource(photoType, 'camera')
+            onPress: () => selectPhotoWithSource(photoType, 'camera')
           },
           { 
             text: 'Choose from Library', 
-            onPress: () => sendPhotoWithSource(photoType, 'library')
+            onPress: () => selectPhotoWithSource(photoType, 'library')
           },
         ]
       );
     } catch (error) {
-      Alert.alert('Error', 'Failed to send photo');
+      Alert.alert('Error', 'Failed to select photo');
     }
   };
 
-  const sendPhotoWithSource = async (photoType: TripPhoto['photo_type'], source: 'camera' | 'library') => {
+  const selectPhotoWithSource = async (photoType: TripPhoto['photo_type'], source: 'camera' | 'library') => {
     try {
-      const result = await driverCommunicationService.sendPhoto(
+      // Request permission based on source
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Permission to access camera is required');
+          return;
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Permission to access camera roll is required');
+          return;
+        }
+      }
+
+      // Launch the appropriate picker
+      const result = source === 'camera' 
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: false,
+            quality: 0.5, // Reduced for faster uploads
+            exif: false, // Remove EXIF data to reduce size
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: false,
+            quality: 0.5, // Reduced for faster uploads
+            exif: false, // Remove EXIF data to reduce size
+          });
+
+      if (!result.canceled && result.assets[0]) {
+        // Show preview instead of sending immediately
+        setPhotoPreview({
+          uri: result.assets[0].uri,
+          type: photoType,
+          description: `${photoType.replace('_', ' ')} photo`
+        });
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to select photo');
+    }
+  };
+
+  const sendSelectedPhoto = async () => {
+    if (!photoPreview) return;
+
+    try {
+      setSendingMessage(true);
+      setUploadProgress('Optimizing image...');
+      
+      const result = await driverCommunicationService.sendPhotoFromUri(
         trip.id,
         trip.customerId,
-        photoType,
-        `${photoType.replace('_', ' ')} photo`,
-        source
+        photoPreview.uri,
+        photoPreview.type,
+        photoPreview.description
       );
+
+      setUploadProgress('Uploading...');
 
       if (result.success && result.message) {
         // Add photo message to UI immediately
@@ -300,12 +387,22 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
         }, 100);
+
+        // Close preview
+        setPhotoPreview(null);
       } else {
         Alert.alert('Error', result.error || 'Failed to send photo');
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to send photo');
+    } finally {
+      setSendingMessage(false);
+      setUploadProgress('');
     }
+  };
+
+  const cancelPhotoPreview = () => {
+    setPhotoPreview(null);
   };
 
   const makeCall = async () => {
@@ -443,7 +540,32 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
 
           {/* Quick Actions */}
           <View style={styles.quickActionsContainer}>
-            <TouchableOpacity onPress={sendETAUpdate} style={styles.quickActionButton}>
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('🎯 ETA Button Pressed on Android!');
+                console.log('🎯 Platform:', Platform.OS);
+                console.log('🎯 Trip ID:', trip.id);
+                sendETAUpdate();
+              }} 
+              style={[
+                styles.quickActionButton,
+                Platform.select({
+                  android: {
+                    minHeight: 48,
+                    minWidth: 48,
+                    elevation: 4,
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    paddingHorizontal: 20,
+                  },
+                })
+              ]}
+              activeOpacity={0.7}
+              accessible={true}
+              accessibilityLabel="Send ETA Update"
+              accessibilityRole="button"
+              hitSlop={Platform.OS === 'android' ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
+            >
               <MaterialIcons name="schedule" size={20} color={theme.warning} />
               <Text style={styles.quickActionText}>ETA</Text>
             </TouchableOpacity>
@@ -518,6 +640,59 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
           </View>
         </KeyboardAvoidingView>
 
+        {/* ETA Update Modal (Android Compatible) */}
+        {showETAModal && (
+          <Modal
+            visible={showETAModal}
+            transparent={true}
+            animationType="fade"
+          >
+            <View style={styles.etaModalContainer}>
+              <View style={styles.etaModalContent}>
+                <Text style={styles.etaModalTitle}>Update ETA</Text>
+                <Text style={styles.etaModalSubtitle}>
+                  Enter new estimated arrival time (in minutes)
+                </Text>
+                
+                <TextInput
+                  style={styles.etaModalInput}
+                  placeholder="15"
+                  value={etaInput}
+                  onChangeText={setEtaInput}
+                  keyboardType="numeric"
+                  maxLength={3}
+                  autoFocus={true}
+                />
+                
+                <View style={styles.etaModalButtons}>
+                  <TouchableOpacity
+                    style={[styles.etaModalButton, styles.etaModalCancelButton]}
+                    onPress={() => {
+                      console.log('🎯 Android ETA Modal - Cancel pressed');
+                      setShowETAModal(false);
+                      setEtaInput('');
+                    }}
+                  >
+                    <Text style={styles.etaModalCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.etaModalButton, styles.etaModalSendButton]}
+                    onPress={async () => {
+                      console.log('🎯 Android ETA Modal - Send pressed');
+                      setShowETAModal(false);
+                      await handleETASubmit(etaInput);
+                      setEtaInput('');
+                    }}
+                  >
+                    <Text style={styles.etaModalSendText}>Send</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
+
         {/* Image Modal */}
         {selectedImage && (
           <Modal visible={!!selectedImage} transparent>
@@ -528,6 +703,54 @@ export const DriverChatScreen: React.FC<Props> = ({ trip, isVisible, onClose }) 
               >
                 <Image source={{ uri: selectedImage }} style={styles.fullSizeImage} />
               </TouchableOpacity>
+            </View>
+          </Modal>
+        )}
+
+        {/* Photo Preview Modal */}
+        {photoPreview && (
+          <Modal visible={!!photoPreview} transparent>
+            <View style={styles.photoPreviewContainer}>
+              <View style={styles.photoPreviewContent}>
+                <Text style={styles.photoPreviewTitle}>Photo Preview</Text>
+                <Text style={styles.photoPreviewType}>
+                  {photoPreview.type.replace('_', ' ').toUpperCase()}
+                </Text>
+                
+                <Image 
+                  source={{ uri: photoPreview.uri }} 
+                  style={styles.photoPreviewImage}
+                  resizeMode="contain"
+                />
+                
+                <View style={styles.photoPreviewActions}>
+                  <TouchableOpacity 
+                    style={[styles.photoPreviewButton, styles.photoPreviewCancelButton]}
+                    onPress={cancelPhotoPreview}
+                  >
+                    <Text style={styles.photoPreviewCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[
+                      styles.photoPreviewButton, 
+                      styles.photoPreviewSendButton,
+                      sendingMessage && styles.photoPreviewSendButtonDisabled
+                    ]}
+                    onPress={sendSelectedPhoto}
+                    disabled={sendingMessage}
+                  >
+                    {sendingMessage ? (
+                      <ActivityIndicator size={18} color={theme.secondary} />
+                    ) : (
+                      <MaterialIcons name="send" size={18} color={theme.secondary} />
+                    )}
+                    <Text style={styles.photoPreviewSendText}>
+                      {sendingMessage ? (uploadProgress || 'Sending...') : 'Send Photo'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           </Modal>
         )}
@@ -662,6 +885,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    ...Platform.select({
+      android: {
+        minHeight: 44,
+        elevation: 3,
+      },
+    }),
   },
   quickActionText: {
     fontSize: 11,
@@ -883,5 +1112,169 @@ const styles = StyleSheet.create({
     width: width * 0.9,
     height: height * 0.7,
     resizeMode: 'contain',
+  },
+  // ETA Modal Styles
+  etaModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  etaModalContent: {
+    backgroundColor: theme.secondary,
+    borderRadius: 16,
+    padding: 24,
+    minWidth: 300,
+    maxWidth: '90%',
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  etaModalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  etaModalSubtitle: {
+    fontSize: 14,
+    color: theme.lightText,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  etaModalInput: {
+    borderWidth: 2,
+    borderColor: theme.accent,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 18,
+    textAlign: 'center',
+    backgroundColor: theme.inputBackground,
+    marginBottom: 24,
+    fontWeight: '500',
+    color: theme.text,
+  },
+  etaModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  etaModalButton: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  etaModalCancelButton: {
+    backgroundColor: theme.border,
+  },
+  etaModalSendButton: {
+    backgroundColor: theme.accent,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  etaModalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.lightText,
+  },
+  etaModalSendText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.secondary,
+  },
+  photoPreviewContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  photoPreviewContent: {
+    backgroundColor: theme.secondary,
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  photoPreviewTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.text,
+    marginBottom: 8,
+  },
+  photoPreviewType: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.accent,
+    marginBottom: 20,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  photoPreviewImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: 12,
+    marginBottom: 24,
+    backgroundColor: theme.background,
+  },
+  photoPreviewActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  photoPreviewButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+  },
+  photoPreviewCancelButton: {
+    backgroundColor: theme.border,
+  },
+  photoPreviewSendButton: {
+    backgroundColor: theme.accent,
+    shadowColor: theme.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  photoPreviewSendButtonDisabled: {
+    backgroundColor: theme.lightText,
+    opacity: 0.7,
+  },
+  photoPreviewCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.lightText,
+  },
+  photoPreviewSendText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.secondary,
   },
 });
