@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+import MapView, { Marker, Callout, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import { ProfessionalMapMarker } from '../components/ProfessionalMapMarker';
 import { DriverLocationMarker } from '../components/DriverLocationMarker';
 import { PickupTimeDisplay } from '../components/PickupTimeDisplay';
@@ -1008,18 +1008,42 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
             <Marker
               key={order.id || index}
               coordinate={order.coordinate}
-              onPress={() => handleOrderPress(order)}
-              anchor={{ x: 0.5, y: 1 }}
+              onPress={() => {
+                if (Platform.OS === 'ios') {
+                  handleOrderPress(order);
+                }
+              }}
+              anchor={{ x: 0.5, y: Platform.OS === 'android' ? 0.85 : 1 }}
+              centerOffset={{ x: 0, y: Platform.OS === 'android' ? -10 : 0 }}
+              zIndex={isIncompatible ? 1 : (selectedOrder?.id === order.id ? 1000 : 10)}
+              tracksViewChanges={false}
             >
-              <ProfessionalMapMarker
-                price={order.estimated_fare || 0}
-                materialType={order.material_type || 'General'}
-                isSelected={selectedOrder?.id === order.id}
-                isIncompatible={isIncompatible}
-                isPriority={(order.estimated_fare || 0) > 100} // Consider high-value orders as priority
-                pickupTimePreference={order.pickupTimePreference || 'asap'}
-                scheduledPickupTime={order.scheduledPickupTime}
-              />
+              {Platform.OS === 'android' ? (
+                <TouchableOpacity 
+                  onPress={() => handleOrderPress(order)}
+                  activeOpacity={0.8}
+                >
+                  <ProfessionalMapMarker
+                    price={order.estimated_fare || 0}
+                    materialType={order.material_type || 'General'}
+                    isSelected={selectedOrder?.id === order.id}
+                    isIncompatible={isIncompatible}
+                    isPriority={(order.estimated_fare || 0) > 100} // Consider high-value orders as priority
+                    pickupTimePreference={order.pickupTimePreference || 'asap'}
+                    scheduledPickupTime={order.scheduledPickupTime}
+                  />
+                </TouchableOpacity>
+              ) : (
+                <ProfessionalMapMarker
+                  price={order.estimated_fare || 0}
+                  materialType={order.material_type || 'General'}
+                  isSelected={selectedOrder?.id === order.id}
+                  isIncompatible={isIncompatible}
+                  isPriority={(order.estimated_fare || 0) > 100} // Consider high-value orders as priority
+                  pickupTimePreference={order.pickupTimePreference || 'asap'}
+                  scheduledPickupTime={order.scheduledPickupTime}
+                />
+              )}
             </Marker>
           );
         })}

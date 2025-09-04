@@ -19,7 +19,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import MapView, { Marker, Polyline, Region, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polyline, Region, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../src/contexts/LanguageContext';
@@ -474,7 +474,7 @@ export const LiveTripTrackingScreen: React.FC<LiveTripTrackingScreenProps> = ({
         {driverLocation && customerLocation && (
           <MapView
             ref={mapRef}
-            provider={PROVIDER_GOOGLE}
+            provider={Platform.OS === 'android' ? PROVIDER_DEFAULT : PROVIDER_GOOGLE}
             style={styles.map}
             initialRegion={{
               latitude: (driverLocation.latitude + customerLocation.latitude) / 2,
