@@ -17,6 +17,7 @@ import {
   Dimensions,
   StatusBar,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import MapView, { Marker, Polyline, Region, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';

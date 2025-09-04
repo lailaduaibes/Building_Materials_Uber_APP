@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AuthService } from '../services/AuthService';
+import { authService } from '../AuthServiceSupabase';
 
 interface EmailVerificationScreenProps {
   email: string;
@@ -29,8 +29,6 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
   const [isResending, setIsResending] = useState(false);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
-
-  const authService = AuthService.getInstance();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -55,10 +53,7 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
 
     setIsLoading(true);
     try {
-      const response = await authService.verifyEmail({
-        email,
-        code: verificationCode.trim(),
-      });
+      const response = await authService.verifyEmail(email, verificationCode.trim());
 
       if (response.success) {
         Alert.alert('Success', 'Email verified successfully!', [
@@ -77,7 +72,7 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
   const handleResendCode = async () => {
     setIsResending(true);
     try {
-      const response = await authService.resendVerificationCode(email);
+      const response = await authService.resendVerification(email);
 
       if (response.success) {
         Alert.alert('Code Sent', 'A new verification code has been sent to your email');

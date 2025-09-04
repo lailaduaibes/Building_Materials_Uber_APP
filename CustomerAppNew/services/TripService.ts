@@ -442,8 +442,31 @@ class TripService {
 
       if (error) throw error;
 
-      // Start looking for drivers
-      this.findAvailableDrivers(data.id);
+      console.log('✅ Trip request created successfully:', data.id);
+
+      // 🚀 CRITICAL: Start ASAP sequential matching for ASAP trips
+      if (tripData.pickup_time_preference === 'asap') {
+        console.log('🚨 ASAP trip detected - starting sequential driver matching...');
+        
+        try {
+          // Call the Uber-style sequential system (one driver at a time)
+          const { error: matchingError } = await supabase
+            .rpc('start_asap_matching_uber_style', { trip_request_id: data.id });
+          
+          if (matchingError) {
+            console.error('⚠️ Uber-style ASAP matching failed to start:', matchingError);
+            // Don't fail the trip creation, just log the error
+          } else {
+            console.log('✅ Uber-style ASAP matching started for trip:', data.id);
+          }
+        } catch (matchingError) {
+          console.error('⚠️ Error starting ASAP matching:', matchingError);
+          // Continue with trip creation even if matching fails
+        }
+      } else {
+        // For scheduled trips, use the existing driver finding system
+        this.findAvailableDrivers(data.id);
+      }
 
       return { success: true, tripId: data.id };
     } catch (error) {

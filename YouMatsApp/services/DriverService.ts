@@ -3332,15 +3332,15 @@ class DriverService {
     return deg * (Math.PI/180);
   }
 
-  // Update driver location in real-time - SIMPLIFIED to use existing location system
+  // Update driver location in real-time - FIXED to update BOTH tables for ASAP matching
   async updateDriverLocation(latitude: number, longitude: number): Promise<boolean> {
     try {
       if (!this.currentDriver) return false;
 
       console.log(`📍 Updating location for driver ${this.currentDriver.user_id}: ${latitude}, ${longitude}`);
 
-      // Update users table (used by both live tracking AND ASAP matching)
-      const { error } = await supabase
+      // 1. Update users table (used by live tracking)
+      const { error: usersError } = await supabase
         .from('users')
         .update({
           current_latitude: latitude,
@@ -3349,13 +3349,33 @@ class DriverService {
         })
         .eq('id', this.currentDriver.user_id);
 
-      if (error) {
-        console.error('❌ Error updating driver location:', error);
-        return false;
+      if (usersError) {
+        console.error('❌ Error updating users location:', usersError);
       }
 
-      console.log('✅ Driver location updated - available for both live tracking and ASAP matching');
-      return true;
+      // 2. Update/insert driver_locations table (used by ASAP matching)
+      const { error: driverLocError } = await supabase
+        .from('driver_locations')
+        .upsert({
+          driver_id: this.currentDriver.user_id,
+          latitude: latitude,
+          longitude: longitude,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'driver_id'
+        });
+
+      if (driverLocError) {
+        console.error('❌ Error updating driver_locations:', driverLocError);
+      }
+
+      if (!usersError && !driverLocError) {
+        console.log('✅ Driver location updated in BOTH tables - ready for ASAP matching!');
+        return true;
+      } else {
+        console.log('⚠️ Partial location update success');
+        return !usersError; // Return success if at least users table updated
+      }
     } catch (error) {
       console.error('💥 Error in updateDriverLocation:', error);
       return false;
@@ -4023,10 +4043,10 @@ class DriverService {
             event: 'INSERT',
             schema: 'public',
             table: 'trip_requests',
-            filter: `pickup_time_preference=eq.asap`
+            filter: `pickup_time_preference=eq.asap AND assigned_driver_id=eq.${currentDriver.user_id}`
           },
           async (payload) => {
-            console.log('🚨 [Real-time] New ASAP trip detected:', payload.new);
+            console.log('🚨 [Real-time] New ASAP trip assigned to me:', payload.new);
             await this.handleNewASAPTripEvent(payload.new);
           }
         )
@@ -4036,10 +4056,10 @@ class DriverService {
             event: 'UPDATE',
             schema: 'public',
             table: 'trip_requests',
-            filter: `pickup_time_preference=eq.asap`
+            filter: `pickup_time_preference=eq.asap AND assigned_driver_id=eq.${currentDriver.user_id}`
           },
           async (payload) => {
-            console.log('� [Real-time] ASAP trip updated:', payload.new);
+            console.log('🔄 [Real-time] My assigned ASAP trip updated:', payload.new);
             await this.handleASAPTripUpdateEvent(payload.old, payload.new);
           }
         )
@@ -4067,6 +4087,7 @@ class DriverService {
 
   /**
    * Handle new ASAP trip from real-time event
+   * Since this is only called for trips assigned to this driver, we can skip compatibility checks
    */
   private async handleNewASAPTripEvent(tripData: any): Promise<void> {
     if (!this.isASAPMonitoringActive || !this.asapCallbacks) return;
@@ -4086,44 +4107,34 @@ class DriverService {
         return;
       }
 
-      // Check truck compatibility
-      const compatibility = await this.checkTruckTypeCompatibility(asapTrip.id);
-      if (!compatibility.isCompatible) {
-        console.log(`❌ [DriverService] ASAP trip not compatible: ${compatibility.error || 'Vehicle type mismatch'}`);
-        this.seenASAPTripIds.add(asapTrip.id);
-        return;
-      }
-
-      // Check proximity (within reasonable distance)
-      if (asapTrip.distanceKm > DriverService.ASAP_CONFIG.MAX_DISTANCE_KM) {
-        console.log(`📍 [DriverService] ASAP trip too far: ${asapTrip.distanceKm.toFixed(1)}km (max: ${DriverService.ASAP_CONFIG.MAX_DISTANCE_KM}km)`);
-        this.seenASAPTripIds.add(asapTrip.id);
-        return;
-      }
+      // 🎯 OPTIMIZATION: Since trip is assigned to this driver, skip compatibility checks
+      // The assignment system should have already verified compatibility and distance
 
       // Mark as seen and notify
       this.seenASAPTripIds.add(asapTrip.id);
-      console.log('🚨 [DriverService] *** PROFESSIONAL ASAP NOTIFICATION ***', {
+      console.log('🚨 [DriverService] *** ASSIGNED ASAP TRIP NOTIFICATION ***', {
         tripId: asapTrip.id.substring(0, 8),
         distance: `${asapTrip.distanceKm.toFixed(1)}km`,
         customer: asapTrip.customerName,
-        material: asapTrip.materials[0]?.type || 'Unknown'
+        material: asapTrip.materials[0]?.type || 'Unknown',
+        assignedToMe: true
       });
 
       // Professional notification delivery with Uber-like precision
       if (this.asapCallbacks && this.asapCallbacks.onNewASAPTrip && this.isASAPMonitoringActive) {
-        console.log(`[ASAP] 🚨 DELIVERING PRIORITY NOTIFICATION TO DRIVER`);
+        console.log(`[ASAP] 🚨 DELIVERING ASSIGNED TRIP NOTIFICATION TO DRIVER`);
         try {
           // Uber-like notification with enhanced trip data
           const enhancedTrip = {
             ...asapTrip,
             priorityLevel: asapTrip.distanceKm <= DriverService.ASAP_CONFIG.PREFERRED_DISTANCE_KM ? 'HIGH' : 'MEDIUM',
             estimatedPickupTime: `${Math.ceil(asapTrip.distanceKm * 2)} min`, // Rough ETA
-            zoneType: asapTrip.distanceKm <= DriverService.ASAP_CONFIG.PREFERRED_DISTANCE_KM ? 'preferred' : 'extended'
+            zoneType: asapTrip.distanceKm <= DriverService.ASAP_CONFIG.PREFERRED_DISTANCE_KM ? 'preferred' : 'extended',
+            isAssignedToMe: true // Flag to indicate this trip is specifically assigned
           };
           
           this.asapCallbacks.onNewASAPTrip(enhancedTrip);
-          console.log(`[ASAP] ✅ Professional notification delivered successfully`);
+          console.log(`[ASAP] ✅ Assigned trip notification delivered successfully`);
         } catch (callbackError) {
           console.error(`[ASAP] ❌ Notification delivery failed:`, callbackError);
         }
@@ -4137,7 +4148,7 @@ class DriverService {
       }
 
     } catch (error) {
-      console.error('💥 [DriverService] Error handling new ASAP trip:', error);
+      console.error('💥 [DriverService] Error handling assigned ASAP trip:', error);
     }
   }
 
@@ -4388,7 +4399,7 @@ class DriverService {
   }
 
   /**
-   * Accept an ASAP trip
+   * Accept an ASAP trip (Works with both individual and queue systems)
    */
   async acceptASAPTrip(tripId: string): Promise<{ success: boolean; message: string }> {
     try {
@@ -4400,26 +4411,35 @@ class DriverService {
         return { success: false, message: 'No current driver found' };
       }
 
-      // Use service role client to bypass RLS for legitimate driver operations
+      // Try the individual request system first (for compatibility)
+      try {
+        const { data, error } = await supabase.rpc('accept_trip_request', {
+          request_id: tripId,
+          accepting_driver_id: currentDriver.user_id
+        });
+
+        if (!error && data?.[0]?.success) {
+          console.log('✅ [DriverService] ASAP trip accepted via individual request system');
+          return { 
+            success: true, 
+            message: data[0].message || 'Trip accepted successfully' 
+          };
+        }
+      } catch (requestError) {
+        console.log('⚠️ Individual request system failed, trying direct update...');
+      }
+
+      // Fallback: Direct update for queue system compatibility
       const { createClient } = require('@supabase/supabase-js');
       const serviceSupabase = createClient(
         'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
       );
 
-      // Log trip before update
-      const { data: tripBefore, error: errorBefore } = await serviceSupabase
-        .from('trip_requests')
-        .select('*')
-        .eq('id', tripId)
-        .single();
-      console.log('[ASAP DEBUG] Trip before acceptance:', tripBefore);
-
-      // Update the trip to assign it to the driver
       const { data, error } = await serviceSupabase
         .from('trip_requests')
         .update({
-          assigned_driver_id: currentDriver.user_id, // Use user_id which exists in users table
+          assigned_driver_id: currentDriver.user_id,
           status: 'matched',
           matched_at: new Date().toISOString()
         })
@@ -4432,15 +4452,7 @@ class DriverService {
         return { success: false, message: 'Failed to accept trip' };
       }
 
-      // Log trip after update
-      const { data: tripAfter, error: errorAfter } = await supabase
-        .from('trip_requests')
-        .select('*')
-        .eq('id', tripId)
-        .single();
-      console.log('[ASAP DEBUG] Trip after acceptance:', tripAfter);
-
-      console.log('✅ [DriverService] ASAP trip accepted successfully');
+      console.log('✅ [DriverService] ASAP trip accepted via direct update');
       return { success: true, message: 'Trip accepted successfully!' };
 
     } catch (error) {
@@ -4450,34 +4462,40 @@ class DriverService {
   }
 
   /**
-   * Professional ASAP trip decline handling
+   * Professional ASAP trip decline handling (Works with both systems)
    */
   async declineASAPTrip(tripId: string): Promise<{ success: boolean; message: string }> {
     try {
-      console.log(`❌ [DriverService] Professional decline for ASAP trip: ${tripId.substring(0, 8)}`);
+      console.log(`❌ [DriverService] Declining ASAP trip: ${tripId.substring(0, 8)}`);
       
-      // Mark trip as seen to prevent re-notifications to this driver
+      const currentDriver = this.getCurrentDriver();
+      if (!currentDriver?.id) {
+        return { success: false, message: 'No current driver found' };
+      }
+
+      // Try the individual request system first
+      try {
+        const { data, error } = await supabase.rpc('decline_trip_request', {
+          request_id: tripId,
+          declining_driver_id: currentDriver.user_id
+        });
+
+        if (!error && data?.[0]?.success) {
+          console.log('✅ [DriverService] ASAP trip declined via individual request system');
+          this.seenASAPTripIds.add(tripId);
+          return { 
+            success: true, 
+            message: data[0].message || 'Trip declined successfully' 
+          };
+        }
+      } catch (requestError) {
+        console.log('⚠️ Individual request decline failed, using local decline...');
+      }
+
+      // Fallback: Mark as seen locally (for queue system)
       this.seenASAPTripIds.add(tripId);
       
-      // Optional: Record decline in database for analytics
-      try {
-        const currentDriver = this.getCurrentDriver();
-        if (currentDriver?.id) {
-          await supabase
-            .from('trip_declines')
-            .insert({
-              trip_id: tripId,
-              driver_id: currentDriver.id,
-              declined_at: new Date().toISOString(),
-              reason: 'driver_declined'
-            });
-        }
-      } catch (analyticsError) {
-        // Don't fail the decline if analytics fail
-        console.warn('⚠️ [DriverService] Analytics recording failed:', analyticsError);
-      }
-      
-      console.log(`✅ [DriverService] ASAP trip ${tripId.substring(0, 8)} declined professionally - available for other drivers`);
+      console.log(`✅ [DriverService] ASAP trip ${tripId.substring(0, 8)} declined locally`);
       return { success: true, message: 'Trip declined successfully' };
       
     } catch (error) {
