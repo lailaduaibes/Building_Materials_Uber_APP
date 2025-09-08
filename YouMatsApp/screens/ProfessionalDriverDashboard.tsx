@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { driverService, Driver, OrderAssignment } from '../services/DriverService';
 import { driverPushNotificationService } from '../services/DriverPushNotificationService';
+import { authService } from '../AuthServiceSupabase';
 import { responsive, deviceTypes } from '../utils/ResponsiveUtils';
 import { DriverChatScreen } from '../components/DriverChatScreen';
 import { ASAPTripModal } from '../components/ASAPTripModal';
@@ -96,6 +97,7 @@ interface ProfessionalDriverDashboardProps {
   onNavigateToOrder: (order: OrderAssignment) => void;
   onNavigateToEarnings: () => void;
   onNavigateToTripHistory: () => void;
+  onNavigateToPayment: () => void;
 }
 
 const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = ({
@@ -103,6 +105,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
   onNavigateToOrder,
   onNavigateToEarnings,
   onNavigateToTripHistory,
+  onNavigateToPayment,
 }) => {
   // Language support
   const { t, isRTL } = useLanguage();
@@ -144,6 +147,42 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
   const [bottomSheetState, setBottomSheetState] = useState<'collapsed' | 'list' | 'detail' | 'mytrips'>('collapsed');
   
   const mapRef = useRef<MapView>(null);
+
+  // Get Supabase client for direct database updates
+  const supabase = authService.getSupabaseClient();
+
+  // Direct database update function for users table location fields
+  const updateUserLocationInDatabase = async (latitude: number, longitude: number): Promise<boolean> => {
+    try {
+      const currentDriver = driverService.getCurrentDriver();
+      if (!currentDriver) {
+        console.error('❌ No current driver found for location update');
+        return false;
+      }
+
+      console.log(`📍 Directly updating users table for driver ${currentDriver.user_id}: ${latitude}, ${longitude}`);
+
+      const { error } = await supabase
+        .from('users')
+        .update({
+          current_latitude: latitude,
+          current_longitude: longitude,
+          last_location_update: new Date().toISOString()
+        })
+        .eq('id', currentDriver.user_id);
+
+      if (error) {
+        console.error('❌ Error directly updating users table location:', error);
+        return false;
+      }
+
+      console.log('✅ Users table location updated directly');
+      return true;
+    } catch (error) {
+      console.error('💥 Error in direct users table location update:', error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     console.log('🚀 Dashboard initializing...');
@@ -418,8 +457,24 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
       const { latitude, longitude } = location.coords;
       console.log(`✅ Current location: ${latitude}, ${longitude}`);
 
-      // Update driver location
+      // Update driver location in local state
       setDriverLocation({ latitude, longitude });
+
+      // 1. Update location in database via DriverService
+      const locationSaved = await driverService.updateDriverLocation(latitude, longitude);
+      if (locationSaved) {
+        console.log('✅ Initial location saved via DriverService');
+      } else {
+        console.log('⚠️ Failed to save initial location via DriverService');
+      }
+
+      // 2. Direct update to users table as backup/additional assurance
+      const directUpdateSuccess = await updateUserLocationInDatabase(latitude, longitude);
+      if (directUpdateSuccess) {
+        console.log('✅ Initial users table location updated directly');
+      } else {
+        console.log('⚠️ Failed to update initial users table location directly');
+      }
 
       // Update map region to center on driver location
       const region = {
@@ -473,6 +528,28 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
           console.log(`📍 Location updated: ${latitude}, ${longitude}`);
           
           setDriverLocation({ latitude, longitude });
+          
+          // 1. Update location via DriverService (updates both users and driver_locations tables)
+          driverService.updateDriverLocation(latitude, longitude).then(success => {
+            if (success) {
+              console.log('✅ Location saved via DriverService');
+            } else {
+              console.log('⚠️ Failed to save location via DriverService');
+            }
+          }).catch(error => {
+            console.error('❌ Error saving location via DriverService:', error);
+          });
+          
+          // 2. Direct update to users table as backup/additional assurance
+          updateUserLocationInDatabase(latitude, longitude).then(success => {
+            if (success) {
+              console.log('✅ Users table location updated directly');
+            } else {
+              console.log('⚠️ Failed to update users table directly');
+            }
+          }).catch(error => {
+            console.error('❌ Error in direct users table update:', error);
+          });
           
           // Update map region smoothly
           if (mapRef.current) {
@@ -960,6 +1037,10 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
               <Ionicons name="wallet" size={20} color={Colors.primary} />
               <Text style={styles.actionText}>Earnings</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={onNavigateToPayment}>
+              <Ionicons name="card" size={20} color={Colors.primary} />
+              <Text style={styles.actionText}>Payments</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={showMyTripsView}>
               <Ionicons name="checkmark-circle" size={20} color={Colors.status.completed} />
               <Text style={styles.actionText}>
@@ -995,6 +1076,12 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         showsMyLocationButton={false}
         onRegionChangeComplete={setCurrentRegion}
         mapPadding={{ top: 0, right: 0, bottom: 160, left: 0 }} // Reserve space for Google attribution
+        // Android-specific optimizations for marker rendering
+        moveOnMarkerPress={Platform.OS === 'android' ? false : true}
+        toolbarEnabled={false}
+        loadingEnabled={true}
+        loadingIndicatorColor={Colors.primary}
+        loadingBackgroundColor={Colors.background.primary}
       >
         {/* Driver's current location marker */}
         {driverLocation && (
@@ -1021,10 +1108,13 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                   handleOrderPress(order);
                 }
               }}
-              anchor={{ x: 0.5, y: Platform.OS === 'android' ? 0.85 : 1 }}
-              centerOffset={{ x: 0, y: Platform.OS === 'android' ? -10 : 0 }}
+              anchor={{ x: 0.5, y: 1 }}
+              centerOffset={{ x: 0, y: 0 }}
               zIndex={isIncompatible ? 1 : (selectedOrder?.id === order.id ? 1000 : 10)}
               tracksViewChanges={false}
+              // Android-specific optimizations
+              flat={Platform.OS === 'android'}
+              rotation={0}
             >
               {Platform.OS === 'android' ? (
                 <TouchableOpacity 

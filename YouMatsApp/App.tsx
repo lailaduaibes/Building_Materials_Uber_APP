@@ -38,6 +38,8 @@ import ModernDriverDashboard from './screens/ModernDriverDashboard';
 import ProfessionalDriverDashboard from './screens/ProfessionalDriverDashboard';
 import OrderAssignmentScreen from './screens/OrderAssignmentScreen';
 import EarningsScreen from './screens/EarningsScreen';
+import DriverPaymentDashboard from './screens/DriverPaymentDashboard';
+import ProfessionalDriverPaymentDashboard from './screens/ProfessionalDriverPaymentDashboard';
 import TripHistoryScreen from './screens/TripHistoryScreen';
 import DriverProfileScreen from './screens/DriverProfileScreen';
 import LiveTripTrackingScreen from './screens/LiveTripTrackingScreen';
@@ -54,6 +56,7 @@ type AppScreen =
   | 'dashboard'
   | 'order_assignment'
   | 'earnings'
+  | 'payment'
   | 'trip_history'
   | 'profile'
   | 'live_tracking'
@@ -348,6 +351,10 @@ const App: React.FC = () => {
     setCurrentScreen('earnings');
   };
 
+  const handleNavigateToPayment = () => {
+    setCurrentScreen('payment');
+  };
+
   const handleNavigateToTripHistory = () => {
     setCurrentScreen('trip_history');
   };
@@ -470,6 +477,7 @@ const App: React.FC = () => {
               onNavigateToEarnings={handleNavigateToEarnings}
               onNavigateToTripHistory={handleNavigateToTripHistory}
               onNavigateToProfile={handleNavigateToProfile}
+              onNavigateToPayment={handleNavigateToPayment}
             />
           ) : (
             <ModernDriverDashboard
@@ -485,6 +493,10 @@ const App: React.FC = () => {
 
       {currentScreen === 'earnings' && (
         <EarningsScreen onBack={handleBackToDashboard} />
+      )}
+
+      {currentScreen === 'payment' && (
+        <ProfessionalDriverPaymentDashboard onBack={handleBackToDashboard} />
       )}
 
       {currentScreen === 'trip_history' && (

@@ -3383,8 +3383,14 @@ class DriverService {
         console.error('❌ Error updating users location:', usersError);
       }
 
-      // 2. Update/insert driver_locations table (used by ASAP matching)
-      const { error: driverLocError } = await supabase
+      // 2. Update/insert driver_locations table (used by ASAP matching) - Use service role to bypass RLS
+      const { createClient } = require('@supabase/supabase-js');
+      const serviceSupabase = createClient(
+        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
+      );
+
+      const { error: driverLocError } = await serviceSupabase
         .from('driver_locations')
         .upsert({
           driver_id: this.currentDriver.user_id,

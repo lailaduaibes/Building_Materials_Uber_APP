@@ -585,6 +585,11 @@ class AuthServiceSupabase {
     return this.currentUser;
   }
 
+  // Get the authenticated Supabase client for database operations
+  getSupabaseClient() {
+    return this.supabase;
+  }
+
   // Cache management methods for performance
   clearUserCache(): void {
     console.log('🗑️ Clearing user cache');
