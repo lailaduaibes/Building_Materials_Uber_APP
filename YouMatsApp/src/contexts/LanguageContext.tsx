@@ -63,41 +63,11 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
         throw new Error(`Unsupported language: ${languageCode}`);
       }
 
-      // Check if RTL change requires app restart
-      const currentRTL = I18nManager.isRTL;
-      const newRTL = newLanguage.rtl;
-      const requiresRestart = currentRTL !== newRTL;
-
-      if (requiresRestart) {
-        Alert.alert(
-          t('common.info'),
-          'App will restart to apply the new language layout.',
-          [
-            {
-              text: t('common.cancel'),
-              style: 'cancel',
-              onPress: () => setIsChangingLanguage(false)
-            },
-            {
-              text: t('common.confirm'),
-              onPress: async () => {
-                try {
-                  await changeLanguage(languageCode);
-                  // App restart is handled by the main App component
-                  // by listening to I18nManager changes
-                } catch (error) {
-                  console.error('Failed to change language in restart case:', error);
-                } finally {
-                  setIsChangingLanguage(false);
-                }
-              }
-            }
-          ]
-        );
-      } else {
-        await changeLanguage(languageCode);
-        setIsChangingLanguage(false);
-      }
+      // Since we force LTR for all languages, no restart is needed
+      console.log('🌐 Changing language without restart (LTR mode)');
+      await changeLanguage(languageCode);
+      setIsChangingLanguage(false);
+      
     } catch (error) {
       console.error('Failed to change language:', error);
       Alert.alert(

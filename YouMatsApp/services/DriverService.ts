@@ -122,7 +122,7 @@ export interface OrderAssignment {
   scheduledPickupTime?: string; // ISO date string for scheduled pickups
   assignedAt: string;
   acceptDeadline: string;
-  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  status: 'pending' | 'accepted' | 'declined' | 'expired' | 'offering_to_driver';
   // Database fields for map integration
   pickup_latitude?: string;
   pickup_longitude?: string;
@@ -1256,7 +1256,7 @@ class DriverService {
           matched_at: new Date().toISOString()
         })
         .eq('id', assignmentId)
-        .eq('status', 'pending') // Ensure trip is still available
+        .in('status', ['pending', 'offering_to_driver']) // Accept both statuses for ASAP system
         .is('assigned_driver_id', null) // Ensure not already assigned
         .select()
         .single();
@@ -1684,6 +1684,8 @@ class DriverService {
         return false;
       }
 
+
+
       const driverName = `${this.currentDriver.firstName} ${this.currentDriver.lastName}`;
       const result = await enhancedNotificationService.sendDriverMessage(
         tripData.customer_id,
@@ -2024,14 +2026,14 @@ class DriverService {
       console.log('🧹 Running simple trip expiration cleanup...');
       await this.simpleCleanupExpiredTrips();
       
-      // 🔍 Debug: Check total pending trips (no complex filtering)
-      const { data: allTrips, error: countError } = await supabase
+      // 🔍 Debug: Check total available trips (no complex filtering)
+      const { data: debugTrips, error: countError } = await supabase
         .from('trip_requests')
         .select('id, status, pickup_time_preference, scheduled_pickup_time, created_at')
-        .eq('status', 'pending');
+        .in('status', ['pending', 'offering_to_driver']);
         
-      if (!countError && allTrips) {
-        console.log(`🔍 [DriverService] Found ${allTrips.length} pending trips (simple check)`);
+      if (!countError && debugTrips) {
+        console.log(`🔍 [DriverService] Found ${debugTrips.length} available trips (simple check)`);
       }
       
       // ✅ NEW: First check if driver is approved
@@ -2065,9 +2067,18 @@ class DriverService {
       
       // ✅ NEW: Get current driver ID for ASAP requests
       const currentDriver = this.getCurrentDriver();
-      const driverId = currentDriver?.id;
+      const driverId = currentDriver?.user_id;
 
-      // Try with regular client first - Get regular trips AND driver-specific ASAP requests
+      if (!driverId) {
+        console.error('❌ No authenticated driver found for trip requests');
+        return [];
+      }
+
+      // 🚨 FIXED: Include both assigned trips AND unassigned scheduled trips
+      // ASAP trips are handled exclusively by the ASAP monitoring system.
+      // Scheduled trips should be visible to drivers for acceptance.
+      console.log('🎯 [DriverService] Fetching assigned trips + available scheduled trips (not ASAP offers)');
+      
       const { data: trips, error } = await supabase
         .from('trip_requests')
         .select(`
@@ -2100,17 +2111,16 @@ class DriverService {
             phone
           )
         `)
-        .eq('status', 'pending') // Simple: just get pending trips
-        .or(`assigned_driver_id.is.null,assigned_driver_id.eq.${driverId || 'none'}`)
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .or(`assigned_driver_id.eq.${driverId},and(assigned_driver_id.is.null,pickup_time_preference.eq.scheduled)`)  // ✅ FIXED: Include assigned trips OR unassigned scheduled trips
+        .in('status', ['pending', 'matched', 'accepted', 'picked_up', 'in_transit']) // ✅ FIXED: Include pending scheduled trips
+        .neq('pickup_time_preference', 'asap'); // 🔧 EXCLUDE ASAP trips - they use separate notification system
 
       console.log('🔍 Query result:', { 
         error: error?.message, 
         errorCode: error?.code,
         tripCount: trips?.length,
         authUserId: user?.id,
-        firstTripSample: trips?.[0] // Log first trip to see structure
+        note: 'Fetching assigned trips + available scheduled trips (not ASAP offers)'
       });
       
       if (error) {
@@ -2123,49 +2133,69 @@ class DriverService {
           'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
         );
         
-        const { data: serviceTrips, error: serviceError } = await serviceSupabase
+          const { data: simplifiedServiceTrips, error: serviceError } = await serviceSupabase
           .from('trip_requests')
-          .select(`
-            id,
-            pickup_latitude,
-            pickup_longitude,
-            pickup_address,
-            delivery_latitude,
-            delivery_longitude,
-            delivery_address,
-            material_type,
-            load_description,
-            estimated_weight_tons,
-            estimated_volume_m3,
-            quoted_price,
-            estimated_distance_km,
-            estimated_duration_minutes,
-            special_requirements,
-            requires_crane,
-            requires_hydraulic_lift,
-            pickup_time_preference,
-            scheduled_pickup_time,
-            created_at,
-            customer_id,
-            status,
-            assigned_driver_id,
-            users!trip_requests_customer_id_fkey (
-              first_name,
-              last_name,
-              phone
-            )
-          `)
-          .eq('status', 'pending') // Simple: just get pending trips
-          .or(`assigned_driver_id.is.null,assigned_driver_id.eq.${driverId || 'none'}`)
-          .order('created_at', { ascending: false })
-          .limit(20);
+          .select('*')
+          .eq('assigned_driver_id', driverId)
+          .in('status', ['matched', 'accepted', 'picked_up', 'in_transit']);
 
         if (serviceError) {
           console.error('❌ Service role also failed:', serviceError);
           return [];
         }
         
-        console.log('✅ Service role success:', serviceTrips?.length, 'trips found');
+        console.log('✅ Service role success:', simplifiedServiceTrips?.length, 'trips found');
+        
+        // 🔧 FETCH FULL TRIP DETAILS: Get complete trip data for each simplified trip
+        let serviceTrips: any[] = [];
+        if (simplifiedServiceTrips && simplifiedServiceTrips.length > 0) {
+          const tripIds = simplifiedServiceTrips.map((trip: any) => trip.trip_id);
+          
+          const { data: fullServiceTrips, error: fullServiceTripsError } = await serviceSupabase
+            .from('trip_requests')
+            .select(`
+              id,
+              pickup_latitude,
+              pickup_longitude,
+              pickup_address,
+              delivery_latitude,
+              delivery_longitude,
+              delivery_address,
+              material_type,
+              load_description,
+              estimated_weight_tons,
+              estimated_volume_m3,
+              quoted_price,
+              estimated_distance_km,
+              estimated_duration_minutes,
+              special_requirements,
+              requires_crane,
+              requires_hydraulic_lift,
+              pickup_time_preference,
+              scheduled_pickup_time,
+              created_at,
+              customer_id,
+              status,
+              assigned_driver_id,
+              considering_driver_id,
+              acceptance_deadline,
+              users!trip_requests_customer_id_fkey (
+                first_name,
+                last_name,
+                phone
+              )
+            `)
+            .in('id', tripIds);
+
+          if (fullServiceTripsError) {
+            console.error('❌ Error fetching full service trip details:', fullServiceTripsError);
+            serviceTrips = [];
+          } else {
+            serviceTrips = fullServiceTrips || [];
+            console.log(`✅ Fetched full service details for ${serviceTrips.length} trips`);
+          }
+        }
+        
         // Use service role results
         const finalTrips = serviceTrips;
         
@@ -2468,7 +2498,7 @@ class DriverService {
 
       // Filter out declined ASAP trips
       const filteredAssignments = assignments.filter(assignment => 
-        !this.seenASAPTripIds.has(assignment.id)
+        !this.declinedASAPTripIds.has(assignment.id)
       );
       
       if (filteredAssignments.length !== assignments.length) {
@@ -3659,37 +3689,25 @@ class DriverService {
 
       console.log(`🚚 Accepting trip ${tripId}...`);
 
-      // Use service role client to bypass RLS for legitimate driver operations
-      const { createClient } = require('@supabase/supabase-js');
-      const serviceSupabase = createClient(
-        'https://pjbbtmuhlpscmrbgsyzb.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqYmJ0bXVobHBzY21yYmdzeXpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTExOTMxMiwiZXhwIjoyMDcwNjk1MzEyfQ.aEAWnScYRf-9EQcx9xN4r05HcE6n-N5qVSYWKAEgzG8'
-      );
-
-      // Update trip_requests with service role permissions - use user_id not driver_profiles id
-      const { data, error } = await serviceSupabase
-        .from('trip_requests')
-        .update({
-          status: 'matched',
-          assigned_driver_id: driver.user_id, // Use user_id which exists in users table
-          matched_at: new Date().toISOString()
-        })
-        .eq('id', tripId)
-        .eq('status', 'pending')
-        .is('assigned_driver_id', null)
-        .select()
-        .single();
+      // 🎯 NEW OFFER-ONLY ASAP SYSTEM: Use database function for trip acceptance
+      const { data, error } = await supabase.rpc('accept_asap_trip_simple', {
+        trip_id: tripId,
+        driver_id: driver.user_id
+      });
 
       if (error) {
-        console.error('❌ Error accepting trip:', error);
+        console.error('❌ Error accepting trip via new function:', error);
         throw error;
       }
 
-      if (!data) {
-        throw new Error('Trip not found or already assigned');
+      if (!data?.success) {
+        throw new Error(data?.message || 'Trip not found or already assigned');
       }
 
-      console.log('✅ Trip accepted successfully');
+      // 🚨 CLEANUP: Remove from notification tracking when accepted
+      this.notifiedASAPTripIds.delete(tripId);
+
+      console.log('✅ Trip accepted successfully via offer-only system');
       return true;
     } catch (error) {
       console.error('❌ Error accepting trip:', error);
@@ -3957,7 +3975,8 @@ class DriverService {
     onNewASAPTrip: (trip: OrderAssignment) => void;
     onASAPTripUpdate: (trip: OrderAssignment) => void;
   } | null = null;
-  private seenASAPTripIds = new Set<string>();
+  private declinedASAPTripIds = new Set<string>(); // Driver-specific declined ASAP trips only
+  private notifiedASAPTripIds = new Set<string>(); // Track which trips we've already notified about
 
   // Professional Uber-Like ASAP Configuration
   private static readonly ASAP_CONFIG = {
@@ -3995,18 +4014,13 @@ class DriverService {
     this.asapCallbacks = { onNewASAPTrip, onASAPTripUpdate };
     this.isASAPMonitoringActive = true;
 
-    // Start with reliable polling system first (immediate reliability)
-    console.log('⚡ [DriverService] Starting with polling system for guaranteed reliability...');
+    // 🎯 OFFER-ONLY SYSTEM: Use ONLY polling system to prevent multi-driver conflicts
+    console.log('⚡ [DriverService] Starting OFFER-ONLY polling system for exclusive trip reservation...');
+    console.log('🚨 [DriverService] Real-time subscription DISABLED to prevent multi-driver conflicts');
     this.fallbackToPolling();
 
-    // Try to setup real-time subscription as enhancement (but don't depend on it)
-    setTimeout(async () => {
-      try {
-        await this.setupRealTimeASAPSubscription();
-      } catch (error) {
-        console.error('⚠️ [DriverService] Real-time subscription failed, continuing with polling:', error);
-      }
-    }, 2000);
+    // Real-time subscription DISABLED - caused trips to show to multiple drivers
+    // The offer-only system uses database-level reservation for true exclusivity
 
     // Initial check for existing ASAP trips
     setTimeout(async () => {
@@ -4043,10 +4057,10 @@ class DriverService {
             event: 'INSERT',
             schema: 'public',
             table: 'trip_requests',
-            filter: `pickup_time_preference=eq.asap AND assigned_driver_id=eq.${currentDriver.user_id}`
+            filter: `pickup_time_preference=eq.asap`
           },
           async (payload) => {
-            console.log('🚨 [Real-time] New ASAP trip assigned to me:', payload.new);
+            console.log('🚨 [Real-time] New ASAP trip created:', payload.new);
             await this.handleNewASAPTripEvent(payload.new);
           }
         )
@@ -4056,11 +4070,16 @@ class DriverService {
             event: 'UPDATE',
             schema: 'public',
             table: 'trip_requests',
-            filter: `pickup_time_preference=eq.asap AND assigned_driver_id=eq.${currentDriver.user_id}`
+            filter: `pickup_time_preference=eq.asap`
           },
           async (payload) => {
-            console.log('🔄 [Real-time] My assigned ASAP trip updated:', payload.new);
-            await this.handleASAPTripUpdateEvent(payload.old, payload.new);
+            console.log('🔄 [Real-time] ASAP trip status changed:', payload.new?.status);
+            // Only handle if this trip is being offered to this specific driver
+            if (payload.new?.status === 'offering_to_driver') {
+              await this.handleTripOfferEvent(payload.new);
+            } else {
+              await this.handleASAPTripUpdateEvent(payload.old, payload.new);
+            }
           }
         )
         .subscribe((status) => {
@@ -4101,17 +4120,10 @@ class DriverService {
         return;
       }
 
-      // Check if we've already seen this trip
-      if (this.seenASAPTripIds.has(asapTrip.id)) {
-        console.log('🔄 [DriverService] ASAP trip already seen, skipping');
-        return;
-      }
-
       // 🎯 OPTIMIZATION: Since trip is assigned to this driver, skip compatibility checks
       // The assignment system should have already verified compatibility and distance
 
-      // Mark as seen and notify
-      this.seenASAPTripIds.add(asapTrip.id);
+      // Notify about assigned trip (no need to track as declined)
       console.log('🚨 [DriverService] *** ASSIGNED ASAP TRIP NOTIFICATION ***', {
         tripId: asapTrip.id.substring(0, 8),
         distance: `${asapTrip.distanceKm.toFixed(1)}km`,
@@ -4162,7 +4174,7 @@ class DriverService {
       // If trip was accepted by another driver, remove from our notifications
       if (oldData.status === 'pending' && newData.status === 'matched') {
         console.log('✅ [DriverService] ASAP trip accepted by another driver, removing from queue');
-        this.seenASAPTripIds.add(newData.id);
+        this.declinedASAPTripIds.add(newData.id);
         return;
       }
 
@@ -4174,6 +4186,66 @@ class DriverService {
 
     } catch (error) {
       console.error('💥 [DriverService] Error handling ASAP trip update:', error);
+    }
+  }
+
+  /**
+   * Handle trip offer events - check if trip is specifically offered to this driver
+   */
+  private async handleTripOfferEvent(tripData: any): Promise<void> {
+    if (!this.isASAPMonitoringActive || !this.asapCallbacks) return;
+
+    try {
+      const currentDriver = this.getCurrentDriver();
+      if (!currentDriver) return;
+
+      // Check if this trip is specifically offered to this driver
+      const isOfferedToMe = this.isTripOfferedToDriver(tripData, currentDriver.user_id);
+      
+      if (isOfferedToMe) {
+        console.log('🎯 [DriverService] Trip offer received for this driver:', tripData.id);
+        
+        // Convert and notify about the new offer
+        const orderAssignment = await this.convertToOrderAssignment(tripData);
+        if (orderAssignment) {
+          this.asapCallbacks.onNewASAPTrip(orderAssignment);
+        }
+      } else {
+        console.log('🚫 [DriverService] Trip offered to different driver, ignoring');
+      }
+
+    } catch (error) {
+      console.error('💥 [DriverService] Error handling trip offer event:', error);
+    }
+  }
+
+  /**
+   * Check if a trip in 'offering_to_driver' status is specifically offered to this driver
+   */
+  private isTripOfferedToDriver(tripData: any, driverId: string): boolean {
+    try {
+      // Check special_requirements for current offer details
+      const specialReqs = tripData.special_requirements;
+      if (specialReqs && specialReqs.current_driver_offer) {
+        const currentOffer = specialReqs.current_driver_offer;
+        return currentOffer.driver_id === driverId;
+      }
+
+      // Fallback: parse from load_description if JSON parsing fails
+      const loadDesc = tripData.load_description || '';
+      if (loadDesc.includes('[DRIVER_QUEUE:')) {
+        const queueMatch = loadDesc.match(/\[DRIVER_QUEUE:([^\]]+)\]/);
+        if (queueMatch) {
+          const driverQueue = queueMatch[1].split(',');
+          // First driver in queue gets the offer
+          return driverQueue[0] === driverId;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error checking trip offer:', error);
+      return false;
     }
   }
 
@@ -4225,12 +4297,60 @@ class DriverService {
 
   /**
    * Convert raw trip data to OrderAssignment format
+   * 🚨 FIXED: No longer uses getAvailableTrips to prevent multi-driver conflicts
    */
   private async convertToOrderAssignment(tripData: any): Promise<OrderAssignment | null> {
     try {
-      // Use existing getAvailableTrips to get properly formatted trip
-      const availableTrips = await this.getAvailableTrips();
-      return availableTrips.find(trip => trip.id === tripData.id) || null;
+      console.log('🔧 [DriverService] Converting trip data using offer-only safe method');
+      
+      // 🎯 SAFE CONVERSION: Build OrderAssignment directly from trip data
+      // This avoids calling getAvailableTrips which could show trips to multiple drivers
+      const assignment: OrderAssignment = {
+        id: tripData.id,
+        orderId: tripData.id,
+        customerId: tripData.customer_id || '',
+        customerName: tripData.customer_name || 'Customer',
+        customerPhone: tripData.customer_phone || '',
+        pickupLocation: {
+          address: this.extractAddress(tripData.pickup_address),
+          latitude: Number(tripData.pickup_latitude),
+          longitude: Number(tripData.pickup_longitude),
+        },
+        deliveryLocation: {
+          address: this.extractAddress(tripData.delivery_address),
+          latitude: Number(tripData.delivery_latitude),
+          longitude: Number(tripData.delivery_longitude),
+        },
+        pickup_address: this.extractAddress(tripData.pickup_address),
+        delivery_address: this.extractAddress(tripData.delivery_address),
+        estimated_fare: Number(tripData.quoted_price || 0),
+        estimated_duration: `${Number(tripData.estimated_duration_minutes || 30)} min`,
+        material_type: tripData.material_type || 'General Materials',
+        load_description: tripData.load_description || 'Materials delivery',
+        materials: [{
+          type: tripData.material_type,
+          description: tripData.load_description,
+          quantity: Number(tripData.estimated_weight_tons || 1),
+          weight: Number(tripData.estimated_weight_tons || 1),
+        }],
+        estimatedEarnings: Number(tripData.quoted_price || 0),
+        estimatedDuration: Number(tripData.estimated_duration_minutes || 30),
+        distanceKm: Number(tripData.estimated_distance_km || 0),
+        specialInstructions: tripData.special_requirements ? 
+          JSON.stringify(tripData.special_requirements) : undefined,
+        pickupTimePreference: tripData.pickup_time_preference || 'asap',
+        scheduledPickupTime: tripData.scheduled_pickup_time,
+        assignedAt: new Date().toISOString(),
+        acceptDeadline: tripData.acceptance_deadline || this.calculateAcceptDeadline(tripData.pickup_time_preference),
+        status: 'pending' as const,
+        coordinate: {
+          latitude: Number(tripData.pickup_latitude),
+          longitude: Number(tripData.pickup_longitude),
+        },
+      };
+
+      console.log('✅ [DriverService] Trip conversion completed safely without getAvailableTrips');
+      return assignment;
     } catch (error) {
       console.error('💥 [DriverService] Error converting trip data:', error);
       return null;
@@ -4255,7 +4375,15 @@ class DriverService {
 
     try {
       console.log('🔍 [DriverService] Checking for new ASAP trips...');
-      console.log(`[ASAP DEBUG] Previously seen ASAP trips: ${this.seenASAPTripIds.size}`);
+      console.log(`[ASAP DEBUG] Previously declined ASAP trips: ${this.declinedASAPTripIds.size}`);
+      console.log(`[ASAP DEBUG] Previously notified ASAP trips: ${this.notifiedASAPTripIds.size}`);
+
+      // 🧹 PERIODIC CLEANUP: Remove old notifications to prevent memory bloat
+      if (this.notifiedASAPTripIds.size > 50) {
+        console.log('🧹 [DriverService] Cleaning up old notification tracking...');
+        this.notifiedASAPTripIds.clear();
+        console.log('✅ [DriverService] Notification tracking cleaned up');
+      }
 
       // Get current driver
       const currentDriver = this.getCurrentDriver();
@@ -4264,102 +4392,144 @@ class DriverService {
         return;
       }
 
-      // Use existing getAvailableTrips method to get all trips
-      const allTrips = await this.getAvailableTrips();
-      console.log(`[ASAP DEBUG] *** getAvailableTrips returned ${allTrips.length} trips ***`);
-      allTrips.forEach((trip, index) => {
-        console.log(`[ASAP DEBUG] Trip ${index + 1}:`, {
-          id: trip.id.substring(0, 8),
-          pickupTimePreference: trip.pickupTimePreference,
-          status: trip.status,
-          distanceKm: trip.distanceKm.toFixed(1) + 'km',
-          material: trip.materials[0]?.type || 'Unknown'
-        });
-        
-        // Special check for our test trip
-        if (trip.id === '4e9d5d30-bed3-495d-bc4e-d4d50a1905f9') {
-          console.log(`[ASAP DEBUG] *** FOUND OUR TEST TRIP! ***`, {
-            pickupTimePreference: trip.pickupTimePreference,
-            status: trip.status,
-            isASAP: trip.pickupTimePreference === 'asap',
-            isPending: trip.status === 'pending'
-          });
-        }
+      // 🎯 USE OFFER-ONLY ASAP SYSTEM: Get trips reserved specifically for this driver
+      // This ensures each trip is only shown to ONE driver at a time
+      const { data: asapTrips, error } = await supabase.rpc('get_next_asap_trip_for_driver', {
+        driver_id: currentDriver.user_id
       });
 
-      // Professional Uber-like ASAP trip filtering with intelligent prioritization
-      const now = new Date();
-      const candidateTrips = allTrips.filter(trip => {
-        // Basic eligibility criteria
-        if (trip.pickupTimePreference !== 'asap') return false;
-        if (trip.status !== 'pending') return false;
-        if (this.seenASAPTripIds.has(trip.id)) return false;
-        
-        // Age filtering - Uber shows only fresh requests
-        const tripCreated = new Date(trip.assignedAt); // Use assignedAt as creation time
-        const timeDiff = now.getTime() - tripCreated.getTime();
-        const minutesAgo = timeDiff / (1000 * 60);
-        if (minutesAgo > DriverService.ASAP_CONFIG.MAX_AGE_MINUTES) {
-          console.log(`[ASAP] Trip ${trip.id.substring(0, 8)} expired: ${minutesAgo.toFixed(1)}min old`);
-          return false;
-        }
-
-        // Distance filtering - Uber-like proximity
-        if (trip.distanceKm > DriverService.ASAP_CONFIG.MAX_DISTANCE_KM) {
-          console.log(`[ASAP] Trip ${trip.id.substring(0, 8)} too far: ${trip.distanceKm.toFixed(1)}km`);
-          return false;
-        }
-
-        return true;
-      });
-
-      // Uber-like prioritization: Sort by distance and urgency
-      const prioritizedTrips = candidateTrips.map(trip => {
-        const tripAge = (now.getTime() - new Date(trip.assignedAt).getTime()) / (1000 * 60); // minutes
-        
-        // Calculate priority score (lower = higher priority)
-        const distanceScore = trip.distanceKm * DriverService.ASAP_CONFIG.DISTANCE_PRIORITY_WEIGHT;
-        const timeScore = tripAge * DriverService.ASAP_CONFIG.TIME_PRIORITY_WEIGHT;
-        const priorityScore = distanceScore + timeScore;
-        
-        const isPreferred = trip.distanceKm <= DriverService.ASAP_CONFIG.PREFERRED_DISTANCE_KM;
-        
-        return {
-          ...trip,
-          priorityScore,
-          isPreferred
-        };
-      }).sort((a, b) => a.priorityScore - b.priorityScore);
-
-      // Take only the highest priority trip (like Uber - one offer at a time)
-      const asapTrips = prioritizedTrips.slice(0, DriverService.ASAP_CONFIG.MAX_CONCURRENT_OFFERS);
-
-      console.log(`[ASAP] *** PROFESSIONAL FILTERING COMPLETE ***`);
-      console.log(`[ASAP] Total trips: ${allTrips.length}`);
-      console.log(`[ASAP] Candidate trips: ${candidateTrips.length}`); 
-      console.log(`[ASAP] Priority trips to offer: ${asapTrips.length}`);
-      
-      if (asapTrips.length === 0) {
-        console.log(`[ASAP] No priority trips available at this time`);
+      if (error) {
+        console.error('❌ [DriverService] Error fetching ASAP trips:', error);
         return;
       }
 
-      console.log(`[ASAP] Processing ${asapTrips.length} priority trip(s):`);
-      asapTrips.forEach(trip => {
-        const priorityLevel = trip.isPreferred ? '🟢 HIGH' : '🟡 MEDIUM';
-        console.log(`[ASAP] ${priorityLevel} - Trip ${trip.id.substring(0, 8)}: ${trip.distanceKm.toFixed(1)}km away (Priority: ${trip.priorityScore.toFixed(2)})`);
-      });
+      if (!asapTrips || asapTrips.length === 0) {
+        console.log('📭 [DriverService] No ASAP trips available for this driver');
+        return;
+      }
 
-      // Process each priority ASAP trip (Uber-like: highest priority first)
-      for (const asapTrip of asapTrips) {
-        const priorityLabel = asapTrip.isPreferred ? '🚨 HIGH PRIORITY' : '⚡ PRIORITY';
-        console.log(`${priorityLabel} ASAP TRIP AVAILABLE:`, {
+      // 🔧 FETCH FULL TRIP DETAILS: Get complete trip data for the reserved trip
+      const tripIds = asapTrips.map((trip: any) => trip.trip_id);
+      
+      const { data: fullTrips, error: fullTripsError } = await supabase
+        .from('trip_requests')
+        .select(`
+          id,
+          pickup_latitude,
+          pickup_longitude,
+          pickup_address,
+          delivery_latitude,
+          delivery_longitude,
+          delivery_address,
+          material_type,
+          load_description,
+          estimated_weight_tons,
+          estimated_volume_m3,
+          quoted_price,
+          estimated_distance_km,
+          estimated_duration_minutes,
+          special_requirements,
+          requires_crane,
+          requires_hydraulic_lift,
+          pickup_time_preference,
+          scheduled_pickup_time,
+          created_at,
+          customer_id,
+          status,
+          assigned_driver_id,
+          considering_driver_id,
+          acceptance_deadline,
+          users!trip_requests_customer_id_fkey (
+            first_name,
+            last_name,
+            phone
+          )
+        `)
+        .in('id', tripIds);
+
+      if (fullTripsError) {
+        console.error('❌ Error fetching full ASAP trip details:', fullTripsError);
+        return;
+      }
+
+      const trips = fullTrips || [];
+      console.log(`✅ [DriverService] Found ${trips.length} ASAP trips reserved for this driver`);
+
+      // Convert to OrderAssignment format and filter
+      const assignments: any[] = [];
+      for (const trip of trips) {
+        // Convert to assignment format (similar to getAvailableTrips logic)
+        const assignment = {
+          id: trip.id,
+          orderId: trip.id,
+          customerId: trip.customer_id || '',
+          customerName: trip.users ? 
+            `${trip.users.first_name || ''} ${trip.users.last_name || ''}`.trim() || 'Customer' : 
+            'Customer',
+          customerPhone: trip.users?.phone || '',
+          pickupLocation: {
+            address: this.extractAddress(trip.pickup_address),
+            latitude: Number(trip.pickup_latitude),
+            longitude: Number(trip.pickup_longitude),
+          },
+          deliveryLocation: {
+            address: this.extractAddress(trip.delivery_address),
+            latitude: Number(trip.delivery_latitude),
+            longitude: Number(trip.delivery_longitude),
+          },
+          pickup_address: this.extractAddress(trip.pickup_address),
+          delivery_address: this.extractAddress(trip.delivery_address),
+          estimated_fare: Number(trip.quoted_price || 0),
+          estimated_duration: `${Number(trip.estimated_duration_minutes || 30)} min`,
+          material_type: trip.material_type || 'General Materials',
+          load_description: trip.load_description || 'Materials delivery',
+          materials: [{
+            type: trip.material_type,
+            description: trip.load_description,
+            quantity: Number(trip.estimated_weight_tons || 1),
+            weight: Number(trip.estimated_weight_tons || 1),
+          }],
+          estimatedEarnings: Number(trip.quoted_price || 0),
+          estimatedDuration: Number(trip.estimated_duration_minutes || 30),
+          distanceKm: Number(trip.estimated_distance_km || 0),
+          specialInstructions: trip.special_requirements ? 
+            JSON.stringify(trip.special_requirements) : undefined,
+          pickupTimePreference: trip.pickup_time_preference || 'asap',
+          scheduledPickupTime: trip.scheduled_pickup_time,
+          assignedAt: new Date().toISOString(),
+          acceptDeadline: trip.acceptance_deadline || this.calculateAcceptDeadline(trip.pickup_time_preference),
+          status: 'pending' as const,
+          coordinate: {
+            latitude: Number(trip.pickup_latitude),
+            longitude: Number(trip.pickup_longitude),
+          },
+        };
+
+        assignments.push(assignment);
+      }
+
+      console.log(`[ASAP DEBUG] *** OFFER-ONLY SYSTEM: ${assignments.length} trips reserved for this driver ***`);
+      console.log(`[ASAP DEBUG] *** OFFER-ONLY SYSTEM: ${assignments.length} trips reserved for this driver ***`);
+      
+      if (assignments.length === 0) {
+        console.log(`[ASAP] No ASAP trips available for this driver at this time`);
+        return;
+      }
+
+      // Process each reserved ASAP trip
+      for (const asapTrip of assignments) {
+        // 🚨 CRITICAL FIX: Only notify about NEW trips, not already notified ones
+        if (this.notifiedASAPTripIds.has(asapTrip.id)) {
+          console.log(`[ASAP] Trip ${asapTrip.id.substring(0, 8)} already notified, skipping duplicate notification`);
+          continue; // Skip notification for already notified trips
+        }
+
+        console.log(`🚨 OFFER-ONLY ASAP TRIP RESERVED FOR THIS DRIVER:`, {
           id: asapTrip.id.substring(0, 8),
           material: asapTrip.materials[0]?.type || 'Unknown', 
           distance: `${asapTrip.distanceKm.toFixed(1)}km away`,
           customer: asapTrip.customerName,
-          priority: asapTrip.priorityScore.toFixed(2),
-          zone: asapTrip.isPreferred ? 'Preferred Zone' : 'Extended Zone'
+          reservedFor: 'THIS DRIVER ONLY'
         });
 
         // Professional vehicle compatibility check
@@ -4368,24 +4538,28 @@ class DriverService {
         
         if (!compatibility.isCompatible) {
           console.log(`[ASAP] ❌ Vehicle mismatch for trip ${asapTrip.id.substring(0, 8)}: ${compatibility.error || 'Incompatible vehicle type'}`);
-          this.seenASAPTripIds.add(asapTrip.id); // Mark as seen to avoid re-checking
+          // Instead of declining, we should release the consideration
+          await supabase.rpc('decline_asap_trip_simple', {
+            trip_id: asapTrip.id,
+            driver_id: currentDriver.user_id
+          });
           continue; // Skip this trip
         }
         
         console.log(`[ASAP] ✅ Vehicle compatibility confirmed for trip ${asapTrip.id.substring(0, 8)}`);
 
-        // Mark as seen
-        this.seenASAPTripIds.add(asapTrip.id);
+        // 🚨 CRITICAL FIX: Mark as notified BEFORE calling callback to prevent duplicates
+        this.notifiedASAPTripIds.add(asapTrip.id);
 
         // Notify callback
-        console.log(`[ASAP DEBUG] *** CALLING CALLBACK ***`);
+        console.log(`[ASAP DEBUG] *** CALLING CALLBACK FOR NEW RESERVED TRIP ***`);
         console.log(`[ASAP DEBUG] Callbacks object:`, !!this.asapCallbacks);
         console.log(`[ASAP DEBUG] onNewASAPTrip function:`, !!this.asapCallbacks?.onNewASAPTrip);
         
         if (this.asapCallbacks && this.asapCallbacks.onNewASAPTrip) {
-          console.log(`[ASAP DEBUG] ✅ Executing callback for trip ${asapTrip.id.substring(0, 8)}`);
+          console.log(`[ASAP DEBUG] ✅ Executing callback for NEW reserved trip ${asapTrip.id.substring(0, 8)}`);
           this.asapCallbacks.onNewASAPTrip(asapTrip);
-          console.log(`[ASAP DEBUG] ✅ Callback executed successfully`);
+          console.log(`[ASAP DEBUG] ✅ Callback executed successfully for NEW reserved trip`);
         } else {
           console.log(`[ASAP DEBUG] ❌ CALLBACK NOT AVAILABLE!`);
           console.log(`[ASAP DEBUG] - asapCallbacks exists:`, !!this.asapCallbacks);
@@ -4444,7 +4618,7 @@ class DriverService {
           matched_at: new Date().toISOString()
         })
         .eq('id', tripId)
-        .eq('status', 'pending')
+        .in('status', ['pending', 'offering_to_driver']) // Accept both statuses for ASAP system
         .is('assigned_driver_id', null);
 
       if (error) {
@@ -4473,30 +4647,29 @@ class DriverService {
         return { success: false, message: 'No current driver found' };
       }
 
-      // Try the individual request system first
-      try {
-        const { data, error } = await supabase.rpc('decline_trip_request', {
-          request_id: tripId,
-          declining_driver_id: currentDriver.user_id
-        });
+      // 🎯 NEW OFFER-ONLY ASAP SYSTEM: Use database function for trip decline
+      const { data, error } = await supabase.rpc('decline_asap_trip_simple', {
+        trip_id: tripId,
+        driver_id: currentDriver.user_id
+      });
 
-        if (!error && data?.[0]?.success) {
-          console.log('✅ [DriverService] ASAP trip declined via individual request system');
-          this.seenASAPTripIds.add(tripId);
-          return { 
-            success: true, 
-            message: data[0].message || 'Trip declined successfully' 
-          };
-        }
-      } catch (requestError) {
-        console.log('⚠️ Individual request decline failed, using local decline...');
+      if (error) {
+        console.error('❌ Error declining trip via new function:', error);
+        return { success: false, message: 'Failed to decline trip' };
       }
 
-      // Fallback: Mark as seen locally (for queue system)
-      this.seenASAPTripIds.add(tripId);
-      
-      console.log(`✅ [DriverService] ASAP trip ${tripId.substring(0, 8)} declined locally`);
-      return { success: true, message: 'Trip declined successfully' };
+      if (!data?.success) {
+        return { success: false, message: data?.message || 'Failed to decline trip' };
+      }
+
+      // 🚨 CLEANUP: Remove from notification tracking when declined
+      this.notifiedASAPTripIds.delete(tripId);
+
+      console.log('✅ [DriverService] ASAP trip declined via offer-only system');
+      return { 
+        success: true, 
+        message: data.message || 'Trip declined successfully' 
+      };
       
     } catch (error) {
       console.error('💥 [DriverService] Error declining ASAP trip:', error);

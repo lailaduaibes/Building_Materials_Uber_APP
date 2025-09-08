@@ -24,6 +24,7 @@ const resources = {
 };
 
 // Supported languages configuration
+// NOTE: All languages are forced to LTR layout for consistent UI/UX
 export const SUPPORTED_LANGUAGES = [
   {
     code: 'en',
@@ -37,7 +38,7 @@ export const SUPPORTED_LANGUAGES = [
     name: 'Arabic',
     nativeName: 'العربية',
     flag: '🇸🇦',
-    rtl: true
+    rtl: false  // Forced to false for consistent layout
   },
   {
     code: 'hi',
@@ -51,12 +52,12 @@ export const SUPPORTED_LANGUAGES = [
     name: 'Urdu',
     nativeName: 'اردو',
     flag: '🇵🇰',
-    rtl: true
+    rtl: false  // Forced to false for consistent layout
   }
 ];
 
-// RTL Languages
-export const RTL_LANGUAGES = ['ar', 'ur'];
+// RTL Languages - Empty array since we're forcing all languages to LTR
+export const RTL_LANGUAGES: string[] = [];
 
 // Storage key for user's language preference
 const LANGUAGE_STORAGE_KEY = '@youmats_user_language';
@@ -187,7 +188,7 @@ const initializeI18n = async () => {
 initializeI18n();
 
 /**
- * Change language and handle RTL switching
+ * Change language and force LTR layout for all languages
  */
 export const changeLanguage = async (languageCode: string): Promise<void> => {
   try {
@@ -202,17 +203,16 @@ export const changeLanguage = async (languageCode: string): Promise<void> => {
     // Change i18n language
     await i18n.changeLanguage(languageCode);
 
-    // Handle RTL layout
-    const isRTL = language.rtl;
+    // Force LTR layout for all languages - professional app approach
     const currentRTL = I18nManager.isRTL;
-
-    if (isRTL !== currentRTL) {
-      console.log('🌐 Switching RTL mode:', isRTL);
-      I18nManager.allowRTL(true);
-      I18nManager.forceRTL(isRTL);
+    
+    if (currentRTL !== false) {
+      console.log('🌐 Forcing LTR layout for consistent UI');
+      I18nManager.allowRTL(false);
+      I18nManager.forceRTL(false);
       
-      // Note: App restart is required for RTL changes to take effect
-      // This can be handled by the app component
+      // Note: App restart may be required for layout changes to take effect
+      // This provides a consistent LTR experience for all languages
     }
 
     // Cache the language preference
@@ -234,11 +234,11 @@ export const getCurrentLanguage = () => {
 };
 
 /**
- * Check if current language is RTL
+ * Check if current language is RTL - Always returns false for consistent LTR layout
  */
 export const isRTL = (): boolean => {
-  const currentLang = i18n.language || 'en';
-  return RTL_LANGUAGES.includes(currentLang);
+  // Force LTR for all languages - professional app approach
+  return false;
 };
 
 /**

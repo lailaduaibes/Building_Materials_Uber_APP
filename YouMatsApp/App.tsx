@@ -13,6 +13,7 @@ import {
   Alert,
   ActivityIndicator,
   Text,
+  I18nManager,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -86,6 +87,11 @@ const App: React.FC = () => {
 
   const initializeApp = async () => {
     try {
+      // Force LTR layout for all languages - Professional app approach
+      console.log('🌐 Forcing LTR layout for consistent UI across all languages');
+      I18nManager.allowRTL(false);
+      I18nManager.forceRTL(false);
+      
       // TEMPORARY: Clear welcome flag to test new welcome screen
       await AsyncStorage.removeItem('hasSeenWelcome');
       

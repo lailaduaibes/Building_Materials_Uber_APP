@@ -15,9 +15,24 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { authService, RegisterData, LoginData, AuthResponse } from './AuthService';
+import { getGradient } from './theme/colors';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isSmallDevice = screenWidth < 375;
+const isTablet = screenWidth >= 768;
+
+// Responsive scaling functions
+const scaleFont = (size: number) => {
+  if (isTablet) return size * 1.2;
+  if (isSmallDevice) return size * 0.9;
+  return size;
+};
+
+const scaleSpacing = (spacing: number) => {
+  if (isTablet) return spacing * 1.5;
+  if (isSmallDevice) return spacing * 0.8;
+  return spacing;
+};
 
 const theme = {
   primary: '#2C5CC5',
@@ -41,10 +56,10 @@ const theme = {
     xl: 32,
   },
   fontSize: {
-    body: isSmallDevice ? 13 : 14,
-    subheading: isSmallDevice ? 15 : 16,
-    heading: isSmallDevice ? 17 : 18,
-    title: isSmallDevice ? 19 : 20,
+    body: scaleFont(isSmallDevice ? 13 : 14),
+    subheading: scaleFont(isSmallDevice ? 15 : 16),
+    heading: scaleFont(isSmallDevice ? 17 : 18),
+    title: scaleFont(isSmallDevice ? 19 : 20),
   },
 };
 
@@ -277,8 +292,10 @@ export const AuthScreens: React.FC<AuthScreensProps> = ({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={[theme.primary, theme.secondary]}
+        colors={getGradient('welcome')}
         style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.formContainer}>
@@ -348,8 +365,10 @@ export const AuthScreens: React.FC<AuthScreensProps> = ({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={[theme.primary, theme.secondary]}
+        colors={getGradient('welcome')}
         style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.formContainer}>
@@ -456,8 +475,10 @@ export const AuthScreens: React.FC<AuthScreensProps> = ({
   const renderEmailVerificationScreen = () => (
     <View style={styles.container}>
       <LinearGradient
-        colors={[theme.primary, theme.secondary]}
+        colors={getGradient('welcome')}
         style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <View style={styles.centerContent}>
           <View style={styles.verificationContainer}>
@@ -501,8 +522,10 @@ export const AuthScreens: React.FC<AuthScreensProps> = ({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={[theme.primary, theme.secondary]}
+        colors={getGradient('welcome')}
         style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.formContainer}>
@@ -573,35 +596,39 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: theme.spacing.lg,
+    padding: scaleSpacing(theme.spacing.lg),
+    minHeight: screenHeight * 0.8, // Ensure proper scrolling on small devices
   },
   centerContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: theme.spacing.lg,
+    padding: scaleSpacing(theme.spacing.lg),
   },
   formContainer: {
     backgroundColor: theme.surface,
-    borderRadius: 16,
-    padding: theme.spacing.xl,
+    borderRadius: isTablet ? 24 : 16,
+    padding: scaleSpacing(theme.spacing.xl),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
+    maxWidth: isTablet ? 500 : screenWidth * 0.95,
+    width: '100%',
+    alignSelf: 'center',
   },
   verificationContainer: {
     backgroundColor: theme.surface,
-    borderRadius: 16,
-    padding: theme.spacing.xl,
+    borderRadius: isTablet ? 24 : 16,
+    padding: scaleSpacing(theme.spacing.xl),
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
-    maxWidth: 400,
+    maxWidth: isTablet ? 500 : 400,
     width: '100%',
   },
   title: {
@@ -643,23 +670,25 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: isSmallDevice ? 'column' : 'row',
     justifyContent: 'space-between',
   },
   halfWidth: {
-    width: '48%',
+    width: isSmallDevice ? '100%' : '48%',
+    marginBottom: isSmallDevice ? scaleSpacing(theme.spacing.md) : 0,
   },
   inputContainer: {
-    marginBottom: theme.spacing.md,
+    marginBottom: scaleSpacing(theme.spacing.md),
   },
   input: {
     backgroundColor: theme.background,
     borderWidth: 1,
     borderColor: theme.border,
-    borderRadius: 12,
-    padding: theme.spacing.md,
+    borderRadius: isTablet ? 16 : 12,
+    padding: scaleSpacing(theme.spacing.md),
     fontSize: theme.fontSize.body,
     color: theme.text.primary,
+    minHeight: isTablet ? 56 : 48, // Better touch targets
   },
   passwordRequirements: {
     fontSize: 12,
@@ -670,10 +699,11 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: theme.primary,
-    borderRadius: 12,
-    padding: theme.spacing.md,
+    borderRadius: isTablet ? 16 : 12,
+    padding: scaleSpacing(theme.spacing.md),
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    marginBottom: scaleSpacing(theme.spacing.md),
+    minHeight: isTablet ? 56 : 48, // Better touch targets
     shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -682,34 +712,35 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: theme.text.white,
-    fontSize: theme.fontSize.subheading,
+    fontSize: scaleFont(theme.fontSize.subheading),
     fontWeight: '600',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: theme.primary,
-    borderRadius: 12,
-    padding: theme.spacing.md,
+    borderRadius: isTablet ? 16 : 12,
+    padding: scaleSpacing(theme.spacing.md),
     alignItems: 'center',
+    minHeight: isTablet ? 56 : 48,
   },
   secondaryButtonText: {
     color: theme.primary,
-    fontSize: theme.fontSize.subheading,
+    fontSize: scaleFont(theme.fontSize.subheading),
     fontWeight: '600',
   },
   linkButton: {
     alignItems: 'center',
-    marginTop: theme.spacing.sm,
+    marginTop: scaleSpacing(theme.spacing.sm),
   },
   linkText: {
     color: theme.primary,
-    fontSize: theme.fontSize.body,
+    fontSize: scaleFont(theme.fontSize.body),
     fontWeight: '500',
   },
   divider: {
     height: 1,
     backgroundColor: theme.border,
-    marginVertical: theme.spacing.lg,
+    marginVertical: scaleSpacing(theme.spacing.lg),
   },
 });

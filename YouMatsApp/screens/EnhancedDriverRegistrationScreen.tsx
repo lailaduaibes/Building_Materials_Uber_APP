@@ -18,6 +18,7 @@ import { driverService } from '../services/DriverService';
 import { DocumentUploadScreen } from './DocumentUploadScreen';
 import { EmailVerificationScreen } from './EmailVerificationScreen';
 import { createClient } from '@supabase/supabase-js';
+import { responsive, deviceTypes, responsiveStyles } from '../utils/ResponsiveUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -321,51 +322,87 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
   };
 
   // Render progress indicator
-  const renderProgressIndicator = () => (
-    <View style={styles.progressContainer}>
-      <View style={styles.progressSteps}>
-        {steps.map((step, index) => {
-          const isActive = step.id === currentStep;
-          const isCompleted = index < getCurrentStepIndex();
-          const isAccessible = index <= getCurrentStepIndex();
-          
-          return (
-            <View key={step.id} style={styles.progressStep}>
-              <View style={[
-                styles.progressCircle,
-                isCompleted && styles.progressCircleCompleted,
-                isActive && styles.progressCircleActive,
-                !isAccessible && styles.progressCircleDisabled
-              ]}>
-                <Ionicons 
-                  name={isCompleted ? 'checkmark' : step.icon as any} 
-                  size={isCompleted ? 16 : 14} 
-                  color={
-                    isCompleted ? Colors.text.white :
-                    isActive ? Colors.text.white :
-                    isAccessible ? Colors.primary : Colors.text.secondary
-                  } 
-                />
-              </View>
-              <Text style={[
-                styles.progressLabel,
-                isActive && styles.progressLabelActive,
-                !isAccessible && styles.progressLabelDisabled
-              ]}>
-                {step.title}
-              </Text>
-              {index < steps.length - 1 && (
-                <View style={[
-                  styles.progressLine,
-                  isCompleted && styles.progressLineCompleted
-                ]} />
-              )}
-            </View>
-          );
-        })}
+  const renderProgressIndicator = () => {
+    const currentStepIndex = getCurrentStepIndex();
+    const progressPercentage = (currentStepIndex / (steps.length - 1)) * 100;
+    
+    return (
+      <View style={styles.progressContainer}>
+        <View style={styles.progressHeader}>
+          <Text style={styles.progressHeaderText}>Registration Progress</Text>
+          <Text style={styles.progressStepIndicator}>
+            Step {currentStepIndex + 1} of {steps.length}
+          </Text>
+        </View>
+        
+        {/* Progress Bar */}
+        <View style={styles.progressBarContainer}>
+          <View style={styles.progressBarBackground}>
+            <View 
+              style={[
+                styles.progressBarFill, 
+                { width: `${Math.max(progressPercentage, 8)}%` }
+              ]} 
+            />
+          </View>
+          <Text style={styles.progressPercentageText}>
+            {Math.round(progressPercentage)}%
+          </Text>
+        </View>
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.progressScrollContent}
+          style={styles.progressScrollView}
+        >
+          <View style={styles.progressSteps}>
+            {steps.map((step, index) => {
+              const isActive = step.id === currentStep;
+              const isCompleted = index < getCurrentStepIndex();
+              const isAccessible = index <= getCurrentStepIndex();
+              
+              return (
+                <View key={step.id} style={styles.progressStep}>
+                  <View style={styles.progressStepContent}>
+                    <View style={[
+                      styles.progressCircle,
+                      isCompleted && styles.progressCircleCompleted,
+                      isActive && styles.progressCircleActive,
+                      !isAccessible && styles.progressCircleDisabled
+                    ]}>
+                      <Ionicons 
+                        name={isCompleted ? 'checkmark' : step.icon as any} 
+                        size={responsive.scale(isCompleted ? 18 : 16)} 
+                        color={
+                          isCompleted ? Colors.text.white :
+                          isActive ? Colors.text.white :
+                          isAccessible ? Colors.primary : Colors.text.secondary
+                        } 
+                      />
+                    </View>
+                    <Text style={[
+                      styles.progressLabel,
+                      isActive && styles.progressLabelActive,
+                      !isAccessible && styles.progressLabelDisabled
+                    ]}>
+                      {step.title}
+                    </Text>
+                  </View>
+                  {index < steps.length - 1 && (
+                    <View style={[
+                      styles.progressLine,
+                      isCompleted && styles.progressLineCompleted
+                    ]} />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
       </View>
-    </View>
-  );
+    );
+  };
 
   // Render account step
   const renderAccountStep = () => (
@@ -754,84 +791,166 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 20,
+    paddingHorizontal: responsive.padding(20),
+    paddingTop: responsive.padding(50),
+    paddingBottom: responsive.padding(20),
     borderBottomWidth: 1,
     borderBottomColor: Colors.border.light,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: responsive.scale(40),
+    height: responsive.scale(40),
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: responsive.fontSize(18, 22),
     fontWeight: '600',
     color: Colors.text.primary,
   },
   placeholder: {
-    width: 40,
+    width: responsive.scale(40),
   },
   progressContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingHorizontal: responsive.padding(16, 20),
+    paddingVertical: responsive.padding(12, 16),
     backgroundColor: Colors.background.secondary,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border.light,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: responsive.margin(12, 16),
+    paddingHorizontal: responsive.padding(4, 8),
+  },
+  progressHeaderText: {
+    fontSize: responsive.fontSize(14, 16),
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  progressStepIndicator: {
+    fontSize: responsive.fontSize(12, 14),
+    color: Colors.text.secondary,
+    fontWeight: '500',
+  },
+  progressBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: responsive.margin(16, 20),
+    paddingHorizontal: responsive.padding(4, 8),
+  },
+  progressBarBackground: {
+    flex: 1,
+    height: responsive.scale(6),
+    backgroundColor: Colors.border.light,
+    borderRadius: responsive.scale(3),
+    marginRight: responsive.margin(12),
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: responsive.scale(3),
+    minWidth: responsive.scale(8),
+  },
+  progressPercentageText: {
+    fontSize: responsive.fontSize(12, 14),
+    fontWeight: '600',
+    color: Colors.primary,
+    minWidth: responsive.scale(35),
+    textAlign: 'right',
+  },
+  progressScrollView: {
+    flexGrow: 0,
+  },
+  progressScrollContent: {
+    paddingHorizontal: responsive.padding(8, 12),
+    alignItems: 'center',
+    minWidth: '100%',
   },
   progressSteps: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    minWidth: deviceTypes.isTablet ? responsive.scale(600) : responsive.scale(350),
+    paddingHorizontal: responsive.padding(8, 16),
   },
   progressStep: {
     alignItems: 'center',
     position: 'relative',
+    flex: 1,
+  },
+  progressStepContent: {
+    alignItems: 'center',
+    zIndex: 2,
   },
   progressCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
+    width: responsive.scale(deviceTypes.isTablet ? 44 : 36),
+    height: responsive.scale(deviceTypes.isTablet ? 44 : 36),
+    borderRadius: responsive.scale(deviceTypes.isTablet ? 22 : 18),
+    borderWidth: responsive.scale(2),
     borderColor: Colors.border.light,
     backgroundColor: Colors.background.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: responsive.margin(8, 10),
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   progressCircleActive: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
   },
   progressCircleCompleted: {
     borderColor: Colors.status.completed,
     backgroundColor: Colors.status.completed,
+    shadowColor: Colors.status.completed,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
   },
   progressCircleDisabled: {
     borderColor: Colors.border.light,
     backgroundColor: Colors.background.secondary,
+    opacity: 0.6,
   },
   progressLabel: {
-    fontSize: 11,
+    fontSize: responsive.fontSize(10, 12),
     color: Colors.text.secondary,
     fontWeight: '500',
     textAlign: 'center',
-    minWidth: 60,
+    minWidth: responsive.scale(deviceTypes.isTablet ? 80 : 60),
+    maxWidth: responsive.scale(deviceTypes.isTablet ? 100 : 70),
+    lineHeight: responsive.scale(deviceTypes.isTablet ? 16 : 14),
   },
   progressLabelActive: {
-    color: Colors.text.primary,
+    color: Colors.primary,
     fontWeight: '600',
   },
   progressLabelDisabled: {
     color: Colors.text.secondary,
+    opacity: 0.6,
   },
   progressLine: {
     position: 'absolute',
-    top: 16,
-    left: 32,
-    width: 40,
-    height: 2,
+    top: responsive.scale(deviceTypes.isTablet ? 22 : 18),
+    left: '60%',
+    right: '-40%',
+    height: responsive.scale(2),
     backgroundColor: Colors.border.light,
+    zIndex: 1,
   },
   progressLineCompleted: {
     backgroundColor: Colors.status.completed,
@@ -841,38 +960,38 @@ const styles = StyleSheet.create({
   },
   stepContent: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: responsive.padding(20),
   },
   stepTitle: {
-    fontSize: 24,
+    fontSize: responsive.fontSize(24, 28),
     fontWeight: '600',
     color: Colors.text.primary,
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: responsive.margin(20),
+    marginBottom: responsive.margin(8),
   },
   stepDescription: {
-    fontSize: 16,
+    fontSize: responsive.fontSize(16, 18),
     color: Colors.text.secondary,
-    lineHeight: 22,
-    marginBottom: 30,
+    lineHeight: responsive.scale(22),
+    marginBottom: responsive.margin(30),
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: responsive.margin(20),
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: responsive.fontSize(14, 16),
     fontWeight: '600',
     color: Colors.text.primary,
-    marginBottom: 8,
+    marginBottom: responsive.margin(8),
   },
   input: {
     backgroundColor: Colors.background.primary,
     borderWidth: 1,
     borderColor: Colors.border.light,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+    borderRadius: responsive.scale(12),
+    paddingHorizontal: responsive.padding(16),
+    paddingVertical: responsive.padding(14, 16),
+    fontSize: responsive.fontSize(16, 18),
     color: Colors.text.primary,
   },
   passwordContainer: {
@@ -897,65 +1016,65 @@ const styles = StyleSheet.create({
   },
   infoText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: responsive.fontSize(14, 16),
     color: Colors.text.primary,
-    lineHeight: 18,
-    marginLeft: 8,
+    lineHeight: responsive.scale(18),
+    marginLeft: responsive.margin(8),
   },
   completeContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: responsive.padding(40, 50),
   },
   successIcon: {
-    marginBottom: 24,
+    marginBottom: responsive.margin(24),
   },
   successTitle: {
-    fontSize: 28,
+    fontSize: responsive.fontSize(28, 32),
     fontWeight: '600',
     color: Colors.text.primary,
-    marginBottom: 12,
+    marginBottom: responsive.margin(12),
     textAlign: 'center',
   },
   successDescription: {
-    fontSize: 16,
+    fontSize: responsive.fontSize(16, 18),
     color: Colors.text.secondary,
-    lineHeight: 22,
+    lineHeight: responsive.scale(22),
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: responsive.margin(32),
   },
   nextStepsContainer: {
     width: '100%',
-    marginBottom: 32,
+    marginBottom: responsive.margin(32),
   },
   nextStepsTitle: {
-    fontSize: 18,
+    fontSize: responsive.fontSize(18, 20),
     fontWeight: '600',
     color: Colors.text.primary,
-    marginBottom: 16,
+    marginBottom: responsive.margin(16),
   },
   nextStep: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: responsive.margin(12),
   },
   nextStepText: {
-    fontSize: 14,
+    fontSize: responsive.fontSize(14, 16),
     color: Colors.text.secondary,
-    marginLeft: 12,
+    marginLeft: responsive.margin(12),
     flex: 1,
   },
   navigationContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingHorizontal: responsive.padding(20),
+    paddingVertical: responsive.padding(20),
     borderTopWidth: 1,
     borderTopColor: Colors.border.light,
     backgroundColor: Colors.background.primary,
   },
   button: {
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: responsive.scale(12),
+    paddingVertical: responsive.padding(16, 18),
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -965,43 +1084,43 @@ const styles = StyleSheet.create({
   },
   nextButtonText: {
     color: Colors.text.white,
-    fontSize: 16,
+    fontSize: responsive.fontSize(16, 18),
     fontWeight: '600',
-    marginRight: 8,
+    marginRight: responsive.margin(8),
   },
   completeButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    borderRadius: responsive.scale(12),
+    paddingVertical: responsive.padding(16, 18),
+    paddingHorizontal: responsive.padding(32, 36),
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
   },
   completeButtonText: {
     color: Colors.text.white,
-    fontSize: 16,
+    fontSize: responsive.fontSize(16, 18),
     fontWeight: '600',
   },
   // New styles for truck type selection and layout
   inputDescription: {
-    fontSize: 12,
+    fontSize: responsive.fontSize(12, 14),
     color: Colors.text.secondary,
-    marginBottom: 12,
-    lineHeight: 16,
+    marginBottom: responsive.margin(12),
+    lineHeight: responsive.scale(16),
   },
   truckTypeContainer: {
-    marginBottom: 10,
+    marginBottom: responsive.margin(10),
   },
   truckTypeCard: {
     backgroundColor: Colors.background.primary,
     borderWidth: 1,
     borderColor: Colors.border.light,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginRight: 12,
-    minWidth: 120,
+    borderRadius: responsive.scale(12),
+    paddingHorizontal: responsive.padding(16, 18),
+    paddingVertical: responsive.padding(12, 14),
+    marginRight: responsive.margin(12),
+    minWidth: responsive.scale(120),
     alignItems: 'center',
   },
   truckTypeCardSelected: {
@@ -1009,17 +1128,17 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.secondary,
   },
   truckTypeName: {
-    fontSize: 14,
+    fontSize: responsive.fontSize(14, 16),
     fontWeight: '600',
     color: Colors.text.primary,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: responsive.margin(4),
   },
   truckTypeNameSelected: {
     color: Colors.primary,
   },
   truckTypeSpecs: {
-    fontSize: 12,
+    fontSize: responsive.fontSize(12, 14),
     color: Colors.text.secondary,
     textAlign: 'center',
   },
@@ -1033,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   halfWidth: {
     flex: 1,
-    marginHorizontal: 5,
+    marginHorizontal: responsive.margin(5),
   },
 });
 

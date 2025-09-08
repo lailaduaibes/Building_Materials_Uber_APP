@@ -15,6 +15,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { driverService } from '../services/DriverService';
+import { responsive } from '../utils/ResponsiveUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -280,19 +281,19 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingTop: responsive.padding(50, 60),
+    paddingHorizontal: responsive.padding(20),
+    paddingBottom: responsive.padding(20),
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
     backgroundColor: theme.white,
   },
   backButton: {
-    padding: 8,
-    marginRight: 16,
+    padding: responsive.padding(8),
+    marginRight: responsive.margin(16),
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: responsive.fontSize(20, 24),
     fontWeight: '600',
     color: theme.text,
   },
@@ -301,51 +302,51 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 30,
+    paddingBottom: responsive.padding(30),
   },
   content: {
     flex: 1,
-    paddingHorizontal: 30,
-    paddingTop: 40,
+    paddingHorizontal: responsive.padding(30, 40),
+    paddingTop: responsive.padding(40, 50),
     alignItems: 'center',
-    minHeight: 600, // Ensure minimum height for proper scrolling
+    minHeight: responsive.scale(600), // Ensure minimum height for proper scrolling
   },
   iconContainer: {
-    marginBottom: 30,
+    marginBottom: responsive.margin(30),
   },
   title: {
-    fontSize: 28,
+    fontSize: responsive.fontSize(28, 32),
     fontWeight: 'bold',
     color: theme.text,
-    marginBottom: 10,
+    marginBottom: responsive.margin(10),
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: responsive.fontSize(16, 18),
     color: theme.lightText,
     textAlign: 'center',
-    marginBottom: 5,
+    marginBottom: responsive.margin(5),
   },
   email: {
-    fontSize: 16,
+    fontSize: responsive.fontSize(16, 18),
     fontWeight: '600',
     color: theme.primary,
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: responsive.margin(40),
   },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 40,
+    marginBottom: responsive.margin(40),
     width: '100%',
-    maxWidth: 300,
+    maxWidth: responsive.scale(300),
   },
   otpInput: {
-    width: 45,
-    height: 55,
+    width: responsive.scale(45),
+    height: responsive.scale(55),
     borderWidth: 2,
-    borderRadius: 12,
-    fontSize: 24,
+    borderRadius: responsive.scale(12),
+    fontSize: responsive.fontSize(24, 28),
     fontWeight: 'bold',
     color: theme.text,
     backgroundColor: theme.white,
@@ -359,13 +360,13 @@ const styles = StyleSheet.create({
   },
   verifyButton: {
     backgroundColor: theme.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 12,
+    paddingVertical: responsive.padding(16, 18),
+    paddingHorizontal: responsive.padding(40, 50),
+    borderRadius: responsive.scale(12),
     width: '100%',
-    maxWidth: 300,
+    maxWidth: responsive.scale(300),
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: responsive.margin(30),
     shadowColor: theme.primary,
     shadowOffset: {
       width: 0,
@@ -377,7 +378,7 @@ const styles = StyleSheet.create({
   },
   verifyButtonText: {
     color: theme.white,
-    fontSize: 16,
+    fontSize: responsive.fontSize(16, 18),
     fontWeight: '600',
   },
   disabledButton: {
@@ -385,19 +386,19 @@ const styles = StyleSheet.create({
   },
   resendContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: responsive.margin(30),
   },
   resendText: {
-    fontSize: 14,
+    fontSize: responsive.fontSize(14, 16),
     color: theme.lightText,
-    marginBottom: 8,
+    marginBottom: responsive.margin(8),
   },
   resendButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: responsive.padding(8),
+    paddingHorizontal: responsive.padding(16),
   },
   resendButtonText: {
-    fontSize: 16,
+    fontSize: responsive.fontSize(16, 18),
     fontWeight: '600',
     color: theme.primary,
   },
@@ -408,18 +409,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EBF4FF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: responsive.padding(16, 18),
+    paddingVertical: responsive.padding(12, 14),
+    borderRadius: responsive.scale(8),
     width: '100%',
-    maxWidth: 300,
+    maxWidth: responsive.scale(300),
     borderLeftWidth: 4,
     borderLeftColor: theme.primary,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: responsive.fontSize(14, 16),
     color: theme.accent,
-    marginLeft: 8,
+    marginLeft: responsive.margin(8),
     flex: 1,
   },
 });

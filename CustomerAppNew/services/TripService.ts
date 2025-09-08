@@ -434,9 +434,14 @@ class TripService {
 
       console.log('🚛 Inserting trip request for customer:', user.id, `(${user.email})`);
 
+      // ✅ FIXED: Use standard 'pending' status for offer-only ASAP system
+      const finalTripRequest = { ...tripRequest };
+      // Note: All trips start as 'pending' - offer-only system handles ASAP logic
+      console.log('🚨 Creating trip request for offer-only system...');
+
       const { data, error } = await supabase
         .from('trip_requests')
-        .insert([tripRequest])
+        .insert([finalTripRequest])
         .select()
         .single();
 
@@ -444,24 +449,25 @@ class TripService {
 
       console.log('✅ Trip request created successfully:', data.id);
 
-      // 🚀 CRITICAL: Start ASAP sequential matching for ASAP trips
+      // 🚀 FIXED: Use offer-only ASAP system - no start function needed
       if (tripData.pickup_time_preference === 'asap') {
-        console.log('🚨 ASAP trip detected - starting sequential driver matching...');
+        console.log('🚨 Making ASAP trip available for offer-only system...');
         
+        // ✅ OFFER-ONLY SYSTEM: Simply set to 'pending' - drivers pull via get_next_asap_trip_for_driver
+        // No need for start_asap_offers_simple (function doesn't exist)
         try {
-          // Call the Uber-style sequential system (one driver at a time)
-          const { error: matchingError } = await supabase
-            .rpc('start_asap_matching_uber_style', { trip_request_id: data.id });
+          const { error: statusError } = await supabase
+            .from('trip_requests')
+            .update({ status: 'pending' })
+            .eq('id', data.id);
           
-          if (matchingError) {
-            console.error('⚠️ Uber-style ASAP matching failed to start:', matchingError);
-            // Don't fail the trip creation, just log the error
+          if (statusError) {
+            console.error('⚠️ Error setting ASAP trip to pending:', statusError);
           } else {
-            console.log('✅ Uber-style ASAP matching started for trip:', data.id);
+            console.log('✅ ASAP trip set to pending - available for driver offers via offer-only system');
           }
-        } catch (matchingError) {
-          console.error('⚠️ Error starting ASAP matching:', matchingError);
-          // Continue with trip creation even if matching fails
+        } catch (statusError) {
+          console.error('⚠️ Error updating ASAP trip status:', statusError);
         }
       } else {
         // For scheduled trips, use the existing driver finding system

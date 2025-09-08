@@ -13,6 +13,7 @@ import {
 import { OrderAssignment } from '../services/DriverService';
 import { Colors } from '../theme/colors';
 import { responsive, deviceTypes, responsiveStyles } from '../utils/ResponsiveUtils';
+import RTLUtils, { useRTL } from '../utils/RTLUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +36,9 @@ export const ASAPTripModal: React.FC<ASAPTripModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const autoDeclineRef = useRef<boolean>(false);
+
+  // RTL utilities for professional RTL handling
+  const rtl = useRTL();
 
   useEffect(() => {
     if (visible && trip) {
@@ -279,7 +283,8 @@ const styles = StyleSheet.create({
     paddingVertical: responsive.padding(20, 24),
     borderTopLeftRadius: responsive.spacing(16, 20),
     borderTopRightRadius: responsive.spacing(16, 20),
-    flexDirection: 'row',
+    // RTL-aware flex direction
+    flexDirection: responsive.rtl.flexDirection(true),
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
@@ -291,7 +296,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1E3A8A',
     flex: 1,
-    marginRight: responsive.spacing(12, 16),
+    // RTL-aware text alignment
+    textAlign: responsive.rtl.textAlign(),
+    // RTL-aware spacing (logical properties)
+    ...responsive.rtl.spacing(0, responsive.spacing(12, 16)),
   },
   timerContainer: {
     backgroundColor: '#1E3A8A',

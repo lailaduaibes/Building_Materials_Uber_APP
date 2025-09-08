@@ -22,10 +22,10 @@ import {
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { authService, AuthResponse } from './AuthServiceSupabase';
-import { Colors } from './theme/colors';
+import { Colors, getGradient } from './theme/colors';
+import { responsive, deviceTypes, responsiveStyles } from './utils/ResponsiveUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
-const isTablet = screenWidth >= 768;
 
 interface AuthScreensProps {
   onAuthSuccess: (user: any) => void;
@@ -213,7 +213,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={['#0056D6', '#4A90E2', '#87CEEB']}
+        colors={getGradient('welcome')}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -246,28 +246,28 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 40,
+    paddingHorizontal: responsive.padding(20),
+    paddingTop: Platform.OS === 'ios' ? responsive.padding(60) : responsive.padding(40),
+    paddingBottom: responsive.padding(40),
     justifyContent: 'center',
     minHeight: Dimensions.get('window').height - (Platform.OS === 'ios' ? 100 : 80),
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
-    paddingVertical: 20,
+    marginBottom: responsive.margin(40),
+    paddingVertical: responsive.padding(20),
   },
   appName: {
-    fontSize: isTablet ? 48 : 42,
+    fontSize: responsive.fontSize(42, 48),
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: responsive.margin(8),
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
   tagline: {
-    fontSize: isTablet ? 20 : 18,
+    fontSize: responsive.fontSize(18, 20),
     color: '#FFFFFF',
     textAlign: 'center',
     opacity: 0.9,
@@ -278,8 +278,8 @@ const styles = StyleSheet.create({
   },
   formWrapper: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
-    padding: 30,
+    borderRadius: responsive.scale(20),
+    padding: responsive.padding(30),
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -293,34 +293,34 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   title: {
-    fontSize: isTablet ? 32 : 28,
+    fontSize: responsive.fontSize(28, 32),
     fontWeight: 'bold',
-    color: '#0056D6',
+    color: Colors.primary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: responsive.margin(8),
   },
   subtitle: {
-    fontSize: isTablet ? 18 : 16,
+    fontSize: responsive.fontSize(16, 18),
     color: '#666666',
     textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 22,
+    marginBottom: responsive.margin(32),
+    lineHeight: responsive.scale(22),
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: responsive.margin(20),
   },
   input: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#E1E5E9',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: isTablet ? 18 : 14,
-    fontSize: isTablet ? 18 : 16,
+    borderRadius: responsive.scale(12),
+    paddingHorizontal: responsive.padding(16),
+    paddingVertical: responsive.padding(14, 18),
+    fontSize: responsive.fontSize(16, 18),
     color: '#333333',
     shadowColor: '#000',
     shadowOffset: {
@@ -336,17 +336,17 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#FF4757',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
+    fontSize: responsive.fontSize(12, 14),
+    marginTop: responsive.margin(4),
+    marginLeft: responsive.margin(4),
   },
   button: {
-    backgroundColor: '#0056D6',
-    borderRadius: 12,
-    paddingVertical: isTablet ? 18 : 16,
+    backgroundColor: Colors.primary,
+    borderRadius: responsive.scale(12),
+    paddingVertical: responsive.padding(16, 18),
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#0056D6',
+    marginTop: responsive.margin(8),
+    shadowColor: Colors.primary,
     shadowOffset: {
       width: 0,
       height: 6,
@@ -357,42 +357,42 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: isTablet ? 20 : 18,
+    fontSize: responsive.fontSize(18, 20),
     fontWeight: '600',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#0056D6',
-    borderRadius: 12,
-    paddingVertical: isTablet ? 18 : 16,
+    borderColor: Colors.primary,
+    borderRadius: responsive.scale(12),
+    paddingVertical: responsive.padding(16, 18),
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: responsive.margin(16),
   },
   secondaryButtonText: {
-    color: '#0056D6',
-    fontSize: isTablet ? 20 : 18,
+    color: Colors.primary,
+    fontSize: responsive.fontSize(18, 20),
     fontWeight: '600',
   },
   linkButton: {
     alignItems: 'center',
-    marginTop: 16,
-    paddingVertical: 8,
+    marginTop: responsive.margin(16),
+    paddingVertical: responsive.padding(8),
   },
   linkText: {
-    color: '#0056D6',
-    fontSize: isTablet ? 16 : 14,
+    color: Colors.primary,
+    fontSize: responsive.fontSize(14, 16),
     fontWeight: '500',
   },
   divider: {
     height: 1,
     backgroundColor: '#E1E5E9',
-    marginVertical: 24,
+    marginVertical: responsive.margin(24),
   },
   infoText: {
     color: '#666666',
-    fontSize: isTablet ? 16 : 14,
+    fontSize: responsive.fontSize(14, 16),
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: responsive.scale(20),
   },
 });

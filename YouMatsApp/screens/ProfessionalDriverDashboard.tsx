@@ -108,6 +108,14 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
   const { t, isRTL } = useLanguage();
   const { t: i18nT } = useTranslation();
   
+  // Calculate safe area top for Android status bar
+  const getStatusBarHeight = () => {
+    if (Platform.OS === 'android') {
+      return StatusBar.currentHeight || 24; // Fallback to 24 if undefined
+    }
+    return 0; // iOS handles this through SafeAreaView
+  };
+  
   const [driver, setDriver] = useState<Driver | null>(null);
   const [nearbyOrders, setNearbyOrders] = useState<OrderAssignment[]>([]);
   const [acceptedTrips, setAcceptedTrips] = useState<OrderAssignment[]>([]);
@@ -973,7 +981,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: getStatusBarHeight() }]}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background.primary} />
       
       {renderTopBar()}
@@ -1236,7 +1244,9 @@ const styles = StyleSheet.create({
   },
   ordersOverlay: {
     position: 'absolute',
-    top: getResponsiveValue(70, 80, 90),
+    top: Platform.OS === 'android' 
+      ? getResponsiveValue(70, 80, 90) + (StatusBar.currentHeight || 24) // Add status bar height on Android
+      : getResponsiveValue(70, 80, 90),
     left: getResponsiveValue(16, 20, 24),
     right: getResponsiveValue(16, 20, 24),
     flexDirection: 'row',

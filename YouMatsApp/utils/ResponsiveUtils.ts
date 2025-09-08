@@ -1,9 +1,11 @@
 /**
  * Responsive Design Utilities for Driver App
  * Provides consistent breakpoints and responsive helpers for tablets and phones
+ * Now includes RTL (Right-to-Left) language support for professional apps
  */
 
-import { Dimensions, Platform } from 'react-native';
+import { Dimensions, Platform, I18nManager } from 'react-native';
+import RTLUtils from './RTLUtils';
 
 const { width, height } = Dimensions.get('window');
 
@@ -101,6 +103,42 @@ export const responsive = {
       }
       return phoneDirection;
     },
+  },
+
+  // RTL-aware layout helpers
+  rtl: {
+    // Text alignment that respects RTL
+    textAlign: (override?: 'left' | 'right' | 'center') => RTLUtils.getTextAlign(override),
+    
+    // Flex direction that respects RTL
+    flexDirection: (shouldFlip: boolean = true) => RTLUtils.getFlexDirection(shouldFlip),
+    
+    // Spacing that uses logical properties (start/end)
+    spacing: (startValue: number, endValue?: number) => RTLUtils.getSpacing(startValue, endValue),
+    
+    // Transform any style object to be RTL-aware
+    transformStyle: (style: any, config?: any) => RTLUtils.transformStyle(style, config),
+    
+    // Icon styles (directional vs neutral)
+    iconStyle: (iconType: 'directional' | 'neutral' | 'logo') => RTLUtils.getIconStyle(iconType),
+    
+    // Navigation layout
+    navigationStyle: () => RTLUtils.getNavigationStyle(),
+    
+    // Form fields
+    formFieldStyle: (forceDirection?: 'ltr' | 'rtl') => RTLUtils.getFormFieldStyle(forceDirection),
+    
+    // List items
+    listItemStyle: (preserveImageOrder?: boolean) => RTLUtils.getListItemStyle(preserveImageOrder),
+    
+    // Technical text (numbers, phone, etc.) - always LTR
+    technicalTextStyle: () => RTLUtils.getTechnicalTextStyle(),
+    
+    // Time/date display
+    timeStyle: () => RTLUtils.getTimeStyle(),
+    
+    // Maps and geographic content
+    mapStyle: () => RTLUtils.getMapStyle(),
   },
 };
 
