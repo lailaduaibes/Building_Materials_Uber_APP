@@ -17,6 +17,7 @@ import {
   Dimensions,
   Modal,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -327,7 +328,20 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
   };
 
   const renderCreateTicket = () => (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+    >
+      <ScrollView 
+        style={styles.tabContent} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollViewContent,
+          { paddingBottom: Platform.OS === 'android' ? 120 : 80 }
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
       {/* Subject */}
       <View style={styles.formGroup}>
         <Text style={styles.label}>{t('support.form.subject', 'Subject')} *</Text>
@@ -361,7 +375,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
                 activeOpacity={0.7}
               >
                 <Ionicons 
-                  name={getCategoryIcon(cat.value)} 
+                  name={getCategoryIcon(cat.value) as any} 
                   size={20} 
                   color={isSelected ? theme.primary : theme.mutedText} 
                 />
@@ -436,6 +450,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
         </Text>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 
   const renderTicketItem = ({ item }: { item: SupportTicket }) => (
@@ -989,6 +1004,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
   },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
   formGroup: {
     marginBottom: 28,
   },
@@ -1238,12 +1256,12 @@ const styles = StyleSheet.create({
   },
   
   // Simple Priority Button Styles
-  priorityContainer: {
+  simplePriorityContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 8,
   },
-  priorityButton: {
+  simplePriorityButton: {
     flex: 1,
     backgroundColor: theme.white,
     borderRadius: 8,
@@ -1254,13 +1272,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 60,
   },
-  priorityDot: {
+  simplePriorityDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
     marginBottom: 6,
   },
-  priorityText: {
+  simplePriorityText: {
     fontSize: 13,
     fontWeight: '500',
     color: theme.text,
@@ -1299,6 +1317,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     marginTop: SupportScreenUtils.getResponsiveSpacing().lg,
+    marginBottom: Platform.OS === 'android' ? 20 : 10, // Extra bottom margin for Android
     minHeight: SupportScreenUtils.getMinTouchTarget(),
     ...SupportScreenUtils.getPlatformShadow(4),
   },

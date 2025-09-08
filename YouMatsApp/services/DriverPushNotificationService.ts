@@ -49,7 +49,7 @@ if (Platform.OS === 'android') {
   });
 
   Notifications.setNotificationChannelAsync('asap-trips', {
-    name: 'YouMats ASAP Trips',
+    name: 'YouMats ASAP Trips 🚛',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#2C5CC5',
@@ -57,10 +57,11 @@ if (Platform.OS === 'android') {
     enableVibrate: true,
     enableLights: true,
     showBadge: true,
+    description: 'Urgent ASAP trip assignments from YouMats',
   });
 
   Notifications.setNotificationChannelAsync('trip-updates', {
-    name: 'YouMats Trip Updates',
+    name: 'YouMats Trip Updates 📍',
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 250],
     lightColor: '#2C5CC5',
@@ -68,10 +69,11 @@ if (Platform.OS === 'android') {
     enableVibrate: true,
     enableLights: true,
     showBadge: true,
+    description: 'Trip status updates from YouMats',
   });
 
   Notifications.setNotificationChannelAsync('messages', {
-    name: 'YouMats Customer Messages',
+    name: 'YouMats Customer Messages 💬',
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 250],
     lightColor: '#2C5CC5',
@@ -79,6 +81,7 @@ if (Platform.OS === 'android') {
     enableVibrate: true,
     enableLights: true,
     showBadge: true,
+    description: 'Messages from YouMats customers',
   });
 }
 
@@ -265,11 +268,12 @@ class DriverPushNotificationService {
           ...Platform.select({
             android: {
               channelId: androidChannelId,
-              // ✅ For local notifications, use default app icon or none
-              // The app.json configuration handles push notification icons
               color: '#2C5CC5', // YouMats brand color
               sticky: notification.type === 'asap_assignment', // Keep ASAP notifications visible
               autoDismiss: notification.type !== 'asap_assignment',
+              // Use the notification icon from app.json configuration
+              // In development, this may still show Expo logo due to Metro bundler limitations
+              // In production build, this will show YouMats logo correctly
             },
             ios: {
               sound: notification.sound === 'urgent' ? 'urgent.wav' : 'default',

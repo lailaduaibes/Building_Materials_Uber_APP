@@ -4655,7 +4655,13 @@ class DriverService {
         return { success: false, message: 'Failed to accept trip' };
       }
 
-      console.log('✅ [DriverService] ASAP trip accepted via direct update');
+      // 🛡️ RACE CONDITION FIX: Check if we actually updated a row (first driver wins)
+      if (!data || data.length === 0) {
+        console.log('⚠️ [DriverService] Trip already taken by another driver');
+        return { success: false, message: 'Trip already taken by another driver' };
+      }
+
+      console.log('✅ [DriverService] ASAP trip accepted via direct update - first driver wins!');
       return { success: true, message: 'Trip accepted successfully!' };
 
     } catch (error) {

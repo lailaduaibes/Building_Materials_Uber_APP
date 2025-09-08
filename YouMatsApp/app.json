@@ -54,7 +54,9 @@
         "googleMaps": {
           "apiKey": "AIzaSyDgcKABlWbsVN5ai14wj05W1-NJM2G0GaI"
         }
-      }
+      },
+      "notificationIcon": "./assets/ida9wvXlhV_logos.png",
+      "notificationColor": "#2C5CC5"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -87,7 +89,11 @@
           "iosDisplayInForeground": true,
           "defaultChannel": "youmats-default",
           "enableBackgroundNotifications": true,
-          "androidNotificationIcon": "./assets/ida9wvXlhV_logos.png"
+          "androidNotificationIcon": "./assets/ida9wvXlhV_logos.png",
+          "androidNotificationIconColor": "#2C5CC5",
+          "androidGroupSummary": {
+            "icon": "./assets/ida9wvXlhV_logos.png"
+          }
         }
       ]
     ],
