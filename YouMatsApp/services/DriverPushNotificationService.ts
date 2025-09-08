@@ -33,6 +33,55 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Configure Android notification channels for proper branding
+if (Platform.OS === 'android') {
+  // Set default YouMats channel first
+  Notifications.setNotificationChannelAsync('youmats-default', {
+    name: 'YouMats Driver',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    vibrationPattern: [0, 250],
+    lightColor: '#2C5CC5',
+    sound: 'default',
+    enableVibrate: true,
+    enableLights: true,
+    showBadge: true,
+    description: 'YouMats driver notifications',
+  });
+
+  Notifications.setNotificationChannelAsync('asap-trips', {
+    name: 'YouMats ASAP Trips',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#2C5CC5',
+    sound: 'default',
+    enableVibrate: true,
+    enableLights: true,
+    showBadge: true,
+  });
+
+  Notifications.setNotificationChannelAsync('trip-updates', {
+    name: 'YouMats Trip Updates',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    vibrationPattern: [0, 250],
+    lightColor: '#2C5CC5',
+    sound: 'default',
+    enableVibrate: true,
+    enableLights: true,
+    showBadge: true,
+  });
+
+  Notifications.setNotificationChannelAsync('messages', {
+    name: 'YouMats Customer Messages',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    vibrationPattern: [0, 250],
+    lightColor: '#2C5CC5',
+    sound: 'default',
+    enableVibrate: true,
+    enableLights: true,
+    showBadge: true,
+  });
+}
+
 export interface TripNotification {
   tripId: string;
   type: 'asap_assignment' | 'trip_update' | 'trip_cancelled' | 'customer_message';
@@ -191,6 +240,14 @@ class DriverPushNotificationService {
    */
   async sendLocalNotification(notification: TripNotification): Promise<void> {
     try {
+      // Determine the appropriate Android channel based on notification type
+      let androidChannelId = 'trip-updates';
+      if (notification.type === 'asap_assignment') {
+        androidChannelId = 'asap-trips';
+      } else if (notification.type === 'customer_message') {
+        androidChannelId = 'messages';
+      }
+
       await Notifications.scheduleNotificationAsync({
         content: {
           title: notification.title,
@@ -204,11 +261,26 @@ class DriverPushNotificationService {
           priority: notification.priority === 'critical' ? 
             Notifications.AndroidNotificationPriority.MAX : 
             Notifications.AndroidNotificationPriority.HIGH,
+          // Android specific configuration for YouMats branding
+          ...Platform.select({
+            android: {
+              channelId: androidChannelId,
+              // ✅ For local notifications, use default app icon or none
+              // The app.json configuration handles push notification icons
+              color: '#2C5CC5', // YouMats brand color
+              sticky: notification.type === 'asap_assignment', // Keep ASAP notifications visible
+              autoDismiss: notification.type !== 'asap_assignment',
+            },
+            ios: {
+              sound: notification.sound === 'urgent' ? 'urgent.wav' : 'default',
+              badge: 1,
+            },
+          }),
         },
         trigger: null, // Send immediately
       });
 
-      console.log('✅ Local notification sent');
+      console.log('✅ Local notification sent with YouMats branding');
     } catch (error) {
       console.error('❌ Failed to send local notification:', error);
     }
@@ -221,7 +293,7 @@ class DriverPushNotificationService {
     const notification: TripNotification = {
       tripId,
       type: 'asap_assignment',
-      title: '🚨 URGENT: New ASAP Trip!',
+      title: '🚨 YouMats URGENT: New ASAP Trip!',
       message: `Pickup from ${pickupLocation} • Est. ${estimatedEarnings}₪ • Tap to accept`,
       priority: 'critical',
       sound: 'urgent',
@@ -242,7 +314,7 @@ class DriverPushNotificationService {
     const notification: TripNotification = {
       tripId,
       type: 'trip_update',
-      title: `Trip ${status}`,
+      title: `YouMats - Trip ${status}`,
       message,
       priority: 'normal',
       sound: 'default',

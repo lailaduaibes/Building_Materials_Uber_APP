@@ -46,18 +46,7 @@ class DriverEarningsService {
     try {
       const { data, error } = await supabase
         .from('driver_earnings')
-        .select(`
-          *,
-          trip_requests!inner(
-            id,
-            pickup_address,
-            delivery_address,
-            final_price,
-            status,
-            completed_at,
-            created_at
-          )
-        `)
+        .select('*')
         .eq('driver_id', driverId)
         .order('created_at', { ascending: false });
 

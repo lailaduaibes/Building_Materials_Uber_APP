@@ -34,7 +34,6 @@ import { driverPushNotificationService } from './services/DriverPushNotification
 import { asapTripHandler } from './services/ASAPTripHandler';
 
 // Import modern screens
-import ModernDriverDashboard from './screens/ModernDriverDashboard';
 import ProfessionalDriverDashboard from './screens/ProfessionalDriverDashboard';
 import OrderAssignmentScreen from './screens/OrderAssignmentScreen';
 import EarningsScreen from './screens/EarningsScreen';
@@ -74,7 +73,6 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const [verificationEmail, setVerificationEmail] = useState<string>('');
-  const [useProfessionalDashboard, setUseProfessionalDashboard] = useState(true); // Always use professional dashboard due to ModernDriverDashboard corruption
   const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
   const [completedTripData, setCompletedTripData] = useState<{
     tripId: string;
@@ -469,26 +467,14 @@ const App: React.FC = () => {
       )}
 
       {currentScreen === 'dashboard' && currentDriver && (
-        <>
-          {useProfessionalDashboard ? (
-            <ProfessionalDriverDashboard
-              key={dashboardRefreshKey}
-              onNavigateToOrder={handleNavigateToOrder}
-              onNavigateToEarnings={handleNavigateToEarnings}
-              onNavigateToTripHistory={handleNavigateToTripHistory}
-              onNavigateToProfile={handleNavigateToProfile}
-              onNavigateToPayment={handleNavigateToPayment}
-            />
-          ) : (
-            <ModernDriverDashboard
-              key={dashboardRefreshKey}
-              onNavigateToOrder={handleNavigateToOrder}
-              onNavigateToEarnings={handleNavigateToEarnings}
-              onNavigateToTripHistory={handleNavigateToTripHistory}
-              onNavigateToProfile={handleNavigateToProfile}
-            />
-          )}
-        </>
+        <ProfessionalDriverDashboard
+          key={dashboardRefreshKey}
+          onNavigateToOrder={handleNavigateToOrder}
+          onNavigateToEarnings={handleNavigateToEarnings}
+          onNavigateToTripHistory={handleNavigateToTripHistory}
+          onNavigateToProfile={handleNavigateToProfile}
+          onNavigateToPayment={handleNavigateToPayment}
+        />
       )}
 
       {currentScreen === 'earnings' && (

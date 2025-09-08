@@ -66,6 +66,7 @@
       }
     },
     "plugins": [
+      "expo-dev-client",
       "expo-font",
       [
         "expo-location",
@@ -78,9 +79,15 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/ida9wvXlhV_logos.png",
           "color": "#2C5CC5",
-          "sounds": []
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "YouMats Driver",
+          "iosDisplayInForeground": true,
+          "defaultChannel": "youmats-default",
+          "enableBackgroundNotifications": true,
+          "androidNotificationIcon": "./assets/ida9wvXlhV_logos.png"
         }
       ]
     ],

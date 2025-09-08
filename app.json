@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d9557bd4-d162-48d4-a9be-65be1f664dff"
+      }
+    },
+    "android": {
+      "package": "com.lailaduaibes.buildingmaterialsuberapp"
+    }
+  }
+}

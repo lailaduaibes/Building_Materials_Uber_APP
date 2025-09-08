@@ -287,6 +287,27 @@ class WeeklyPayoutService {
       return false;
     }
   }
+
+  /**
+   * Get payout history for a driver
+   */
+  async getPayoutHistory(driverId: string, limit: number = 10): Promise<PayoutSchedule[]> {
+    try {
+      const { data, error } = await supabase
+        .from('driver_payouts')
+        .select('*')
+        .eq('driver_id', driverId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+
+      return data || [];
+    } catch (error) {
+      console.error('Error getting payout history:', error);
+      return [];
+    }
+  }
 }
 
 export const weeklyPayoutService = new WeeklyPayoutService();

@@ -1536,6 +1536,29 @@ class DriverService {
 
       console.log('✅ Trip status updated to:', data.status);
       
+      // Record earnings when trip is completed
+      if (data.status === 'delivered') {
+        try {
+          console.log('💰 Recording trip earnings...');
+          const { onTripCompleted } = await import('./DriverEarningsService');
+          
+          // Use the final_price from the trip data, fallback to estimated_earnings
+          const tripFare = data.final_price || data.estimated_earnings || 0;
+          const tipAmount = 0; // Tips can be added later via separate UI
+          
+          await onTripCompleted(
+            this.currentDriver.user_id,
+            tripId,
+            tripFare,
+            tipAmount
+          );
+          console.log('✅ Trip earnings recorded successfully');
+        } catch (earningsError) {
+          console.error('⚠️ Failed to record trip earnings:', earningsError);
+          // Don't fail the trip completion if earnings recording fails
+        }
+      }
+      
       // Send notification to customer using enhanced notification service
       try {
         const driverName = `${this.currentDriver.firstName} ${this.currentDriver.lastName}`;

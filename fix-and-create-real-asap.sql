@@ -76,10 +76,10 @@ INSERT INTO trip_requests (
     4.2, 
     120.00, -- Good urgent delivery payment
     'pending', -- ✅ KEY: Waiting for ASAP matching
-    'completed', -- Customer already paid
-    120.00, 
-    NOW(), 
-    'TXN_URGENT_' || gen_random_uuid()
+    'pending', -- ✅ FIXED: Payment pending - triggers ASAP notifications!
+    0.00, -- ✅ FIXED: No payment yet - will be cash on delivery
+    NULL, -- ✅ FIXED: No payment processed yet
+    NULL -- ✅ FIXED: No transaction ID yet
 );
 
 -- Step 4: Get the new trip ID
