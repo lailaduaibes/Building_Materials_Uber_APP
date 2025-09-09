@@ -329,7 +329,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
     return (
       <View style={styles.progressContainer}>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressHeaderText}>Registration Progress</Text>
+          <Text style={styles.progressHeaderText}>{t('general.registrationProgress')}</Text>
           <Text style={styles.progressStepIndicator}>
             Step {currentStepIndex + 1} of {steps.length}
           </Text>
@@ -407,42 +407,42 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
   // Render account step
   const renderAccountStep = () => (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
-      <Text style={styles.stepTitle}>Create Your Account</Text>
+      <Text style={styles.stepTitle}>{t('general.createYourAccount')}</Text>
       <Text style={styles.stepDescription}>
         Enter your personal information to get started
       </Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>First Name *</Text>
+        <Text style={styles.inputLabel}>{t('general.firstName')} *</Text>
         <TextInput
           style={styles.input}
           value={formData.firstName}
           onChangeText={(value) => updateField('firstName', value)}
-          placeholder="Enter your first name"
+          placeholder={t('general.enterYourFirstName')}
           placeholderTextColor={Colors.text.secondary}
           autoCapitalize="words"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Last Name *</Text>
+        <Text style={styles.inputLabel}>{t('general.lastName')} *</Text>
         <TextInput
           style={styles.input}
           value={formData.lastName}
           onChangeText={(value) => updateField('lastName', value)}
-          placeholder="Enter your last name"
+          placeholder={t('general.enterYourLastName')}
           placeholderTextColor={Colors.text.secondary}
           autoCapitalize="words"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Email Address *</Text>
+        <Text style={styles.inputLabel}>{t('auth.emailAddress')} *</Text>
         <TextInput
           style={styles.input}
           value={formData.email}
           onChangeText={(value) => updateField('email', value)}
-          placeholder="Enter your email address"
+          placeholder={t('auth.enterYourEmailAddress')}
           placeholderTextColor={Colors.text.secondary}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -450,13 +450,13 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Password *</Text>
+        <Text style={styles.inputLabel}>{t('auth.password')} *</Text>
         <View style={styles.passwordContainer}>
           <TextInput
             style={[styles.input, styles.passwordInput]}
             value={formData.password}
             onChangeText={(value) => updateField('password', value)}
-            placeholder="Enter your password"
+            placeholder={t('auth.enterYourPassword')}
             placeholderTextColor={Colors.text.secondary}
             secureTextEntry={!showPassword}
           />
@@ -474,13 +474,13 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Confirm Password *</Text>
+        <Text style={styles.inputLabel}>{t('auth.confirmPassword')} *</Text>
         <View style={styles.passwordContainer}>
           <TextInput
             style={[styles.input, styles.passwordInput]}
             value={formData.confirmPassword}
             onChangeText={(value) => updateField('confirmPassword', value)}
-            placeholder="Confirm your password"
+            placeholder={t('auth.confirmYourPassword')}
             placeholderTextColor={Colors.text.secondary}
             secureTextEntry={!showConfirmPassword}
           />
@@ -502,42 +502,42 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
   // Render personal step
   const renderPersonalStep = () => (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
-      <Text style={styles.stepTitle}>Personal Information</Text>
+      <Text style={styles.stepTitle}>{t('general.personalInformation')}</Text>
       <Text style={styles.stepDescription}>
         Tell us about your driving experience
       </Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Phone Number *</Text>
+        <Text style={styles.inputLabel}>{t('general.phoneNumber')} *</Text>
         <TextInput
           style={styles.input}
           value={formData.phone}
           onChangeText={(value) => updateField('phone', value)}
-          placeholder="Enter your phone number"
+          placeholder={t('general.enterYourPhoneNumber')}
           placeholderTextColor={Colors.text.secondary}
           keyboardType="phone-pad"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Driver's License Number *</Text>
+        <Text style={styles.inputLabel}>{t('general.driversLicenseNumber')} *</Text>
         <TextInput
           style={styles.input}
           value={formData.licenseNumber}
           onChangeText={(value) => updateField('licenseNumber', value)}
-          placeholder="Enter your license number"
+          placeholder={t('general.enterYourLicenseNumber')}
           placeholderTextColor={Colors.text.secondary}
           autoCapitalize="characters"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Years of Experience *</Text>
+        <Text style={styles.inputLabel}>{t('general.yearsOfExperience')} *</Text>
         <TextInput
           style={styles.input}
           value={formData.yearsExperience}
           onChangeText={(value) => updateField('yearsExperience', value)}
-          placeholder="Enter years of driving experience"
+          placeholder={t('general.enterYearsOfDrivingExperience')}
           placeholderTextColor={Colors.text.secondary}
           keyboardType="numeric"
         />
@@ -546,7 +546,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
       <View style={styles.infoBox}>
         <Ionicons name="information-circle-outline" size={20} color={Colors.status.pending} />
         <Text style={styles.infoText}>
-          You'll need to upload your driver's license for verification in the next step
+          {t('registration.license_upload_info')}
         </Text>
       </View>
     </ScrollView>
@@ -555,50 +555,50 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
   // Render vehicle step
   const renderVehicleStep = () => (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
-      <Text style={styles.stepTitle}>Vehicle Information</Text>
+      <Text style={styles.stepTitle}>{t('general.vehicleInformation')}</Text>
       <Text style={styles.stepDescription}>
         Provide details about your delivery vehicle and capabilities
       </Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Vehicle Model *</Text>
+        <Text style={styles.inputLabel}>{t('general.vehicleModel')} *</Text>
         <TextInput
           style={styles.input}
           value={formData.vehicleModel}
           onChangeText={(value) => updateField('vehicleModel', value)}
-          placeholder="e.g., Ford Transit, Toyota Hiace"
+          placeholder={t('general.egFordTransitToyotaHiace')}
           placeholderTextColor={Colors.text.secondary}
           autoCapitalize="words"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Vehicle Year *</Text>
+        <Text style={styles.inputLabel}>{t('general.vehicleYear')} *</Text>
         <TextInput
           style={styles.input}
           value={formData.vehicleYear}
           onChangeText={(value) => updateField('vehicleYear', value)}
-          placeholder="Enter vehicle year"
+          placeholder={t('general.enterVehicleYear')}
           placeholderTextColor={Colors.text.secondary}
           keyboardType="numeric"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>License Plate *</Text>
+        <Text style={styles.inputLabel}>{t('general.licensePlate')} *</Text>
         <TextInput
           style={styles.input}
           value={formData.vehiclePlate}
           onChangeText={(value) => updateField('vehiclePlate', value)}
-          placeholder="Enter license plate number"
+          placeholder={t('general.enterLicensePlateNumber')}
           placeholderTextColor={Colors.text.secondary}
           autoCapitalize="characters"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Truck Type *</Text>
-        <Text style={styles.inputDescription}>Select the type that best matches your vehicle</Text>
+        <Text style={styles.inputLabel}>{t('general.truckType')} *</Text>
+        <Text style={styles.inputDescription}>{t('general.selectTheTypeThatBestMatchesYourVehicle')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.truckTypeContainer}>
           {truckTypes.map((truckType) => (
             <TouchableOpacity
@@ -632,24 +632,24 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
 
       <View style={styles.row}>
         <View style={[styles.inputGroup, styles.halfWidth]}>
-          <Text style={styles.inputLabel}>Max Payload (tons) *</Text>
+          <Text style={styles.inputLabel}>{t('general.maxPayloadTons')} *</Text>
           <TextInput
             style={styles.input}
             value={formData.maxPayload}
             onChangeText={(value) => updateField('maxPayload', value)}
-            placeholder="e.g., 5.0"
+            placeholder={t('general.eg50')}
             placeholderTextColor={Colors.text.secondary}
             keyboardType="decimal-pad"
           />
         </View>
 
         <View style={[styles.inputGroup, styles.halfWidth]}>
-          <Text style={styles.inputLabel}>Max Volume (m³) *</Text>
+          <Text style={styles.inputLabel}>{t('general.maxVolumeM')} *</Text>
           <TextInput
             style={styles.input}
             value={formData.maxVolume}
             onChangeText={(value) => updateField('maxVolume', value)}
-            placeholder="e.g., 10.0"
+            placeholder={t('general.eg100')}
             placeholderTextColor={Colors.text.secondary}
             keyboardType="decimal-pad"
           />
@@ -659,8 +659,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
       <View style={styles.infoBox}>
         <Ionicons name="car-outline" size={20} color={Colors.status.pending} />
         <Text style={styles.infoText}>
-          You'll need to upload vehicle registration and insurance documents in the next step. 
-          Your truck type selection helps us match you with appropriate delivery orders.
+          {t('registration.vehicle_docs_upload_info')} {t('registration.truck_type_selection_info')}
         </Text>
       </View>
     </ScrollView>
@@ -673,24 +672,24 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
         <Ionicons name="checkmark-circle" size={80} color={Colors.status.completed} />
       </View>
       
-      <Text style={styles.successTitle}>Registration Complete!</Text>
+      <Text style={styles.successTitle}>{t('success.registrationComplete')}</Text>
       <Text style={styles.successDescription}>
-        Thank you for joining YouMats! Your application has been submitted and is now under review.
+        {t('registration.thank_you_joining')}
       </Text>
 
       <View style={styles.nextStepsContainer}>
-        <Text style={styles.nextStepsTitle}>What happens next:</Text>
+        <Text style={styles.nextStepsTitle}>{t('general.whatHappensNext')}:</Text>
         <View style={styles.nextStep}>
           <Ionicons name="time-outline" size={16} color={Colors.text.secondary} />
-          <Text style={styles.nextStepText}>Review takes 2-3 business days</Text>
+          <Text style={styles.nextStepText}>{t('general.reviewTakes23BusinessDays')}</Text>
         </View>
         <View style={styles.nextStep}>
           <Ionicons name="mail-outline" size={16} color={Colors.text.secondary} />
-          <Text style={styles.nextStepText}>You'll receive an email with the decision</Text>
+          <Text style={styles.nextStepText}>{t('auth.youllReceiveAnEmailWithTheDecision')}</Text>
         </View>
         <View style={styles.nextStep}>
           <Ionicons name="checkmark-outline" size={16} color={Colors.text.secondary} />
-          <Text style={styles.nextStepText}>Once approved, you can start accepting orders</Text>
+          <Text style={styles.nextStepText}>{t('general.onceApprovedYouCanStartAcceptingOrders')}</Text>
         </View>
       </View>
 
@@ -698,7 +697,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
         style={styles.completeButton}
         onPress={handleComplete}
       >
-        <Text style={styles.completeButtonText}>Continue to Login</Text>
+        <Text style={styles.completeButtonText}>{t('auth.continueToLogin')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -714,7 +713,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Driver Registration</Text>
+        <Text style={styles.headerTitle}>{t('general.driverRegistration')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -742,7 +741,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
         ) : currentStep === 'documents' && !driverId ? (
           <View style={styles.completeContainer}>
             <Ionicons name="alert-circle-outline" size={64} color={Colors.status.cancelled} style={styles.successIcon} />
-            <Text style={styles.successTitle}>Registration Error</Text>
+            <Text style={styles.successTitle}>{t('errors.registrationError')}</Text>
             <Text style={styles.successDescription}>
               No driver ID found. Please restart the registration process.
             </Text>
@@ -750,7 +749,7 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
               style={[styles.button, styles.nextButton]}
               onPress={() => setCurrentStep('account')}
             >
-              <Text style={styles.nextButtonText}>Restart Registration</Text>
+              <Text style={styles.nextButtonText}>{t('general.restartRegistration')}</Text>
             </TouchableOpacity>
           </View>
         ) : null}

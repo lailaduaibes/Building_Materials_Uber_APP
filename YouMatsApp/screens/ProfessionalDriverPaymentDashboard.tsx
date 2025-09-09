@@ -314,13 +314,13 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
         <View style={styles.tabContent}>
           <View style={styles.emptyEarningsState}>
             <Ionicons name="car-sport-outline" size={64} color={Colors.text.secondary} />
-            <Text style={styles.emptyEarningsTitle}>No Earnings Yet</Text>
+            <Text style={styles.emptyEarningsTitle}>{i18nT('general.noEarningsYet')}</Text>
             <Text style={styles.emptyEarningsText}>
               Complete your first delivery to start earning!{'\n\n'}
               Earnings are automatically calculated when you mark deliveries as "delivered" in the driver app.
             </Text>
             <View style={styles.earningsInfoBox}>
-              <Text style={styles.earningsInfoTitle}>How it works:</Text>
+              <Text style={styles.earningsInfoTitle}>{i18nT('general.howItWorks')}</Text>
               <Text style={styles.earningsInfoText}>
                 • You keep 85% of delivery fee{'\n'}
                 • Platform takes 15% commission{'\n'}
@@ -338,25 +338,25 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
       <View style={styles.tabContent}>
         <View style={styles.earningsGrid}>
           <View style={styles.earningsCard}>
-            <Text style={styles.earningsLabel}>Today</Text>
+            <Text style={styles.earningsLabel}>{i18nT('general.today')}</Text>
             <Text style={styles.earningsAmount}>${earnings.today.toFixed(2)}</Text>
             <Text style={styles.earningsTrips}>{earnings.trips_count.today} trips</Text>
           </View>
           
           <View style={styles.earningsCard}>
-            <Text style={styles.earningsLabel}>This Week</Text>
+            <Text style={styles.earningsLabel}>{i18nT('general.thisWeek')}</Text>
             <Text style={styles.earningsAmount}>${earnings.week.toFixed(2)}</Text>
             <Text style={styles.earningsTrips}>{earnings.trips_count.week} trips</Text>
           </View>
           
           <View style={styles.earningsCard}>
-            <Text style={styles.earningsLabel}>This Month</Text>
+            <Text style={styles.earningsLabel}>{i18nT('general.thisMonth')}</Text>
             <Text style={styles.earningsAmount}>${earnings.month.toFixed(2)}</Text>
             <Text style={styles.earningsTrips}>{earnings.trips_count.month} trips</Text>
           </View>
           
           <View style={styles.earningsCard}>
-            <Text style={styles.earningsLabel}>Total Lifetime</Text>
+            <Text style={styles.earningsLabel}>{i18nT('general.totalLifetime')}</Text>
             <Text style={styles.earningsAmount}>${earnings.total.toFixed(2)}</Text>
             <Text style={styles.earningsTrips}>{earnings.trips_count.total} trips</Text>
           </View>
@@ -366,7 +366,7 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
         <View style={styles.nextPayoutCard}>
           <View style={styles.nextPayoutHeader}>
             <Ionicons name="calendar" size={20} color={Colors.primary} />
-            <Text style={styles.nextPayoutTitle}>Next Automatic Payout</Text>
+            <Text style={styles.nextPayoutTitle}>{i18nT('general.nextAutomaticPayout')}</Text>
           </View>
           <Text style={styles.nextPayoutDate}>{nextPayoutDate}</Text>
           <Text style={styles.nextPayoutSubtext}>
@@ -382,7 +382,7 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
             <Ionicons name="wallet" size={24} color={Colors.primary} />
             <View style={styles.availableEarningsText}>
               <Text style={styles.availableAmount}>${earnings.available_for_payout.toFixed(2)}</Text>
-              <Text style={styles.availableLabel}>Available for Payout</Text>
+              <Text style={styles.availableLabel}>{i18nT('general.availableForPayout')}</Text>
             </View>
           </View>
           
@@ -395,7 +395,7 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
             disabled={earnings.available_for_payout <= 0}
           >
             <Ionicons name="flash" size={20} color="white" />
-            <Text style={styles.payoutButtonText}>Instant Payout</Text>
+            <Text style={styles.payoutButtonText}>{i18nT('general.instantPayout')}</Text>
           </TouchableOpacity>
 
           {/* View Trip History Button */}
@@ -404,7 +404,7 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
             onPress={viewTripHistory}
           >
             <Ionicons name="list" size={20} color={Colors.primary} />
-            <Text style={styles.tripHistoryButtonText}>View Trip History</Text>
+            <Text style={styles.tripHistoryButtonText}>{i18nT('general.viewTripHistory')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -416,8 +416,8 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
       {paymentMethods.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="card-outline" size={48} color={Colors.text.secondary} />
-          <Text style={styles.emptyStateText}>No payment methods added</Text>
-          <Text style={styles.emptyStateSubtext}>Add a bank account to receive payouts</Text>
+          <Text style={styles.emptyStateText}>{i18nT('general.noPaymentMethodsAdded')}</Text>
+          <Text style={styles.emptyStateSubtext}>{i18nT('general.addABankAccountToReceivePayouts')}</Text>
         </View>
       ) : (
         <ScrollView>
@@ -443,7 +443,7 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
                 <View style={styles.paymentMethodBadges}>
                   {method.is_default && (
                     <View style={styles.defaultBadge}>
-                      <Text style={styles.defaultBadgeText}>Default</Text>
+                      <Text style={styles.defaultBadgeText}>{i18nT('general.default')}</Text>
                     </View>
                   )}
                   {method.is_verified ? (
@@ -453,7 +453,7 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
                         size={Platform.OS === 'android' ? 18 : 16} 
                         color={Colors.status.completed} 
                       />
-                      <Text style={styles.verifiedBadgeText}>Verified</Text>
+                      <Text style={styles.verifiedBadgeText}>{i18nT('general.verified')}</Text>
                     </View>
                   ) : (
                     <View style={styles.pendingBadge}>
@@ -462,7 +462,7 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
                         size={Platform.OS === 'android' ? 18 : 16} 
                         color="#F59E0B" 
                       />
-                      <Text style={styles.pendingBadgeText}>Pending Verification</Text>
+                      <Text style={styles.pendingBadgeText}>{i18nT('general.pendingVerification')}</Text>
                     </View>
                   )}
                 </View>
@@ -479,13 +479,13 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
         >
           <View style={styles.addMethodButton}>
             <Ionicons name="add" size={24} color={Colors.primary} />
-            <Text style={styles.addMethodText}>Add Bank Account</Text>
+            <Text style={styles.addMethodText}>{i18nT('general.addBankAccount')}</Text>
           </View>
         </TouchableNativeFeedback>
       ) : (
         <TouchableOpacity style={styles.addMethodButton} onPress={addBankAccount}>
           <Ionicons name="add" size={24} color={Colors.primary} />
-          <Text style={styles.addMethodText}>Add Bank Account</Text>
+          <Text style={styles.addMethodText}>{i18nT('general.addBankAccount')}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -496,8 +496,8 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
       {recentPayouts.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="time-outline" size={48} color={Colors.text.secondary} />
-          <Text style={styles.emptyStateText}>No payout history</Text>
-          <Text style={styles.emptyStateSubtext}>Your payout history will appear here</Text>
+          <Text style={styles.emptyStateText}>{i18nT('general.noPayoutHistory')}</Text>
+          <Text style={styles.emptyStateSubtext}>{i18nT('general.yourPayoutHistoryWillAppearHere')}</Text>
         </View>
       ) : (
         <ScrollView>
@@ -542,7 +542,7 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading payment information...</Text>
+          <Text style={styles.loadingText}>{i18nT('general.loadingPaymentInformation')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -556,7 +556,7 @@ const ProfessionalDriverPaymentDashboard: React.FC<ProfessionalDriverPaymentDash
             <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
         )}
-        <Text style={styles.headerTitle}>Driver Payments</Text>
+        <Text style={styles.headerTitle}>{i18nT('general.driverPayments')}</Text>
         <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
           <Ionicons name="refresh" size={24} color={Colors.primary} />
         </TouchableOpacity>

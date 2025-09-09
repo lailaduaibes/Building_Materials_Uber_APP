@@ -138,7 +138,7 @@ const RatingScreen: React.FC<RatingScreenProps> = ({ route, navigation }) => {
         <View style={styles.tripCard}>
           <View style={styles.tripHeader}>
             <Ionicons name="checkmark-circle" size={24} color={theme.success} />
-            <Text style={styles.tripStatus}>Trip Completed</Text>
+            <Text style={styles.tripStatus}>{t('success.tripCompleted')}</Text>
           </View>
           
           {customerName && (
@@ -152,21 +152,21 @@ const RatingScreen: React.FC<RatingScreenProps> = ({ route, navigation }) => {
           
           {pickupLocation && (
             <View style={styles.tripDetail}>
-              <Text style={styles.detailLabel}>Pickup:</Text>
+              <Text style={styles.detailLabel}>{t('general.pickup')}:</Text>
               <Text style={styles.detailValue}>{pickupLocation}</Text>
             </View>
           )}
           
           {deliveryLocation && (
             <View style={styles.tripDetail}>
-              <Text style={styles.detailLabel}>Delivery:</Text>
+              <Text style={styles.detailLabel}>{t('general.delivery')}:</Text>
               <Text style={styles.detailValue}>{deliveryLocation}</Text>
             </View>
           )}
           
           {completedAt && (
             <View style={styles.tripDetail}>
-              <Text style={styles.detailLabel}>Completed:</Text>
+              <Text style={styles.detailLabel}>{t('success.completed')}:</Text>
               <Text style={styles.detailValue}>
                 {new Date(completedAt).toLocaleString()}
               </Text>
@@ -230,7 +230,7 @@ const RatingScreen: React.FC<RatingScreenProps> = ({ route, navigation }) => {
           style={styles.skipButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.skipButtonText}>Skip for now</Text>
+          <Text style={styles.skipButtonText}>{t('general.skipForNow')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

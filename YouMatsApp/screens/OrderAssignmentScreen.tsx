@@ -183,7 +183,7 @@ const OrderAssignmentScreen: React.FC<Props> = ({
         >
           {/* Header with Timer */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>🚚 New Delivery Request</Text>
+            <Text style={styles.headerTitle}>{t('general.newDeliveryRequest')}</Text>
             <View style={styles.timerContainer}>
               <Text style={styles.timerText}>{timeRemaining}s</Text>
             </View>
@@ -198,15 +198,15 @@ const OrderAssignmentScreen: React.FC<Props> = ({
           <View style={styles.quickStats}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{estimatedPickupTime}</Text>
-              <Text style={styles.statLabel}>Pickup</Text>
+              <Text style={styles.statLabel}>{t('general.pickup')}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{routeDistance}</Text>
-              <Text style={styles.statLabel}>Distance</Text>
+              <Text style={styles.statLabel}>{t('general.distance')}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>${(order.estimatedEarnings * surgeMultiplier).toFixed(2)}</Text>
-              <Text style={styles.statLabel}>Earnings</Text>
+              <Text style={styles.statLabel}>{t('general.earnings')}</Text>
             </View>
           </View>
 
@@ -228,7 +228,7 @@ const OrderAssignmentScreen: React.FC<Props> = ({
               <View style={styles.locationRow}>
                 <Ionicons name="location" size={20} color={theme.success} />
                 <View style={styles.locationInfo}>
-                  <Text style={styles.locationLabel}>Pickup</Text>
+                  <Text style={styles.locationLabel}>{t('general.pickup')}</Text>
                   <Text style={styles.locationAddress}>
                     {order.pickupLocation.address}
                   </Text>
@@ -240,7 +240,7 @@ const OrderAssignmentScreen: React.FC<Props> = ({
               <View style={styles.locationRow}>
                 <Text style={styles.locationIcon}>🏠</Text>
                 <View style={styles.locationInfo}>
-                  <Text style={styles.locationLabel}>Delivery</Text>
+                  <Text style={styles.locationLabel}>{t('general.delivery')}</Text>
                   <Text style={styles.locationAddress}>
                     {order.deliveryLocation.address}
                   </Text>
@@ -266,7 +266,7 @@ const OrderAssignmentScreen: React.FC<Props> = ({
 
             {/* Materials */}
             <View style={styles.materialsSection}>
-              <Text style={styles.materialsTitle}>📦 Materials</Text>
+              <Text style={styles.materialsTitle}>{t('general.materials')}</Text>
               {order.materials.slice(0, 2).map((material, index) => (
                 <Text key={index} style={styles.materialItem}>
                   • {material.quantity} {material.description}
@@ -282,7 +282,7 @@ const OrderAssignmentScreen: React.FC<Props> = ({
             {/* Special Instructions */}
             {order.specialInstructions && (
               <View style={styles.instructionsSection}>
-                <Text style={styles.instructionsTitle}>📝 Special Instructions</Text>
+                <Text style={styles.instructionsTitle}>{t('general.specialInstructions')}</Text>
                 <Text style={styles.instructionsText}>{order.specialInstructions}</Text>
               </View>
             )}

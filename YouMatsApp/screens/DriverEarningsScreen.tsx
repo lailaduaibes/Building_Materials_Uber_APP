@@ -108,7 +108,7 @@ const DriverEarningsScreen: React.FC<Props> = ({ driver, onBack }) => {
   if (loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <Text style={styles.loadingText}>Loading earnings data...</Text>
+        <Text style={styles.loadingText}>{i18nT('general.loadingEarningsData')}</Text>
       </View>
     );
   }
@@ -122,7 +122,7 @@ const DriverEarningsScreen: React.FC<Props> = ({ driver, onBack }) => {
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={24} color={theme.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Earnings</Text>
+        <Text style={styles.headerTitle}>{i18nT('general.earnings')}</Text>
         <View style={styles.headerSpace} />
       </View>
 
@@ -151,20 +151,20 @@ const DriverEarningsScreen: React.FC<Props> = ({ driver, onBack }) => {
         {/* Main Earnings Display */}
         <View style={styles.mainEarningsCard}>
           <Text style={styles.earningsAmount}>${periodData.earnings.toFixed(2)}</Text>
-          <Text style={styles.earningsLabel}>Total Earnings</Text>
+          <Text style={styles.earningsLabel}>{i18nT('general.totalEarnings')}</Text>
           
           <View style={styles.earningsBreakdown}>
             <View style={styles.breakdownItem}>
               <Text style={styles.breakdownValue}>{periodData.deliveries}</Text>
-              <Text style={styles.breakdownLabel}>Deliveries</Text>
+              <Text style={styles.breakdownLabel}>{i18nT('general.deliveries')}</Text>
             </View>
             <View style={styles.breakdownItem}>
               <Text style={styles.breakdownValue}>{periodData.hours.toFixed(1)}h</Text>
-              <Text style={styles.breakdownLabel}>Online Time</Text>
+              <Text style={styles.breakdownLabel}>{i18nT('general.onlineTime')}</Text>
             </View>
             <View style={styles.breakdownItem}>
               <Text style={styles.breakdownValue}>${getAveragePerHour().toFixed(2)}</Text>
-              <Text style={styles.breakdownLabel}>Per Hour</Text>
+              <Text style={styles.breakdownLabel}>{i18nT('general.perHour')}</Text>
             </View>
           </View>
         </View>
@@ -173,7 +173,7 @@ const DriverEarningsScreen: React.FC<Props> = ({ driver, onBack }) => {
         {selectedPeriod !== 'today' && (
           <View style={styles.goalCard}>
             <View style={styles.goalHeader}>
-              <Text style={styles.goalTitle}>Weekly Goal</Text>
+              <Text style={styles.goalTitle}>{i18nT('general.weeklyGoal')}</Text>
               <Text style={styles.goalAmount}>${stats?.thisWeek.earnings.toFixed(2)} / ${weeklyGoal}</Text>
             </View>
             
@@ -189,40 +189,40 @@ const DriverEarningsScreen: React.FC<Props> = ({ driver, onBack }) => {
 
         {/* Performance Metrics */}
         <View style={styles.metricsCard}>
-          <Text style={styles.cardTitle}>Performance Metrics</Text>
+          <Text style={styles.cardTitle}>{i18nT('general.performanceMetrics')}</Text>
           
           <View style={styles.metricRow}>
             <View style={styles.metricItem}>
               <Ionicons name="star" size={20} color={theme.warning} />
               <Text style={styles.metricValue}>{driver.rating.toFixed(1)}</Text>
-              <Text style={styles.metricLabel}>Rating</Text>
+              <Text style={styles.metricLabel}>{i18nT('general.rating')}</Text>
             </View>
             
             <View style={styles.metricItem}>
               <Ionicons name="checkmark-circle" size={20} color={theme.success} />
               <Text style={styles.metricValue}>98%</Text>
-              <Text style={styles.metricLabel}>Accept Rate</Text>
+              <Text style={styles.metricLabel}>{i18nT('general.acceptRate')}</Text>
             </View>
             
             <View style={styles.metricItem}>
               <Ionicons name="time" size={20} color={theme.primary} />
               <Text style={styles.metricValue}>${getAveragePerDelivery().toFixed(2)}</Text>
-              <Text style={styles.metricLabel}>Per Trip</Text>
+              <Text style={styles.metricLabel}>{i18nT('general.perTrip')}</Text>
             </View>
           </View>
         </View>
 
         {/* Recent Activity Summary */}
         <View style={styles.activityCard}>
-          <Text style={styles.cardTitle}>Recent Activity</Text>
+          <Text style={styles.cardTitle}>{i18nT('general.recentActivity')}</Text>
           
           <View style={styles.activityItem}>
             <View style={styles.activityIcon}>
               <Ionicons name="today" size={20} color={theme.success} />
             </View>
             <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Best Day This Week</Text>
-              <Text style={styles.activitySubtitle}>Tuesday - $85.50 in 6 hours</Text>
+              <Text style={styles.activityTitle}>{i18nT('general.bestDayThisWeek')}</Text>
+              <Text style={styles.activitySubtitle}>{i18nT('general.tuesday8550In6Hours')}</Text>
             </View>
           </View>
           
@@ -231,8 +231,8 @@ const DriverEarningsScreen: React.FC<Props> = ({ driver, onBack }) => {
               <Ionicons name="trending-up" size={20} color={theme.primary} />
             </View>
             <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Earnings Trend</Text>
-              <Text style={styles.activitySubtitle}>+12% vs last week</Text>
+              <Text style={styles.activityTitle}>{i18nT('general.earningsTrend')}</Text>
+              <Text style={styles.activitySubtitle}>{i18nT('general.12VsLastWeek')}</Text>
             </View>
           </View>
           
@@ -241,29 +241,29 @@ const DriverEarningsScreen: React.FC<Props> = ({ driver, onBack }) => {
               <Ionicons name="trophy" size={20} color={theme.warning} />
             </View>
             <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Achievement</Text>
-              <Text style={styles.activitySubtitle}>Completed 50 deliveries!</Text>
+              <Text style={styles.activityTitle}>{i18nT('general.achievement')}</Text>
+              <Text style={styles.activitySubtitle}>{i18nT('success.completed50Deliveries')}</Text>
             </View>
           </View>
         </View>
 
         {/* Tips Section */}
         <View style={styles.tipsCard}>
-          <Text style={styles.cardTitle}>Earnings Tips</Text>
+          <Text style={styles.cardTitle}>{i18nT('general.earningsTips')}</Text>
           
           <View style={styles.tipItem}>
             <Ionicons name="bulb" size={16} color={theme.warning} />
-            <Text style={styles.tipText}>Work during peak hours (7-9 AM, 5-7 PM) for higher demand</Text>
+            <Text style={styles.tipText}>{i18nT('general.workDuringPeakHours79Am57PmForHigherDemand')}</Text>
           </View>
           
           <View style={styles.tipItem}>
             <Ionicons name="location" size={16} color={theme.primary} />
-            <Text style={styles.tipText}>Stay near construction sites and hardware stores for more orders</Text>
+            <Text style={styles.tipText}>{i18nT('general.stayNearConstructionSitesAndHardwareStoresForMoreOrders')}</Text>
           </View>
           
           <View style={styles.tipItem}>
             <Ionicons name="people" size={16} color={theme.success} />
-            <Text style={styles.tipText}>Maintain high ratings to receive more delivery requests</Text>
+            <Text style={styles.tipText}>{i18nT('general.maintainHighRatingsToReceiveMoreDeliveryRequests')}</Text>
           </View>
         </View>
 

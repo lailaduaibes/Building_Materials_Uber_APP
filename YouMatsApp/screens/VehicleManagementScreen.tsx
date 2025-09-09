@@ -206,7 +206,7 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
           onPress={() => handleVehicleDocuments(vehicle)}
         >
           <Ionicons name="document-text" size={16} color={theme.primary} />
-          <Text style={styles.actionText}>Documents</Text>
+          <Text style={styles.actionText}>{i18nT('general.documents')}</Text>
         </TouchableOpacity>
         
         {/* Removed Settings button - functionality not needed */}
@@ -228,7 +228,7 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
             <TouchableOpacity onPress={onBack} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color={theme.primary} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>My Vehicles</Text>
+            <Text style={styles.headerTitle}>{i18nT('general.myVehicles')}</Text>
             {/* Removed Add Vehicle button - functionality not needed */}
           </View>
 
@@ -240,38 +240,38 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
       >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading vehicles...</Text>
+            <Text style={styles.loadingText}>{i18nT('general.loadingVehicles')}</Text>
           </View>
         ) : vehicles.length > 0 ? (
           <>
             <View style={styles.statsContainer}>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{vehicles.length}</Text>
-                <Text style={styles.statLabel}>Registered Vehicles</Text>
+                <Text style={styles.statLabel}>{i18nT('general.registeredVehicles')}</Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>
                   {vehicles.filter(v => v.is_available).length}
                 </Text>
-                <Text style={styles.statLabel}>Available</Text>
+                <Text style={styles.statLabel}>{i18nT('general.available')}</Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>
                   {vehicles.filter(v => v.verification_status === 'approved').length}
                 </Text>
-                <Text style={styles.statLabel}>Verified</Text>
+                <Text style={styles.statLabel}>{i18nT('general.verified')}</Text>
               </View>
             </View>
 
             <View style={styles.vehiclesSection}>
-              <Text style={styles.sectionTitle}>Your Vehicles</Text>
+              <Text style={styles.sectionTitle}>{i18nT('general.yourVehicles')}</Text>
               {vehicles.map(renderVehicleCard)}
             </View>
           </>
         ) : (
           <View style={styles.emptyContainer}>
             <Ionicons name="car" size={64} color={theme.accent} />
-            <Text style={styles.emptyTitle}>No Vehicles Registered</Text>
+            <Text style={styles.emptyTitle}>{i18nT('general.noVehiclesRegistered')}</Text>
             <Text style={styles.emptyText}>
               Register your first vehicle to start accepting delivery requests
             </Text>
@@ -280,7 +280,7 @@ export default function VehicleManagementScreen({ onBack }: VehicleManagementScr
               onPress={handleRegisterNewVehicle}
             >
               <Ionicons name="add" size={20} color={theme.white} />
-              <Text style={styles.registerButtonText}>Register Vehicle</Text>
+              <Text style={styles.registerButtonText}>{i18nT('general.registerVehicle')}</Text>
             </TouchableOpacity>
           </View>
         )}

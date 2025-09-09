@@ -233,7 +233,7 @@ const DriverPaymentDashboard: React.FC<DriverPaymentDashboardProps> = ({ onBack 
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading payment dashboard...</Text>
+          <Text style={styles.loadingText}>{i18nT('general.loadingPaymentDashboard')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -251,8 +251,8 @@ const DriverPaymentDashboard: React.FC<DriverPaymentDashboardProps> = ({ onBack 
               </TouchableOpacity>
             )}
             <View style={styles.headerTextContainer}>
-              <Text style={styles.title}>Payment Dashboard</Text>
-              <Text style={styles.subtitle}>Manage your earnings and payouts</Text>
+              <Text style={styles.title}>{i18nT('general.paymentDashboard')}</Text>
+              <Text style={styles.subtitle}>{i18nT('general.manageYourEarningsAndPayouts')}</Text>
             </View>
           </View>
         </View>
@@ -261,7 +261,7 @@ const DriverPaymentDashboard: React.FC<DriverPaymentDashboardProps> = ({ onBack 
         <View style={styles.earningsCard}>
           <View style={styles.earningsHeader}>
             <Ionicons name="wallet-outline" size={24} color={Colors.primary} />
-            <Text style={styles.earningsTitle}>Pending Earnings</Text>
+            <Text style={styles.earningsTitle}>{i18nT('general.pendingEarnings')}</Text>
           </View>
           <Text style={styles.earningsAmount}>
             {pendingEarnings ? formatCurrency(pendingEarnings.total_pending) : '$0.00'}
@@ -275,7 +275,7 @@ const DriverPaymentDashboard: React.FC<DriverPaymentDashboardProps> = ({ onBack 
         <View style={styles.paymentMethodsCard}>
           <View style={styles.cardHeader}>
             <Ionicons name="card-outline" size={24} color={Colors.primary} />
-            <Text style={styles.cardTitle}>Payment Methods</Text>
+            <Text style={styles.cardTitle}>{i18nT('general.paymentMethods')}</Text>
           </View>
           <Text style={styles.cardSubtitle}>
             {paymentMethods.length} method{paymentMethods.length !== 1 ? 's' : ''} configured
@@ -288,7 +288,7 @@ const DriverPaymentDashboard: React.FC<DriverPaymentDashboardProps> = ({ onBack 
                 </Text>
                 {method.is_default && (
                   <View style={styles.defaultBadge}>
-                    <Text style={styles.defaultBadgeText}>Default</Text>
+                    <Text style={styles.defaultBadgeText}>{i18nT('general.default')}</Text>
                   </View>
                 )}
               </View>
@@ -314,7 +314,7 @@ const DriverPaymentDashboard: React.FC<DriverPaymentDashboardProps> = ({ onBack 
             onPress={addTestPaymentMethod}
           >
             <Ionicons name="add-circle-outline" size={20} color={Colors.text.white} />
-            <Text style={styles.actionButtonText}>Add Test Payment Method</Text>
+            <Text style={styles.actionButtonText}>{i18nT('general.addTestPaymentMethod')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -327,7 +327,7 @@ const DriverPaymentDashboard: React.FC<DriverPaymentDashboardProps> = ({ onBack 
             disabled={!pendingEarnings || pendingEarnings.total_pending <= 0 || paymentMethods.length === 0}
           >
             <Ionicons name="cash-outline" size={20} color={Colors.text.white} />
-            <Text style={styles.actionButtonText}>Request Test Payout</Text>
+            <Text style={styles.actionButtonText}>{i18nT('general.requestTestPayout')}</Text>
           </TouchableOpacity>
         </View>
 

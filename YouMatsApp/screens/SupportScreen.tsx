@@ -705,7 +705,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
             
             {selectedTicket.updated_at && selectedTicket.updated_at !== selectedTicket.created_at && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Last Updated:</Text>
+                <Text style={styles.detailLabel}>{t('general.lastUpdated')}:</Text>
                 <Text style={styles.detailValue}>
                   {new Date(selectedTicket.updated_at).toLocaleDateString()} at {new Date(selectedTicket.updated_at).toLocaleTimeString()}
                 </Text>
@@ -715,7 +715,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
 
           {/* Description */}
           <View style={styles.detailsSection}>
-            <Text style={styles.detailsTitle}>Description</Text>
+            <Text style={styles.detailsTitle}>{t('general.description')}</Text>
             <View style={styles.descriptionBox}>
               <Text style={styles.descriptionText}>{selectedTicket.description}</Text>
             </View>
@@ -760,7 +760,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
             ) : (
               <View style={styles.noMessagesContainer}>
                 <Ionicons name="chatbubble-outline" size={48} color={theme.lightText} />
-                <Text style={styles.noMessagesText}>No replies yet</Text>
+                <Text style={styles.noMessagesText}>{t('general.noRepliesYet')}</Text>
                 <Text style={styles.noMessagesSubtext}>
                   Our support team will respond to your ticket soon
                 </Text>
@@ -770,7 +770,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
 
           {/* Actions */}
           <View style={styles.detailsSection}>
-            <Text style={styles.detailsTitle}>Actions</Text>
+            <Text style={styles.detailsTitle}>{t('general.actions')}</Text>
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => {
@@ -787,13 +787,13 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
               activeOpacity={0.7}
             >
               <Ionicons name="chatbubble-outline" size={20} color={theme.primary} />
-              <Text style={styles.actionButtonText}>Add Comment</Text>
+              <Text style={styles.actionButtonText}>{t('general.addComment')}</Text>
             </TouchableOpacity>
             
             {selectedTicket.status === 'open' && (
               <TouchableOpacity style={[styles.actionButton, styles.cancelButton]}>
                 <Ionicons name="close-circle-outline" size={20} color={theme.error} />
-                <Text style={[styles.actionButtonText, { color: theme.error }]}>Cancel Ticket</Text>
+                <Text style={[styles.actionButtonText, { color: theme.error }]}>{t('general.cancelTicket')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -814,14 +814,14 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Comment</Text>
+            <Text style={styles.modalTitle}>{t('general.addComment')}</Text>
             <TouchableOpacity onPress={() => setShowAddComment(false)}>
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
           
           <View style={styles.modalBody}>
-            <Text style={styles.modalLabel}>Your Comment</Text>
+            <Text style={styles.modalLabel}>{t('general.yourComment')}</Text>
             <TextInput
               style={styles.commentInput}
               value={newComment}
@@ -829,7 +829,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
                 console.log('Comment text changed:', text);
                 setNewComment(text);
               }}
-              placeholder="Type your comment here..."
+              placeholder={t('general.typeYourCommentHere')}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -842,7 +842,7 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
               style={[styles.modalButton, styles.cancelButton]}
               onPress={() => setShowAddComment(false)}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>{t('general.cancel')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity

@@ -381,24 +381,24 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         
         {/* Driver Profile Vehicle Info */}
         <View style={styles.vehicleCard}>
-          <Text style={styles.vehicleSubtitle}>Registration Details</Text>
+          <Text style={styles.vehicleSubtitle}>{i18nT('general.registrationDetails')}</Text>
           {driverProfile.vehicleInfo ? (
             <>
               <View style={styles.vehicleRow}>
-                <Text style={styles.vehicleLabel}>Model:</Text>
+                <Text style={styles.vehicleLabel}>{i18nT('general.model')}:</Text>
                 <Text style={styles.vehicleValue}>
                   {driverProfile.vehicleInfo.model} ({driverProfile.vehicleInfo.year})
                 </Text>
               </View>
               <View style={styles.vehicleRow}>
-                <Text style={styles.vehicleLabel}>License Plate:</Text>
+                <Text style={styles.vehicleLabel}>{i18nT('general.licensePlate')}:</Text>
                 <Text style={styles.vehicleValue}>{driverProfile.vehicleInfo.licensePlate}</Text>
               </View>
             </>
           ) : (
             <View style={styles.vehicleRow}>
-              <Text style={styles.vehicleLabel}>No vehicle information available</Text>
-              <Text style={styles.vehicleValue}>Contact admin to add vehicle</Text>
+              <Text style={styles.vehicleLabel}>{i18nT('general.noVehicleInformationAvailable')}</Text>
+              <Text style={styles.vehicleValue}>{i18nT('general.contactAdminToAddVehicle')}</Text>
             </View>
           )}
         </View>
@@ -406,10 +406,10 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         {/* NEW: Actual Fleet Trucks */}
         <View style={styles.vehicleCard}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.vehicleSubtitle}>Fleet Assignment</Text>
+            <Text style={styles.vehicleSubtitle}>{i18nT('general.fleetAssignment')}</Text>
             {driverTrucks && driverTrucks.length > 0 && driverTrucks[0]?.source === 'driver_profile' && (
               <View style={styles.profileSourceBadge}>
-                <Text style={styles.profileSourceText}>From Registration</Text>
+                <Text style={styles.profileSourceText}>{i18nT('general.fromRegistration')}</Text>
               </View>
             )}
           </View>
@@ -439,7 +439,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                 
                 <View style={styles.truckDetails}>
                   <View style={styles.vehicleRow}>
-                    <Text style={styles.vehicleLabel}>Vehicle:</Text>
+                    <Text style={styles.vehicleLabel}>{i18nT('general.vehicle')}:</Text>
                     <Text style={styles.vehicleValue}>
                       {(() => {
                         // Avoid duplicate make/model (e.g., "Toyota Toyota")
@@ -461,20 +461,20 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                     </Text>
                   </View>
                   <View style={styles.vehicleRow}>
-                    <Text style={styles.vehicleLabel}>License Plate:</Text>
+                    <Text style={styles.vehicleLabel}>{i18nT('general.licensePlate')}:</Text>
                     <Text style={styles.vehicleValue}>{truck.license_plate}</Text>
                   </View>
                   <View style={styles.vehicleRow}>
-                    <Text style={styles.vehicleLabel}>Max Payload:</Text>
+                    <Text style={styles.vehicleLabel}>{i18nT('general.maxPayload')}:</Text>
                     <Text style={styles.vehicleValue}>{truck.max_payload} tons</Text>
                   </View>
                   <View style={styles.vehicleRow}>
-                    <Text style={styles.vehicleLabel}>Max Volume:</Text>
+                    <Text style={styles.vehicleLabel}>{i18nT('general.maxVolume')}:</Text>
                     <Text style={styles.vehicleValue}>{truck.max_volume} m³</Text>
                   </View>
                   {(truck.truck_types as any)?.description && (
                     <View style={styles.vehicleRow}>
-                      <Text style={styles.vehicleLabel}>Description:</Text>
+                      <Text style={styles.vehicleLabel}>{i18nT('general.description')}:</Text>
                       <Text 
                         style={styles.vehicleValue} 
                         numberOfLines={3}
@@ -502,7 +502,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                     onPress={() => setShowVehicleDocuments(truck)}
                   >
                     <Ionicons name="document-text" size={16} color={theme.primary} />
-                    <Text style={styles.vehicleDocumentsText}>View Documents</Text>
+                    <Text style={styles.vehicleDocumentsText}>{i18nT('general.viewDocuments')}</Text>
                     <Ionicons name="chevron-forward" size={16} color={theme.lightText} />
                   </TouchableOpacity>
                 </View>
@@ -511,7 +511,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
           ) : (
             <View style={styles.noTrucksContainer}>
               <Ionicons name="car-outline" size={40} color={theme.lightText} />
-              <Text style={styles.noTrucksText}>No vehicles found</Text>
+              <Text style={styles.noTrucksText}>{i18nT('general.noVehiclesFound')}</Text>
               <Text style={styles.noTrucksSubtext}>
                 Complete your registration to add vehicle information
               </Text>
@@ -522,7 +522,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                 onPress={() => setShowVehicleDocuments({ id: 'general', license_plate: 'N/A' })}
               >
                 <Ionicons name="document-text" size={16} color={theme.primary} />
-                <Text style={styles.vehicleDocumentsText}>Upload Documents</Text>
+                <Text style={styles.vehicleDocumentsText}>{i18nT('general.uploadDocuments')}</Text>
                 <Ionicons name="chevron-forward" size={16} color={theme.lightText} />
               </TouchableOpacity>
             </View>
@@ -559,7 +559,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
               onPress={() => setShowSpecializationsManagement(true)}
             >
               <Ionicons name="add-circle-outline" size={24} color={theme.lightText} />
-              <Text style={styles.addSpecializationText}>Add your specializations</Text>
+              <Text style={styles.addSpecializationText}>{i18nT('general.addYourSpecializations')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -654,7 +654,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
             <TouchableOpacity onPress={onBack} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color={theme.primary} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Profile</Text>
+            <Text style={styles.headerTitle}>{i18nT('general.profile')}</Text>
             <TouchableOpacity 
               onPress={async () => {
                 try {
@@ -676,16 +676,16 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
 
           {loading ? (
             <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Loading profile...</Text>
+              <Text style={styles.loadingText}>{i18nT('general.loadingProfile')}</Text>
             </View>
           ) : !driverProfile ? (
             <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Profile not available</Text>
+              <Text style={styles.loadingText}>{i18nT('general.profileNotAvailable')}</Text>
               <TouchableOpacity 
                 style={styles.retryButton} 
                 onPress={loadDriverProfile}
               >
-                <Text style={styles.retryButtonText}>Retry</Text>
+                <Text style={styles.retryButtonText}>{i18nT('general.retry')}</Text>
               </TouchableOpacity>
             </View>
           ) : (

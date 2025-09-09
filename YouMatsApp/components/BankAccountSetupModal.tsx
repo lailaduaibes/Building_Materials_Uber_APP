@@ -211,13 +211,13 @@ const BankAccountSetupModal: React.FC<BankAccountSetupModalProps> = ({
     <ScrollView style={styles.formContent} showsVerticalScrollIndicator={false}>
       {/* Bank Name */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Bank Name *</Text>
+        <Text style={styles.label}>{i18nT('general.bankName')}</Text>
         <View style={styles.inputContainer}>
           <TextInput
             style={[styles.input, errors.bank_name && styles.inputError]}
             value={formData.bank_name}
             onChangeText={(value) => updateField('bank_name', value)}
-            placeholder="e.g., Chase Bank, Wells Fargo"
+            placeholder={i18nT('general.egChaseBankWellsFargo')}
             placeholderTextColor={Colors.text.secondary}
             autoCapitalize="words"
           />
@@ -230,12 +230,12 @@ const BankAccountSetupModal: React.FC<BankAccountSetupModalProps> = ({
 
       {/* Account Holder Name */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Account Holder Name *</Text>
+        <Text style={styles.label}>{i18nT('general.accountHolderName')}</Text>
         <TextInput
           style={[styles.input, errors.account_holder_name && styles.inputError]}
           value={formData.account_holder_name}
           onChangeText={(value) => updateField('account_holder_name', value)}
-          placeholder="Full name as it appears on your account"
+          placeholder={i18nT('general.fullNameAsItAppearsOnYourAccount')}
           placeholderTextColor={Colors.text.secondary}
           autoCapitalize="words"
         />
@@ -244,28 +244,28 @@ const BankAccountSetupModal: React.FC<BankAccountSetupModalProps> = ({
 
       {/* Routing Number */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Routing Number *</Text>
+        <Text style={styles.label}>{i18nT('general.routingNumber')}</Text>
         <TextInput
           style={[styles.input, errors.routing_number && styles.inputError]}
           value={formData.routing_number}
           onChangeText={handleRoutingNumberChange}
-          placeholder="9-digit routing number"
+          placeholder={i18nT('general.9digitRoutingNumber')}
           placeholderTextColor={Colors.text.secondary}
           keyboardType="numeric"
           maxLength={9}
         />
         {errors.routing_number && <Text style={styles.errorText}>{errors.routing_number}</Text>}
-        <Text style={styles.helpText}>Found on the bottom left of your checks</Text>
+        <Text style={styles.helpText}>{i18nT('general.foundOnTheBottomLeftOfYourChecks')}</Text>
       </View>
 
       {/* Account Number */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Account Number *</Text>
+        <Text style={styles.label}>{i18nT('general.accountNumber')}</Text>
         <TextInput
           style={[styles.input, errors.account_number && styles.inputError]}
           value={formData.account_number}
           onChangeText={(value) => updateField('account_number', value.replace(/\D/g, ''))}
-          placeholder="Your account number"
+          placeholder={i18nT('general.yourAccountNumber')}
           placeholderTextColor={Colors.text.secondary}
           keyboardType="numeric"
           secureTextEntry
@@ -276,7 +276,7 @@ const BankAccountSetupModal: React.FC<BankAccountSetupModalProps> = ({
 
       {/* Account Type */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Account Type *</Text>
+        <Text style={styles.label}>{i18nT('general.accountType')}</Text>
         <View style={styles.accountTypeContainer}>
           <TouchableOpacity
             style={[
@@ -311,15 +311,15 @@ const BankAccountSetupModal: React.FC<BankAccountSetupModalProps> = ({
 
       {/* Nickname (Optional) */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Nickname (Optional)</Text>
+        <Text style={styles.label}>{i18nT('general.nicknameOptional')}</Text>
         <TextInput
           style={styles.input}
           value={formData.nickname}
           onChangeText={(value) => updateField('nickname', value)}
-          placeholder="e.g., My Main Account, Business Account"
+          placeholder={i18nT('general.egMyMainAccountBusinessAccount')}
           placeholderTextColor={Colors.text.secondary}
         />
-        <Text style={styles.helpText}>Give this account a memorable name</Text>
+        <Text style={styles.helpText}>{i18nT('general.giveThisAccountAMemorableName')}</Text>
       </View>
 
       {/* Security Notice */}
@@ -336,7 +336,7 @@ const BankAccountSetupModal: React.FC<BankAccountSetupModalProps> = ({
     <ScrollView style={styles.formContent} showsVerticalScrollIndicator={false}>
       <View style={styles.confirmationHeader}>
         <Ionicons name="checkmark-circle" size={48} color={Colors.status.completed} />
-        <Text style={styles.confirmationTitle}>Confirm Bank Account</Text>
+        <Text style={styles.confirmationTitle}>{i18nT('general.confirmBankAccount')}</Text>
         <Text style={styles.confirmationSubtitle}>
           Please verify the information below is correct
         </Text>
@@ -344,24 +344,24 @@ const BankAccountSetupModal: React.FC<BankAccountSetupModalProps> = ({
 
       <View style={styles.confirmationDetails}>
         <View style={styles.confirmationRow}>
-          <Text style={styles.confirmationLabel}>Bank:</Text>
+          <Text style={styles.confirmationLabel}>{i18nT('general.bank')}</Text>
           <Text style={styles.confirmationValue}>{formData.bank_name}</Text>
         </View>
         
         <View style={styles.confirmationRow}>
-          <Text style={styles.confirmationLabel}>Account Holder:</Text>
+          <Text style={styles.confirmationLabel}>{i18nT('general.accountHolder')}</Text>
           <Text style={styles.confirmationValue}>{formData.account_holder_name}</Text>
         </View>
         
         <View style={styles.confirmationRow}>
-          <Text style={styles.confirmationLabel}>Routing Number:</Text>
+          <Text style={styles.confirmationLabel}>{i18nT('general.routingNumber')}</Text>
           <Text style={styles.confirmationValue}>
             {bankAccountService.formatRoutingNumber(formData.routing_number)}
           </Text>
         </View>
         
         <View style={styles.confirmationRow}>
-          <Text style={styles.confirmationLabel}>Account:</Text>
+          <Text style={styles.confirmationLabel}>{i18nT('general.account')}</Text>
           <Text style={styles.confirmationValue}>
             {formData.account_type} ****{formData.account_number.slice(-4)}
           </Text>
@@ -369,7 +369,7 @@ const BankAccountSetupModal: React.FC<BankAccountSetupModalProps> = ({
 
         {formData.nickname && (
           <View style={styles.confirmationRow}>
-            <Text style={styles.confirmationLabel}>Nickname:</Text>
+            <Text style={styles.confirmationLabel}>{i18nT('general.nickname')}</Text>
             <Text style={styles.confirmationValue}>{formData.nickname}</Text>
           </View>
         )}
@@ -424,7 +424,7 @@ const BankAccountSetupModal: React.FC<BankAccountSetupModalProps> = ({
                 style={styles.backButton}
                 onPress={() => setStep('form')}
               >
-                <Text style={styles.backButtonText}>Back</Text>
+                <Text style={styles.backButtonText}>{i18nT('general.back')}</Text>
               </TouchableOpacity>
             )}
             
