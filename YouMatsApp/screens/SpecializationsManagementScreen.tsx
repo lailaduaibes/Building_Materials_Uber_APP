@@ -18,6 +18,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { driverService } from '../services/DriverService';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -67,6 +68,7 @@ export default function SpecializationsManagementScreen({
   currentSpecializations,
   onUpdate,
 }: SpecializationsManagementScreenProps) {
+  const { t: i18nT } = useTranslation();
   const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>(currentSpecializations);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customSpecialization, setCustomSpecialization] = useState('');

@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { driverService } from '../services/DriverService';
 import { responsive } from '../utils/ResponsiveUtils';
 
@@ -44,6 +45,7 @@ const RatingManagementScreen: React.FC<RatingManagementScreenProps> = ({
   onBack,
   onNavigateToRating,
 }) => {
+  const { t: i18nT } = useTranslation();
   const [tripsNeedingRating, setTripsNeedingRating] = useState<any[]>([]);
   const [ratingStats, setRatingStats] = useState<{
     overallRating: number;

@@ -15,6 +15,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Driver, DriverStats, driverService } from '../services/DriverService';
 
 const { width, height } = Dimensions.get('window');
@@ -40,6 +41,7 @@ interface Props {
 }
 
 const DriverEarningsScreen: React.FC<Props> = ({ driver, onBack }) => {
+  const { t: i18nT } = useTranslation();
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [stats, setStats] = useState<DriverStats | null>(null);
   const [weeklyGoal, setWeeklyGoal] = useState(500); // $500 weekly goal

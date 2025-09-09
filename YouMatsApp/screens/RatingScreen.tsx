@@ -61,7 +61,7 @@ const RatingScreen: React.FC<RatingScreenProps> = ({ route, navigation }) => {
 
   const handleRatingSubmit = async () => {
     if (rating === 0) {
-      Alert.alert('Rating Required', 'Please select a rating before submitting.');
+      Alert.alert(t('rating.rating_required'), t('rating.please_select_rating'));
       return;
     }
 
@@ -77,11 +77,11 @@ const RatingScreen: React.FC<RatingScreenProps> = ({ route, navigation }) => {
 
       if (result.success) {
         Alert.alert(
-          'Rating Submitted', 
-          'Thank you for your feedback!',
+          t('rating.rating_submitted'), 
+          t('rating.thank_you_feedback'),
           [
             {
-              text: 'OK',
+              text: t('common.ok'),
               onPress: () => navigation.goBack()
             }
           ]
@@ -91,7 +91,7 @@ const RatingScreen: React.FC<RatingScreenProps> = ({ route, navigation }) => {
       }
     } catch (error) {
       console.error('Error submitting rating:', error);
-      Alert.alert('Error', 'Failed to submit rating. Please try again.');
+      Alert.alert(t('common.error'), t('rating.failed_to_submit_try_again'));
     } finally {
       setIsSubmitting(false);
     }

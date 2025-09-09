@@ -88,8 +88,8 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
         console.error('Error loading truck types:', error);
         // Set default truck types if loading fails
         setTruckTypes([
-          { id: 'small', name: 'Small Truck', payload_capacity: 2, volume_capacity: 8 },
-          { id: 'medium', name: 'Medium Truck', payload_capacity: 5, volume_capacity: 15 },
+          { id: 'small', name: t('vehicles.small_truck'), payload_capacity: 2, volume_capacity: 8 },
+          { id: 'medium', name: t('vehicles.medium_truck'), payload_capacity: 5, volume_capacity: 15 },
           { id: 'large', name: 'Large Truck', payload_capacity: 10, volume_capacity: 25 }
         ]);
       } else {
@@ -131,22 +131,22 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
     const { firstName, lastName, email, password, confirmPassword } = formData;
     
     if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert('Error', 'Please enter your full name');
+      Alert.alert(t('common.error'), t('registration.full_name_required'));
       return false;
     }
     
     if (!email.trim() || !email.includes('@')) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert(t('common.error'), t('registration.valid_email_required'));
       return false;
     }
     
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(t('common.error'), t('registration.password_min_length'));
       return false;
     }
     
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert(t('common.error'), t('registration.passwords_no_match'));
       return false;
     }
     
@@ -157,18 +157,18 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
     const { phone, yearsExperience, licenseNumber } = formData;
     
     if (!phone.trim()) {
-      Alert.alert('Error', 'Please enter your phone number');
+      Alert.alert(t('common.error'), t('registration.phone_required'));
       return false;
     }
     
     if (!licenseNumber.trim()) {
-      Alert.alert('Error', 'Please enter your driver\'s license number');
+      Alert.alert(t('common.error'), t('registration.license_required'));
       return false;
     }
     
     const experience = parseInt(yearsExperience);
     if (isNaN(experience) || experience < 0) {
-      Alert.alert('Error', 'Please enter valid years of experience (0 or more)');
+      Alert.alert(t('common.error'), t('registration.experience_required'));
       return false;
     }
     
@@ -179,36 +179,36 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
     const { vehicleModel, vehicleYear, vehiclePlate, maxPayload, maxVolume } = formData;
     
     if (!vehicleModel.trim()) {
-      Alert.alert('Error', 'Please enter your vehicle model');
+      Alert.alert(t('common.error'), t('registration.vehicle_model_required'));
       return false;
     }
     
     if (!vehiclePlate.trim()) {
-      Alert.alert('Error', 'Please enter your vehicle plate number');
+      Alert.alert(t('common.error'), t('registration.plate_number_required'));
       return false;
     }
     
     const year = parseInt(vehicleYear);
     const currentYear = new Date().getFullYear();
     if (isNaN(year) || year < 1990 || year > currentYear + 1) {
-      Alert.alert('Error', 'Please enter a valid vehicle year');
+      Alert.alert(t('common.error'), t('registration.vehicle_year_required'));
       return false;
     }
 
     if (!selectedTruckType) {
-      Alert.alert('Error', 'Please select a truck type');
+      Alert.alert(t('common.error'), t('registration.select_truck_type'));
       return false;
     }
 
     const payload = parseFloat(maxPayload);
     if (isNaN(payload) || payload <= 0) {
-      Alert.alert('Error', 'Please enter a valid maximum payload');
+      Alert.alert(t('common.error'), t('registration.valid_payload_required'));
       return false;
     }
 
     const volume = parseFloat(maxVolume);
     if (isNaN(volume) || volume <= 0) {
-      Alert.alert('Error', 'Please enter a valid maximum volume');
+      Alert.alert(t('common.error'), t('registration.valid_volume_required'));
       return false;
     }
     
@@ -295,11 +295,11 @@ export const EnhancedDriverRegistrationScreen: React.FC<EnhancedDriverRegistrati
           setCurrentStep('documents');
         }
       } else {
-        Alert.alert('Registration Failed', result.message || 'Failed to register driver');
+        Alert.alert(t('registration.failed'), result.message || t('registration.failed_message'));
       }
     } catch (error) {
       console.error('Registration error:', error);
-      Alert.alert('Error', 'Registration failed. Please try again.');
+      Alert.alert(t('common.error'), t('registration.registration_failed_try_again'));
     } finally {
       setLoading(false);
     }

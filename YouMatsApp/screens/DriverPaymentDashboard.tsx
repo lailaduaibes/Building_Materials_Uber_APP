@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '../theme/colors';
 import { authService } from '../AuthServiceSupabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,6 +39,7 @@ interface DriverPaymentDashboardProps {
 }
 
 const DriverPaymentDashboard: React.FC<DriverPaymentDashboardProps> = ({ onBack }) => {
+  const { t: i18nT } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [pendingEarnings, setPendingEarnings] = useState<PendingEarnings | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);

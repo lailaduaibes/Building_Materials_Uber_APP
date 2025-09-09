@@ -69,7 +69,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
         onAuthSuccess(response.data.user);
       }
     } else {
-      Alert.alert('Error', response.message);
+      Alert.alert(t('common.error'), response.message);
     }
   };
 
@@ -77,10 +77,10 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
     const newErrors: { [key: string]: string } = {};
 
     if (!validateEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = t('auth.email_required');
     }
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t('auth.password_required');
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -93,7 +93,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
       const response = await authService.login(formData.email, formData.password);
       handleResponse(response);
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      Alert.alert(t('common.error'), t('auth.unexpected_error'));
     } finally {
       setLoading(false);
     }
@@ -101,7 +101,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
 
   const handleForgotPassword = async () => {
     if (!validateEmail(formData.email)) {
-      setErrors({ email: 'Please enter a valid email address' });
+      setErrors({ email: t('auth.email_required') });
       return;
     }
 
@@ -113,7 +113,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
         setCurrentScreen('login');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to send password reset email');
+      Alert.alert(t('common.error'), t('auth.reset_password_failed'));
     } finally {
       setLoading(false);
     }
@@ -143,11 +143,11 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
 
   const renderLoginScreen = () => (
     <View style={styles.formContainer}>
-      <Text style={styles.title}>Driver Portal</Text>
-      <Text style={styles.subtitle}>Sign in to your driver account</Text>
+      <Text style={styles.title}>{t('auth.driver_portal')}</Text>
+      <Text style={styles.subtitle}>{t('auth.sign_in_subtitle')}</Text>
 
-      {renderInput('email', 'Email Address', false, 'email-address')}
-      {renderInput('password', 'Password', true)}
+      {renderInput('email', t('auth.email_address'), false, 'email-address')}
+      {renderInput('password', t('auth.password'), true)}
 
       <TouchableOpacity
         style={styles.button}
@@ -157,7 +157,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
         {loading ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.buttonText}>Sign In</Text>
+          <Text style={styles.buttonText}>{t('auth.sign_in')}</Text>
         )}
       </TouchableOpacity>
 
@@ -165,23 +165,23 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
         style={styles.linkButton}
         onPress={() => setCurrentScreen('forgot')}
       >
-        <Text style={styles.linkText}>Forgot Password?</Text>
+        <Text style={styles.linkText}>{t('auth.forgot_password')}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.secondaryButton}
         onPress={onNavigateToRegister}
       >
-        <Text style={styles.secondaryButtonText}>Get Started as Driver</Text>
+        <Text style={styles.secondaryButtonText}>{t('auth.get_started_as_driver')}</Text>
       </TouchableOpacity>
     </View>
   );
 
   const renderForgotScreen = () => (
     <View style={styles.formContainer}>
-      <Text style={styles.title}>Reset Password</Text>
+      <Text style={styles.title}>{t('auth.reset_password')}</Text>
       <Text style={styles.subtitle}>
-        Enter your email address and we'll send you a reset link
+        {t('auth.reset_password_subtitle')}
       </Text>
 
       {renderInput('email', 'Email Address', false, 'email-address')}
@@ -194,7 +194,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
         {loading ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.buttonText}>Send Reset Link</Text>
+          <Text style={styles.buttonText}>{t('auth.send_reset_link')}</Text>
         )}
       </TouchableOpacity>
 
@@ -202,7 +202,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
         style={styles.linkButton}
         onPress={() => setCurrentScreen('login')}
       >
-        <Text style={styles.linkText}>Back to Sign In</Text>
+        <Text style={styles.linkText}>{t('auth.back_to_sign_in')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -224,7 +224,7 @@ export const AuthScreensSupabase: React.FC<AuthScreensProps> = ({ onAuthSuccess,
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <Text style={styles.appName}>YouMats</Text>
+            <Text style={styles.appName}>{t('general.app_name')}</Text>
           </View>
 
           <View style={styles.formWrapper}>

@@ -99,7 +99,7 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
       const code = otpCode || otp.join('');
 
       if (code.length !== 6) {
-        Alert.alert('Invalid Code', 'Please enter a 6-digit verification code');
+        Alert.alert(t('verification.invalid_code'), t('verification.enter_6_digit_code'));
         return;
       }
 
@@ -108,11 +108,11 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
 
       if (result.success) {
         Alert.alert(
-          'Email Verified!',
-          'Your email has been verified successfully. You can now upload your documents.',
+          t('verification.email_verified'),
+          t('verification.verification_success_message'),
           [
             {
-              text: 'Continue',
+              text: t('common.continue'),
               onPress: () => {
                 if (result.driverId) {
                   onVerificationComplete(result.driverId);
@@ -122,14 +122,14 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
           ]
         );
       } else {
-        Alert.alert('Verification Failed', result.message || 'Invalid verification code. Please try again.');
+        Alert.alert(t('verification.verification_failed'), result.message || t('verification.invalid_code_message'));
         // Clear the OTP inputs
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       }
     } catch (error) {
       console.error('Error verifying OTP:', error);
-      Alert.alert('Error', 'Failed to verify code. Please try again.');
+      Alert.alert(t('common.error'), t('verification.failed_to_verify'));
     } finally {
       setLoading(false);
     }
@@ -142,7 +142,7 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
       const result = await driverService.resendVerificationCode(email);
       
       if (result.success) {
-        Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
+        Alert.alert(t('verification.code_sent'), t('verification.new_code_sent'));
         setCountdown(60);
         setCanResend(false);
         
@@ -158,11 +158,11 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
           });
         }, 1000);
       } else {
-        Alert.alert('Error', result.message || 'Failed to resend code. Please try again.');
+        Alert.alert(t('common.error'), result.message || t('verification.failed_to_resend'));
       }
     } catch (error) {
       console.error('Error resending code:', error);
-      Alert.alert('Error', 'Failed to resend code. Please try again.');
+      Alert.alert(t('common.error'), t('verification.failed_to_resend'));
     } finally {
       setResendLoading(false);
     }

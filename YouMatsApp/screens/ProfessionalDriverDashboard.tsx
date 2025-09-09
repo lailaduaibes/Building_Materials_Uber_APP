@@ -278,11 +278,11 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         setLocationPermission(false);
         console.log('❌ Location permission denied');
         Alert.alert(
-          'Location Permission Required',
-          'Please enable location services to use the driver app and receive nearby orders.',
+          t('dashboard.location_permission_required'),
+          t('dashboard.enable_location_services'),
           [
-            { text: 'Settings', onPress: () => Location.requestForegroundPermissionsAsync() },
-            { text: 'Cancel', style: 'cancel' }
+            { text: t('common.settings'), onPress: () => Location.requestForegroundPermissionsAsync() },
+            { text: t('common.cancel'), style: 'cancel' }
           ]
         );
       }
@@ -505,9 +505,9 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
       setDriverLocation({ latitude: 25.276987, longitude: 55.296249 });
 
       Alert.alert(
-        'Location Error',
-        'Could not get your current location. Please enable GPS for accurate positioning.',
-        [{ text: 'OK' }]
+        t('dashboard.location_error'),
+        t('dashboard.could_not_get_location'),
+        [{ text: t('common.ok') }]
       );
     }
   };
@@ -587,7 +587,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
           t('dashboard.location.enableLocationTitle'),
           t('dashboard.location.enableLocationMessage'),
           [
-            { text: 'Enable', onPress: () => requestLocationPermission() },
+            { text: t('common.enable'), onPress: () => requestLocationPermission() },
             { text: t('common.cancel'), style: 'cancel' }
           ]
         );
@@ -613,7 +613,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         // Revert if backend update failed
         console.error('❌ Backend update failed, reverting status');
         setIsOnline(currentStatus);
-        Alert.alert('Error', 'Failed to update your status. Please try again.');
+        Alert.alert(i18nT('common.error'), i18nT('dashboard.failed_to_update_status'));
         setIsToggling(false);
         return;
       }
@@ -638,7 +638,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         console.log('🔄 Force refreshing orders after going online...');
         await loadNearbyOrders(true); // Force online state for initial load
         await loadAcceptedTrips();
-        Alert.alert('You\'re Online!', 'You\'ll now receive trip requests in your area.');
+        Alert.alert(i18nT('dashboard.youre_online'), i18nT('dashboard.receive_trip_requests'));
       } else {
         // Going offline - stop tracking and clear orders
         console.log('🛑 Going offline - stopping services');
@@ -646,14 +646,14 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         setAcceptedTrips([]);
         setSelectedOrder(null);
         collapseBottomSheet();
-        Alert.alert('You\'re Offline', 'You won\'t receive new trip requests.');
+        Alert.alert(i18nT('dashboard.youre_offline'), i18nT('dashboard.no_trip_requests'));
       }
       
       console.log(`✅ Status toggle completed: ${newStatus ? 'ONLINE' : 'OFFLINE'}`);
       
     } catch (error) {
       console.error('❌ Error toggling status:', error);
-      Alert.alert('Error', 'Failed to update your status');
+      Alert.alert(i18nT('common.error'), i18nT('dashboard.failed_to_update_status'));
       // Revert the status change on error
       setIsOnline(!isOnline);
     } finally {
@@ -721,9 +721,9 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
       const compatibility = orderCompatibility[order.id];
       if (compatibility && !compatibility.isCompatible) {
         Alert.alert(
-          'Vehicle Incompatible', 
-          compatibility.reason || 'This trip requires a different vehicle type than yours',
-          [{ text: 'OK' }]
+          t('dashboard.vehicle_incompatible'), 
+          compatibility.reason || t('dashboard.trip_requires_different_vehicle'),
+          [{ text: t('common.ok') }]
         );
         return;
       }
@@ -734,15 +734,15 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         loadNearbyOrders();
         loadAcceptedTrips();
         
-        Alert.alert('Trip Accepted!', 'Navigate to pickup location', [
+        Alert.alert(i18nT('dashboard.trip_accepted'), i18nT('dashboard.navigate_to_pickup'), [
           { text: 'OK', onPress: () => onNavigateToOrder(order) }
         ]);
         collapseBottomSheet();
       } else {
-        Alert.alert('Error', 'Failed to accept trip');
+        Alert.alert(t('common.error'), t('dashboard.failed_to_accept_trip'));
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to accept trip');
+      Alert.alert(t('common.error'), t('dashboard.failed_to_accept_trip'));
     }
   };
 
@@ -833,7 +833,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
             >
               <Ionicons name="close" size={24} color={Colors.text.primary} />
             </TouchableOpacity>
-            <Text style={styles.orderTitle}>Trip Request</Text>
+            <Text style={styles.orderTitle}>{t('general.trip_request')}</Text>
             <Text style={styles.orderPrice}>AED {selectedOrder.estimated_fare}</Text>
           </View>
           
@@ -948,16 +948,16 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
                   }}
                 >
                   <Ionicons name="chatbubble-outline" size={20} color={Colors.primary} />
-                  <Text style={styles.chatButtonText}>Chat with Customer</Text>
+                  <Text style={styles.chatButtonText}>{t('general.chat_with_customer')}</Text>
                 </TouchableOpacity>
               </View>
             ))}
             {acceptedTrips.length === 0 && (
               <View style={styles.emptyState}>
                 <Ionicons name="checkmark-circle-outline" size={48} color={Colors.text.secondary} />
-                <Text style={styles.emptyStateText}>No accepted trips</Text>
+                <Text style={styles.emptyStateText}>{t('general.no_accepted_trips')}</Text>
                 <Text style={styles.emptyStateSubtext}>
-                  Accept trips from the nearby list to see them here
+                  {t('general.accept_trips_nearby')}
                 </Text>
               </View>
             )}
@@ -1020,7 +1020,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
             {nearbyOrders.length === 0 && (
               <View style={styles.emptyState}>
                 <Ionicons name="car-outline" size={48} color={Colors.text.secondary} />
-                <Text style={styles.emptyStateText}>No trips available</Text>
+                <Text style={styles.emptyStateText}>{t('general.no_trips_available')}</Text>
                 <Text style={styles.emptyStateSubtext}>
                   {isOnline ? t('dashboard.noTrips.online') : t('dashboard.noTrips.offline')}
                 </Text>
@@ -1035,25 +1035,25 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
           <View style={styles.quickActions}>
             <TouchableOpacity style={styles.actionButton} onPress={onNavigateToEarnings}>
               <Ionicons name="wallet" size={20} color={Colors.primary} />
-              <Text style={styles.actionText}>Earnings</Text>
+              <Text style={styles.actionText}>{t('general.earnings')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={onNavigateToPayment}>
               <Ionicons name="card" size={20} color={Colors.primary} />
-              <Text style={styles.actionText}>Payments</Text>
+              <Text style={styles.actionText}>{t('general.payments')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={showMyTripsView}>
               <Ionicons name="checkmark-circle" size={20} color={Colors.status.completed} />
               <Text style={styles.actionText}>
-                My Trips {acceptedTrips.length > 0 && `(${acceptedTrips.length})`}
+                {t('general.my_trips')} {acceptedTrips.length > 0 && `(${acceptedTrips.length})`}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={showOrdersListView}>
               <Ionicons name="list" size={20} color={Colors.primary} />
-              <Text style={styles.actionText}>Available</Text>
+              <Text style={styles.actionText}>{t('general.available')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={onNavigateToProfile}>
               <Ionicons name="person" size={20} color={Colors.primary} />
-              <Text style={styles.actionText}>Profile</Text>
+              <Text style={styles.actionText}>{t('general.profile')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1087,7 +1087,7 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
         {driverLocation && (
           <Marker
             coordinate={driverLocation}
-            title="Your Location"
+            title={t('dashboard.your_location')}
             anchor={{ x: 0.5, y: 0.5 }}
           >
             <DriverLocationMarker isActive={isOnline} size="medium" />
@@ -1219,18 +1219,18 @@ const ProfessionalDriverDashboard: React.FC<ProfessionalDriverDashboardProps> = 
             try {
               const result = await driverService.acceptASAPTrip(tripId);
               if (result.success) {
-                Alert.alert('✅ Success', 'ASAP trip accepted!');
+                Alert.alert(t('dashboard.success'), t('dashboard.asap_trip_accepted'));
                 setShowASAPModal(false);
                 setCurrentASAPTrip(null);
                 // Refresh nearby orders to update the list
                 loadNearbyOrders();
                 loadAcceptedTrips();
               } else {
-                Alert.alert('❌ Error', result.message);
+                Alert.alert(t('common.error'), result.message);
               }
             } catch (error) {
               console.error('❌ [ASAP] Accept error:', error);
-              Alert.alert('❌ Error', 'Failed to accept trip. Please try again.');
+              Alert.alert(t('common.error'), t('dashboard.failed_to_accept_trip_try_again'));
             }
           }}
           onDecline={(tripId: string) => {

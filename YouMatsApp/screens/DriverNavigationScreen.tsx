@@ -17,6 +17,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { OrderAssignment, driverService } from '../services/DriverService';
 import { driverLocationService } from '../services/DriverLocationService';
 import { Colors, theme } from '../theme/colors';
@@ -36,6 +37,7 @@ const DriverNavigationScreen: React.FC<Props> = ({
   onCompleteDelivery,
 }) => {
   const { t } = useLanguage();
+  const { t: i18nT } = useTranslation();
   const [currentStep, setCurrentStep] = useState<'heading_to_pickup' | 'arrived_at_pickup' | 'heading_to_delivery' | 'arrived_at_delivery'>('heading_to_pickup');
   const [estimatedArrival, setEstimatedArrival] = useState('8 min');
   const [distanceRemaining, setDistanceRemaining] = useState('2.1 km');

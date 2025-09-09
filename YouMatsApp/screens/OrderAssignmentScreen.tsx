@@ -116,9 +116,9 @@ const OrderAssignmentScreen: React.FC<Props> = ({
 
   const handleAutoDecline = () => {
     Alert.alert(
-      'Order Expired',
-      'You did not respond in time. The order has been reassigned.',
-      [{ text: 'OK', onPress: onClose }]
+      t('orderAssignment.order_expired'),
+      t('orderAssignment.not_respond_reassigned'),
+      [{ text: t('common.ok'), onPress: onClose }]
     );
   };
 
@@ -128,10 +128,10 @@ const OrderAssignmentScreen: React.FC<Props> = ({
       if (success) {
         onAccept();
       } else {
-        Alert.alert('Error', 'Failed to accept order. Please try again.');
+        Alert.alert(t('common.error'), t('orderAssignment.failed_to_accept_try_again'));
       }
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      Alert.alert(t('common.error'), t('common.something_went_wrong'));
     }
   };
 
@@ -141,10 +141,10 @@ const OrderAssignmentScreen: React.FC<Props> = ({
       if (success) {
         onDecline();
       } else {
-        Alert.alert('Error', 'Failed to decline order. Please try again.');
+        Alert.alert(t('common.error'), t('orderAssignment.failed_to_decline_try_again'));
       }
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      Alert.alert(t('common.error'), t('common.something_went_wrong'));
     }
   };
 

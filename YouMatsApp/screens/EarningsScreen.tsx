@@ -85,14 +85,14 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
     try {
       const user = authService.getCurrentUser();
       if (!user) {
-        Alert.alert('Error', 'Please log in to view earnings');
+        Alert.alert(t('common.error'), t('earnings.login_required'));
         return;
       }
       setCurrentUserId(user.id);
       await loadAllEarningsData(user.id);
     } catch (error) {
       console.error('Error initializing earnings data:', error);
-      Alert.alert('Error', 'Failed to load earnings data');
+      Alert.alert(t('common.error'), t('earnings.failed_to_load_data'));
     }
   };
 
@@ -110,7 +110,7 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
       ]);
     } catch (error) {
       console.error('Error loading earnings data:', error);
-      Alert.alert('Error', 'Failed to load earnings information');
+      Alert.alert(t('common.error'), t('earnings.failed_to_load_info'));
     } finally {
       setLoading(false);
     }
@@ -147,7 +147,7 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
         amount: payout.net_amount,
         date: payout.completed_at || payout.scheduled_date,
         status: payout.status === 'failed' ? 'pending' : payout.status as 'pending' | 'completed' | 'processing',
-        method: 'Bank Transfer' // Default for now, can be enhanced later
+        method: t('earnings.bank_transfer') // Default for now, can be enhanced later
       }));
       
       setRecentPayouts(mappedPayouts);
@@ -171,9 +171,9 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
     
     if (availableAmount <= 0) {
       Alert.alert(
-        '💸 No Earnings Available',
-        'You have no earnings available for cash out. Complete some trips first to earn money!',
-        [{ text: 'OK', style: 'default' }]
+        t('earnings.no_earnings_title'),
+        t('earnings.no_earnings_message'),
+        [{ text: t('common.ok'), style: 'default' }]
       );
       return;
     }
@@ -181,9 +181,9 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
     // Check minimum cash out amount
     if (availableAmount < 10) {
       Alert.alert(
-        '💰 Minimum Amount Required',
-        `Minimum cash out amount is 10.00 SAR. You currently have ${formatCurrency(availableAmount)} available.`,
-        [{ text: 'OK', style: 'default' }]
+        t('earnings.minimum_amount_title'),
+        t('earnings.minimum_amount_message', { amount: formatCurrency(availableAmount) }),
+        [{ text: t('common.ok'), style: 'default' }]
       );
       return;
     }
@@ -193,12 +193,16 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
     const netAmount = availableAmount - fee;
     
     Alert.alert(
-      '💳 Instant Cash Out',
-      `💰 Available: ${formatCurrency(availableAmount)}\n⚡ Instant Fee: ${formatCurrency(fee)} (1.5% or min 0.50 SAR)\n✅ You'll receive: ${formatCurrency(netAmount)}\n\n🏦 This will be sent to your default payment method instantly.\n\n⏱️ Processing time: 1-5 minutes`,
+      t('earnings.instant_cashout_title'),
+      t('earnings.instant_cashout_message', { 
+        available: formatCurrency(availableAmount),
+        fee: formatCurrency(fee),
+        netAmount: formatCurrency(netAmount)
+      }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         { 
-          text: '💸 Cash Out Now', 
+          text: t('earnings.cashout_now'), 
           style: 'default',
           onPress: () => processCashOut()
         }
@@ -225,11 +229,14 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
       if (result) {
         console.log('✅ Cash out successful:', result);
         Alert.alert(
-          '💰 Cash Out Successful!',
-          `Your cash out of ${formatCurrency(result.net_amount)} is being processed.\n\nProcessing Fee: ${formatCurrency(result.processing_fee)}\nNet Amount: ${formatCurrency(result.net_amount)}\n\nYou should receive it within minutes.`,
+          t('earnings.cashout_success_title'),
+          t('earnings.cashout_success_message', {
+            netAmount: formatCurrency(result.net_amount),
+            processingFee: formatCurrency(result.processing_fee)
+          }),
           [
             { 
-              text: 'OK', 
+              text: t('common.ok'), 
               onPress: () => {
                 // Reload earnings data to reflect the payout
                 loadAllEarningsData(currentUserId);
@@ -239,13 +246,13 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
         );
       } else {
         console.error('❌ Cash out failed - no result returned');
-        Alert.alert('Cash Out Failed', 'There was an error processing your cash out. Please try again.');
+        Alert.alert(t('earnings.cashout_failed_title'), t('earnings.cashout_failed_message'));
       }
     } catch (error) {
       console.error('❌ Cash out error:', error);
       Alert.alert(
-        'Cash Out Failed', 
-        'There was an error processing your cash out. Please check your internet connection and try again.'
+        t('earnings.cashout_failed_title'), 
+        t('earnings.cashout_error_message')
       );
     } finally {
       setProcessingCashOut(false);
@@ -255,9 +262,9 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
   const handleShowTripDetails = () => {
     if (!tripEarnings || tripEarnings.length === 0) {
       Alert.alert(
-        '📊 No Trip Data',
-        'You haven\'t completed any trips yet. Start driving to see your trip earnings!',
-        [{ text: 'OK', style: 'default' }]
+        t('earnings.no_trip_data_title'),
+        t('earnings.no_trip_data_message'),
+        [{ text: t('common.ok'), style: 'default' }]
       );
       return;
     }
@@ -277,14 +284,14 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
         amount: payout.net_amount,
         date: payout.completed_at || payout.scheduled_date,
         status: payout.status === 'failed' ? 'pending' : payout.status as 'pending' | 'completed' | 'processing',
-        method: 'Bank Transfer' // Default for now
+        method: t('earnings.bank_transfer') // Default for now
       }));
       
       setAllPayouts(mappedPayouts);
       setShowPayoutHistoryModal(true);
     } catch (error) {
       console.error('Error loading all payouts:', error);
-      Alert.alert('Error', 'Failed to load payout history');
+      Alert.alert(t('common.error'), t('earnings.failed_to_load_payout_history'));
     }
   };
 
@@ -454,8 +461,8 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
       ) : (
         <View style={styles.emptyPayoutState}>
           <Ionicons name="card-outline" size={48} color={Colors.text.secondary} />
-          <Text style={styles.emptyPayoutText}>No payouts yet</Text>
-          <Text style={styles.emptyPayoutSubtext}>Complete trips to start earning</Text>
+          <Text style={styles.emptyPayoutText}>{i18nT('general.noPayoutsYet')}</Text>
+          <Text style={styles.emptyPayoutSubtext}>{i18nT('general.completeTripsToStartEarning')}</Text>
         </View>
       )}
     </View>
@@ -544,7 +551,7 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
             >
               <Ionicons name="close" size={24} color={Colors.text.primary} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>🚛 Trip Details</Text>
+            <Text style={styles.modalTitle}>{i18nT('general.tripDetails')}</Text>
             <View style={styles.modalCloseButton} />
           </View>
 
@@ -574,10 +581,10 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
 
                   {/* Earnings Breakdown */}
                   <View style={styles.earningsBreakdown}>
-                    <Text style={styles.breakdownTitle}>💰 Earnings Breakdown</Text>
+                    <Text style={styles.breakdownTitle}>{i18nT('general.earningsBreakdown')}</Text>
                     
                     <View style={styles.breakdownRow}>
-                      <Text style={styles.breakdownLabel}>Trip Fare</Text>
+                      <Text style={styles.breakdownLabel}>{i18nT('general.tripFare')}</Text>
                       <Text style={styles.breakdownAmount}>
                         {trip.trip_fare.toFixed(2)} SAR
                       </Text>
@@ -585,7 +592,7 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
 
                     {trip.tip_amount > 0 && (
                       <View style={styles.breakdownRow}>
-                        <Text style={styles.breakdownLabel}>Customer Tip</Text>
+                        <Text style={styles.breakdownLabel}>{i18nT('general.customerTip')}</Text>
                         <Text style={[styles.breakdownAmount, { color: Colors.success }]}>
                           +{trip.tip_amount.toFixed(2)} SAR
                         </Text>
@@ -594,7 +601,7 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
 
                     {trip.bonus_amount > 0 && (
                       <View style={styles.breakdownRow}>
-                        <Text style={styles.breakdownLabel}>Bonus</Text>
+                        <Text style={styles.breakdownLabel}>{i18nT('general.bonus')}</Text>
                         <Text style={[styles.breakdownAmount, { color: Colors.success }]}>
                           +{trip.bonus_amount.toFixed(2)} SAR
                         </Text>
@@ -603,7 +610,7 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
 
                     {trip.adjustment_amount !== 0 && (
                       <View style={styles.breakdownRow}>
-                        <Text style={styles.breakdownLabel}>Adjustment</Text>
+                        <Text style={styles.breakdownLabel}>{i18nT('general.adjustment')}</Text>
                         <Text style={[styles.breakdownAmount, { color: trip.adjustment_amount > 0 ? Colors.success : Colors.error }]}>
                           {trip.adjustment_amount > 0 ? '+' : ''}{trip.adjustment_amount.toFixed(2)} SAR
                         </Text>
@@ -618,14 +625,14 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
                     </View>
 
                     <View style={[styles.breakdownRow, styles.totalRow]}>
-                      <Text style={styles.totalLabel}>Driver Earnings</Text>
+                      <Text style={styles.totalLabel}>{i18nT('general.driverEarnings')}</Text>
                       <Text style={styles.totalAmount}>
                         {trip.driver_earnings.toFixed(2)} SAR
                       </Text>
                     </View>
 
                     <View style={[styles.breakdownRow, styles.totalRow]}>
-                      <Text style={styles.totalLabel}>Total Earnings</Text>
+                      <Text style={styles.totalLabel}>{i18nT('general.totalEarnings')}</Text>
                       <Text style={styles.totalAmount}>
                         {trip.total_earnings.toFixed(2)} SAR
                       </Text>
@@ -649,7 +656,7 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
             ) : (
               <View style={styles.emptyState}>
                 <Ionicons name="car-outline" size={64} color={Colors.text.secondary} />
-                <Text style={styles.emptyStateTitle}>No Trips Yet</Text>
+                <Text style={styles.emptyStateTitle}>{i18nT('general.noTripsYet')}</Text>
                 <Text style={styles.emptyStateText}>
                   Start driving to see your trip details and earnings breakdown here.
                 </Text>
@@ -675,7 +682,7 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
             >
               <Ionicons name="close" size={24} color={Colors.text.primary} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>💳 Payout History</Text>
+            <Text style={styles.modalTitle}>{i18nT('general.payoutHistory')}</Text>
             <View style={styles.modalCloseButton} />
           </View>
 
@@ -685,19 +692,19 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
               <>
                 {/* Summary Stats */}
                 <View style={styles.payoutSummaryCard}>
-                  <Text style={styles.payoutSummaryTitle}>📊 Payout Summary</Text>
+                  <Text style={styles.payoutSummaryTitle}>{i18nT('general.payoutSummary')}</Text>
                   <View style={styles.payoutSummaryRow}>
-                    <Text style={styles.payoutSummaryLabel}>Total Payouts:</Text>
+                    <Text style={styles.payoutSummaryLabel}>{i18nT('general.totalPayouts')}:</Text>
                     <Text style={styles.payoutSummaryValue}>{allPayouts.length}</Text>
                   </View>
                   <View style={styles.payoutSummaryRow}>
-                    <Text style={styles.payoutSummaryLabel}>Total Amount:</Text>
+                    <Text style={styles.payoutSummaryLabel}>{i18nT('general.totalAmount')}:</Text>
                     <Text style={styles.payoutSummaryValue}>
                       {formatCurrency(allPayouts.reduce((sum, p) => sum + p.amount, 0))}
                     </Text>
                   </View>
                   <View style={styles.payoutSummaryRow}>
-                    <Text style={styles.payoutSummaryLabel}>Completed:</Text>
+                    <Text style={styles.payoutSummaryLabel}>{i18nT('general.completed')}:</Text>
                     <Text style={styles.payoutSummaryValue}>
                       {allPayouts.filter(p => p.status === 'completed').length}
                     </Text>
@@ -737,21 +744,21 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
                     <View style={styles.payoutCardDetails}>
                       <View style={styles.payoutDetailRow}>
                         <Ionicons name="card-outline" size={16} color={Colors.text.secondary} />
-                        <Text style={styles.payoutDetailLabel}>Payment Method:</Text>
+                        <Text style={styles.payoutDetailLabel}>{i18nT('general.paymentMethod')}:</Text>
                         <Text style={styles.payoutDetailValue}>{payout.method}</Text>
                       </View>
                       
                       <View style={styles.payoutDetailRow}>
                         <Ionicons name="receipt-outline" size={16} color={Colors.text.secondary} />
-                        <Text style={styles.payoutDetailLabel}>Payout ID:</Text>
+                        <Text style={styles.payoutDetailLabel}>{i18nT('general.payoutId')}:</Text>
                         <Text style={styles.payoutDetailValue}>#{payout.id.slice(-8)}</Text>
                       </View>
 
                       {payout.status === 'completed' && (
                         <View style={styles.payoutDetailRow}>
                           <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                          <Text style={styles.payoutDetailLabel}>Processing Time:</Text>
-                          <Text style={styles.payoutDetailValue}>1-3 minutes</Text>
+                          <Text style={styles.payoutDetailLabel}>{i18nT('general.processingTime')}:</Text>
+                          <Text style={styles.payoutDetailValue}>{i18nT('general.oneToThreeMinutes')}</Text>
                         </View>
                       )}
                     </View>
@@ -768,7 +775,7 @@ export default function EarningsScreen({ onBack, onNavigateToPayment }: Earnings
             ) : (
               <View style={styles.emptyState}>
                 <Ionicons name="card-outline" size={64} color={Colors.text.secondary} />
-                <Text style={styles.emptyStateTitle}>No Payouts Yet</Text>
+                <Text style={styles.emptyStateTitle}>{i18nT('general.noPayoutsYet')}</Text>
                 <Text style={styles.emptyStateText}>
                   Complete trips and request payouts to see your payment history here.
                 </Text>

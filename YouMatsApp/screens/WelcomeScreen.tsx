@@ -134,8 +134,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             { opacity: taglineOpacity }
           ]}
         >
-          <Text style={styles.powerText}>Power YouMats</Text>
-          <Text style={styles.youMatsText}>Driver Portal</Text>
+          <Text style={styles.powerText}>{t('welcome.powerText')}</Text>
+          <Text style={styles.youMatsText}>{t('welcome.driverPortal')}</Text>
         </Animated.View>
       </View>
 

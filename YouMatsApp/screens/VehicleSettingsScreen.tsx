@@ -12,6 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 // Professional Blue Theme
 const theme = {
@@ -71,6 +72,7 @@ interface VehicleSettingsScreenProps {
 }
 
 export default function VehicleSettingsScreen({ vehicle, onBack, onVehicleUpdate }: VehicleSettingsScreenProps) {
+  const { t: i18nT } = useTranslation();
   const [settings, setSettings] = useState<VehicleSettings>({
     isAvailable: vehicle.is_available,
     autoAcceptTrips: false,
@@ -154,18 +156,18 @@ export default function VehicleSettingsScreen({ vehicle, onBack, onVehicleUpdate
 
   const handleRemoveVehicle = () => {
     Alert.alert(
-      'Remove Vehicle',
-      `Are you sure you want to remove ${vehicle.license_plate} from your fleet? This action cannot be undone.`,
+      i18nT('vehicle.remove_vehicle'),
+      i18nT('vehicle.remove_confirmation', { licensePlate: vehicle.license_plate }),
       [
         {
-          text: 'Cancel',
+          text: i18nT('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Remove',
+          text: i18nT('common.remove'),
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Vehicle Removed', 'Vehicle removal functionality will be implemented with backend API.');
+            Alert.alert(i18nT('vehicle.vehicle_removed'), i18nT('vehicle.removal_pending'));
             onBack();
           },
         },
@@ -175,9 +177,9 @@ export default function VehicleSettingsScreen({ vehicle, onBack, onVehicleUpdate
 
   const saveSettings = () => {
     Alert.alert(
-      'Settings Saved',
-      'Vehicle settings have been updated successfully.',
-      [{ text: 'OK', onPress: () => onBack() }]
+      i18nT('vehicle.settings_saved'),
+      i18nT('vehicle.settings_updated'),
+      [{ text: i18nT('common.ok'), onPress: () => onBack() }]
     );
   };
 

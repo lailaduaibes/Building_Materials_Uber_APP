@@ -14,6 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -91,6 +92,7 @@ interface VehicleDocumentsScreenProps {
 }
 
 export default function VehicleDocumentsScreen({ vehicle, onBack }: VehicleDocumentsScreenProps) {
+  const { t: i18nT } = useTranslation();
   const [documents, setDocuments] = useState<VehicleDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);

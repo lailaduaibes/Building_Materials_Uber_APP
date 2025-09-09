@@ -12,6 +12,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { driverService } from '../services/DriverService';
 import { responsive } from '../utils/ResponsiveUtils';
 import VehicleDocumentsScreen from './VehicleDocumentsScreen';
@@ -56,6 +57,7 @@ interface VehicleManagementScreenProps {
 }
 
 export default function VehicleManagementScreen({ onBack }: VehicleManagementScreenProps) {
+  const { t: i18nT } = useTranslation();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

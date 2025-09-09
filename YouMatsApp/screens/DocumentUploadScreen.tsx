@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import { useTranslation } from 'react-i18next';
 import { driverService } from '../services/DriverService'; // Use DriverService instead of direct Supabase
 import { useLanguage } from '../src/contexts/LanguageContext';
 
@@ -59,48 +60,6 @@ interface UploadedDocument {
   url: string;
 }
 
-const documentTypes: DocumentType[] = [
-  {
-    id: 'drivers_license',
-    title: "Driver's License",
-    description: 'Front and back of your valid driver\'s license',
-    required: true,
-    icon: 'card-outline',
-    accepted: ['image/jpeg', 'image/png', 'application/pdf']
-  },
-  {
-    id: 'vehicle_registration',
-    title: 'Vehicle Registration',
-    description: 'Current vehicle registration document',
-    required: true,
-    icon: 'car-outline',
-    accepted: ['image/jpeg', 'image/png', 'application/pdf']
-  },
-  {
-    id: 'insurance_certificate',
-    title: 'Insurance Certificate',
-    description: 'Valid vehicle insurance certificate',
-    required: true,
-    icon: 'shield-checkmark-outline',
-    accepted: ['image/jpeg', 'image/png', 'application/pdf']
-  },
-  {
-    id: 'profile_photo',
-    title: 'Profile Photo',
-    description: 'Clear photo for your driver profile',
-    required: true,
-    icon: 'person-outline',
-    accepted: ['image/jpeg', 'image/png']
-  },
-  {
-    id: 'vehicle_photo',
-    title: 'Vehicle Photo',
-    description: 'Photo of your delivery vehicle',
-    required: false,
-    icon: 'camera-outline',
-    accepted: ['image/jpeg', 'image/png']
-  }
-];
 
 export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
   driverId,
@@ -108,9 +67,54 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
   onBack,
 }) => {
   const { t } = useLanguage();
+  const { t: i18nT } = useTranslation();
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
   const [uploadingDocuments, setUploadingDocuments] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Translated document types
+  const getDocumentTypes = (): DocumentType[] => [
+    {
+      id: 'drivers_license',
+      title: t('documents.drivers_license'),
+      description: t('documents.drivers_license_desc'),
+      required: true,
+      icon: 'card-outline',
+      accepted: ['image/jpeg', 'image/png', 'application/pdf']
+    },
+    {
+      id: 'vehicle_registration',
+      title: t('documents.vehicle_registration'),
+      description: t('documents.vehicle_registration_desc'),
+      required: true,
+      icon: 'car-outline',
+      accepted: ['image/jpeg', 'image/png', 'application/pdf']
+    },
+    {
+      id: 'insurance_certificate',
+      title: t('documents.insurance_certificate'),
+      description: t('documents.insurance_certificate_desc'),
+      required: true,
+      icon: 'shield-checkmark-outline',
+      accepted: ['image/jpeg', 'image/png', 'application/pdf']
+    },
+    {
+      id: 'profile_photo',
+      title: t('documents.profile_photo'),
+      description: t('documents.profile_photo_desc'),
+      required: true,
+      icon: 'person-outline',
+      accepted: ['image/jpeg', 'image/png']
+    },
+    {
+      id: 'vehicle_photo',
+      title: t('documents.vehicle_photo'),
+      description: t('documents.vehicle_photo_desc'),
+      required: false,
+      icon: 'camera-outline',
+      accepted: ['image/jpeg', 'image/png']
+    }
+  ];
 
   useEffect(() => {
     loadExistingDocuments();
@@ -124,9 +128,9 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
       
       if (cameraStatus !== 'granted' || libraryStatus !== 'granted') {
         Alert.alert(
-          'Permissions Required',
-          'Camera and photo library access are required to upload documents.',
-          [{ text: 'OK' }]
+          t('documents.permissions_required'),
+          t('documents.camera_permissions_message'),
+          [{ text: t('common.ok') }]
         );
       }
     } catch (error) {
@@ -143,9 +147,9 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
       if (!authStatus.authenticated) {
         console.log('❌ User not authenticated for document loading:', authStatus.message);
         Alert.alert(
-          'Authentication Required', 
-          'You need to be logged in to access documents. Please log in again.',
-          [{ text: 'OK' }]
+          t('documents.authentication_required'), 
+          t('documents.login_required_message'),
+          [{ text: t('common.ok') }]
         );
         return;
       }
@@ -168,7 +172,7 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
       
     } catch (error) {
       console.error('Error loading documents:', error);
-      Alert.alert('Error', 'Failed to load existing documents');
+      Alert.alert(t('common.error'), t('documents.failed_to_load'));
     } finally {
       setLoading(false);
     }
@@ -176,13 +180,13 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
 
   const showDocumentOptions = (documentType: DocumentType) => {
     Alert.alert(
-      `Upload ${documentType.title}`,
-      'Choose how you want to upload this document',
+      t('documents.upload_document', { document: documentType.title }),
+      t('documents.choose_upload_method'),
       [
-        { text: 'Camera', onPress: () => openCamera(documentType) },
-        { text: 'Photo Library', onPress: () => openImagePicker(documentType) },
-        { text: 'Files', onPress: () => openDocumentPicker(documentType) },
-        { text: 'Cancel', style: 'cancel' }
+        { text: t('documents.camera'), onPress: () => openCamera(documentType) },
+        { text: t('documents.photo_library'), onPress: () => openImagePicker(documentType) },
+        { text: t('documents.files'), onPress: () => openDocumentPicker(documentType) },
+        { text: t('common.cancel'), style: 'cancel' }
       ]
     );
   };
@@ -201,7 +205,7 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
       }
     } catch (error) {
       console.error('Error opening camera:', error);
-      Alert.alert('Error', 'Failed to open camera');
+      Alert.alert(t('common.error'), t('documents.camera_error'));
     }
   };
 
@@ -219,7 +223,7 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
       }
     } catch (error) {
       console.error('Error opening image picker:', error);
-      Alert.alert('Error', 'Failed to open photo library');
+      Alert.alert(t('common.error'), t('documents.photo_library_error'));
     }
   };
 
@@ -235,7 +239,7 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
       }
     } catch (error) {
       console.error('Error opening document picker:', error);
-      Alert.alert('Error', 'Failed to open file picker');
+      Alert.alert(t('common.error'), t('documents.file_picker_error'));
     }
   };
 
@@ -247,9 +251,9 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
       const authStatus = await driverService.isAuthenticated();
       if (!authStatus.authenticated) {
         Alert.alert(
-          'Authentication Required', 
-          'You need to be logged in to upload documents. Please log in again.',
-          [{ text: 'OK' }]
+          t('documents.authentication_required'), 
+          t('documents.upload_login_required'),
+          [{ text: t('common.ok') }]
         );
         return;
       }
@@ -264,18 +268,18 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
 
       if (result.success) {
         Alert.alert(
-          'Success',
-          `${documentType.title} uploaded successfully and is pending review.`
+          t('common.success'),
+          t('documents.upload_success', { document: documentType.title })
         );
         // Refresh the documents list
         loadExistingDocuments();
       } else {
-        Alert.alert('Upload Failed', result.message || 'Failed to upload document. Please try again.');
+        Alert.alert(t('documents.upload_failed'), result.message || t('documents.upload_error'));
       }
 
     } catch (error) {
       console.error('Error uploading document:', error);
-      Alert.alert('Upload Failed', 'Failed to upload document. Please try again.');
+      Alert.alert(t('documents.upload_failed'), t('documents.upload_error'));
     } finally {
       setUploadingDocuments(prev => prev.filter(id => id !== documentType.id));
     }
@@ -283,12 +287,12 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
 
   const deleteDocument = async (documentId: string) => {
     Alert.alert(
-      'Delete Document',
-      'Are you sure you want to delete this document?',
+      t('documents.delete_document'),
+      t('documents.delete_confirmation'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -298,13 +302,13 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
                 setUploadedDocuments(prev => 
                   prev.filter(doc => doc.id !== documentId)
                 );
-                Alert.alert('Success', 'Document deleted successfully');
+                Alert.alert(t('common.success'), t('documents.delete_success'));
               } else {
-                Alert.alert('Error', 'Failed to delete document');
+                Alert.alert(t('common.error'), t('documents.delete_failed'));
               }
             } catch (error) {
               console.error('Error deleting document:', error);
-              Alert.alert('Error', 'Failed to delete document');
+              Alert.alert(t('common.error'), t('documents.delete_failed'));
             }
           }
         }
@@ -335,7 +339,7 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
   };
 
   const getRequiredDocumentsCount = () => {
-    const requiredTypes = documentTypes.filter(type => type.required);
+    const requiredTypes = getDocumentTypes().filter(type => type.required);
     const uploadedRequired = requiredTypes.filter(type => isDocumentUploaded(type.id));
     return { total: requiredTypes.length, uploaded: uploadedRequired.length };
   };
@@ -431,7 +435,7 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
                   onPress={() => deleteDocument(uploadedDoc.id)}
                 >
                   <Ionicons name="trash-outline" size={18} color={theme.error} />
-                  <Text style={styles.deleteButtonText}>Delete</Text>
+                  <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
                 </TouchableOpacity>
               )}
             </>
@@ -482,7 +486,7 @@ export const DocumentUploadScreen: React.FC<DocumentUploadScreenProps> = ({
             All documents will be reviewed by our team.
           </Text>
 
-          {documentTypes.map(renderDocumentType)}
+          {getDocumentTypes().map(renderDocumentType)}
         </ScrollView>
       )}
 

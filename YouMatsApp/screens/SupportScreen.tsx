@@ -589,12 +589,12 @@ export default function DriverSupportScreen({ onBack }: DriverSupportScreenProps
     console.log('selectedTicket:', selectedTicket?.id);
     
     if (!newComment.trim()) {
-      Alert.alert('Error', 'Please enter a comment');
+      Alert.alert(t('common.error'), t('support.enter_comment'));
       return;
     }
     
     if (!selectedTicket) {
-      Alert.alert('Error', 'No ticket selected');
+      Alert.alert(t('common.error'), t('support.no_ticket_selected'));
       return;
     }
 

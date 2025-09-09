@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '../theme/colors';
 import { bankAccountService, BankAccountFormData, BankAccount } from '../services/BankAccountService';
 import { stripeService } from '../services/StripeService';
@@ -37,6 +38,7 @@ const BankAccountSetupModal: React.FC<BankAccountSetupModalProps> = ({
   onSuccess,
   driverId,
 }) => {
+  const { t: i18nT } = useTranslation();
   const [formData, setFormData] = useState<BankAccountFormData>({
     bank_name: '',
     account_holder_name: '',

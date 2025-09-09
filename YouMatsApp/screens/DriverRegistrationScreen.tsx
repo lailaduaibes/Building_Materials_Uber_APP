@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { driverService } from '../services/DriverService';
 
 interface DriverRegistrationScreenProps {
@@ -25,6 +26,7 @@ export const DriverRegistrationScreen: React.FC<DriverRegistrationScreenProps> =
   onEmailVerificationRequired,
   onBackToLogin,
 }) => {
+  const { t: i18nT } = useTranslation();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -51,22 +53,22 @@ export const DriverRegistrationScreen: React.FC<DriverRegistrationScreenProps> =
     const { firstName, lastName, email, password, confirmPassword } = formData;
     
     if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert('Error', 'Please enter your full name');
+      Alert.alert(i18nT('common.error'), i18nT('registration.full_name_required'));
       return false;
     }
     
     if (!email.trim() || !email.includes('@')) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert(i18nT('common.error'), i18nT('registration.valid_email_required'));
       return false;
     }
     
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(i18nT('common.error'), i18nT('registration.password_min_length'));
       return false;
     }
     
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert(i18nT('common.error'), i18nT('registration.passwords_no_match'));
       return false;
     }
     
@@ -77,13 +79,13 @@ export const DriverRegistrationScreen: React.FC<DriverRegistrationScreenProps> =
     const { phone, yearsExperience } = formData;
     
     if (!phone.trim()) {
-      Alert.alert('Error', 'Please enter your phone number');
+      Alert.alert(i18nT('common.error'), i18nT('registration.phone_required'));
       return false;
     }
     
     const experience = parseInt(yearsExperience);
     if (isNaN(experience) || experience < 0) {
-      Alert.alert('Error', 'Please enter valid years of experience (0 or more)');
+      Alert.alert(i18nT('common.error'), i18nT('registration.valid_experience_required'));
       return false;
     }
     
@@ -128,11 +130,11 @@ export const DriverRegistrationScreen: React.FC<DriverRegistrationScreenProps> =
         if (!authStatus.authenticated) {
           // Email verification required - show verification screen
           Alert.alert(
-            'Check Your Email! 📧',
-            'We\'ve sent a verification code to your email address. Please verify your email to continue.',
+            i18nT('registration.check_email_title'),
+            i18nT('registration.check_email_message'),
             [
               {
-                text: 'Verify Email',
+                text: i18nT('registration.verify_email'),
                 onPress: () => onEmailVerificationRequired(formData.email.trim()),
               },
             ]
@@ -140,22 +142,22 @@ export const DriverRegistrationScreen: React.FC<DriverRegistrationScreenProps> =
         } else {
           // User is already authenticated - proceed to document upload
           Alert.alert(
-            'Registration Successful! 🎉',
-            'Your driver application has been submitted. Please upload your required documents.',
+            i18nT('registration.success_title'),
+            i18nT('registration.success_message'),
             [
               {
-                text: 'Continue',
+                text: i18nT('common.continue'),
                 onPress: () => onRegistrationComplete(true, result.message),
               },
             ]
           );
         }
       } else {
-        Alert.alert('Registration Failed', result.message);
+        Alert.alert(i18nT('registration.failed'), result.message);
       }
     } catch (error) {
       console.error('Registration error:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      Alert.alert(i18nT('common.error'), i18nT('registration.something_wrong'));
     } finally {
       setLoading(false);
     }
@@ -163,38 +165,38 @@ export const DriverRegistrationScreen: React.FC<DriverRegistrationScreenProps> =
 
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Account Information</Text>
+      <Text style={styles.stepTitle}>{i18nT('registration.account_information')}</Text>
       
       <View style={styles.row}>
         <View style={styles.halfInput}>
-          <Text style={styles.label}>First Name *</Text>
+          <Text style={styles.label}>{i18nT('registration.first_name')} *</Text>
           <TextInput
             style={styles.input}
             value={formData.firstName}
             onChangeText={(value) => updateField('firstName', value)}
-            placeholder="Enter first name"
+            placeholder={i18nT('registration.enter_first_name')}
             autoCapitalize="words"
           />
         </View>
         
         <View style={styles.halfInput}>
-          <Text style={styles.label}>Last Name *</Text>
+          <Text style={styles.label}>{i18nT('registration.last_name')} *</Text>
           <TextInput
             style={styles.input}
             value={formData.lastName}
             onChangeText={(value) => updateField('lastName', value)}
-            placeholder="Enter last name"
+            placeholder={i18nT('registration.enter_last_name')}
             autoCapitalize="words"
           />
         </View>
       </View>
 
-      <Text style={styles.label}>Email Address *</Text>
+      <Text style={styles.label}>{i18nT('registration.email_address')} *</Text>
       <TextInput
         style={styles.input}
         value={formData.email}
         onChangeText={(value) => updateField('email', value)}
-        placeholder="Enter email address"
+        placeholder={i18nT('registration.enter_email')}
         keyboardType="email-address"
         autoCapitalize="none"
       />

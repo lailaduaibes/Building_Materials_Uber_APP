@@ -326,7 +326,7 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('profile.personalInfo')}</Text>
-          <TouchableOpacity onPress={() => Alert.alert('Edit', 'Contact support to update personal information')}>
+          <TouchableOpacity onPress={() => Alert.alert(t('profile.edit'), t('profile.contact_support_to_update'))}>
             <Ionicons name="pencil" size={20} color={theme.primary} />
           </TouchableOpacity>
         </View>
@@ -489,8 +489,8 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                       <Ionicons name="information-circle" size={16} color={theme.primary} />
                       <Text style={styles.profileNoteText}>
                         {truck.truck_added_to_fleet 
-                          ? "Vehicle pending fleet assignment by admin"
-                          : "Contact admin to add this vehicle to fleet"
+                          ? t('profile.vehicle_pending_assignment')
+                          : t('profile.contact_admin_add_vehicle')
                         }
                       </Text>
                     </View>
@@ -598,32 +598,32 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
         onPress={() => setShowSupport(true)}
       >
         <Ionicons name="help-circle-outline" size={24} color={theme.primary} />
-        <Text style={styles.actionButtonText}>Help & Support</Text>
+        <Text style={styles.actionButtonText}>{t('profile.help_support')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
         style={styles.actionButton}
-        onPress={() => Alert.alert('Privacy', 'View privacy policy')}
+        onPress={() => Alert.alert(t('profile.privacy'), t('profile.view_privacy_policy'))}
       >
         <Ionicons name="shield-outline" size={24} color={theme.primary} />
-        <Text style={styles.actionButtonText}>Privacy Policy</Text>
+        <Text style={styles.actionButtonText}>{t('profile.privacy_policy')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
         style={[styles.actionButton, styles.logoutButton]}
         onPress={() => {
           Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
+            t('profile.logout'),
+            t('profile.are_you_sure_logout'),
             [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Logout', style: 'destructive', onPress: onLogout },
+              { text: t('common.cancel'), style: 'cancel' },
+              { text: t('profile.logout'), style: 'destructive', onPress: onLogout },
             ]
           );
         }}
       >
         <Ionicons name="log-out-outline" size={24} color={theme.error} />
-        <Text style={[styles.actionButtonText, { color: theme.error }]}>Logout</Text>
+        <Text style={[styles.actionButtonText, { color: theme.error }]}>{t('profile.logout')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -662,10 +662,10 @@ export default function DriverProfileScreen({ onBack, onLogout }: DriverProfileS
                   // Force image to re-render by updating refresh key
                   setImageRefreshKey(Date.now());
                   await loadDriverProfile();
-                  Alert.alert('Profile Refreshed', 'Your profile has been updated with the latest information');
+                  Alert.alert(t('profile.profile_refreshed'), t('profile.profile_updated_latest'));
                 } catch (error) {
                   console.error('❌ Error refreshing profile:', error);
-                  Alert.alert('Refresh Failed', 'Failed to refresh profile. Please try again.');
+                  Alert.alert(t('profile.refresh_failed'), t('profile.failed_to_refresh_try_again'));
                 }
               }}
               style={styles.refreshButton}
